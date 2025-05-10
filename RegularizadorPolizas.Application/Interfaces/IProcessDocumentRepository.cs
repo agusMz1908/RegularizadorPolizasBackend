@@ -1,7 +1,7 @@
 ﻿using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Domain.Entities;
 
-public interface IDocumentoProcesadoRepository : IGenericRepository<ProcessDocument>
+public interface IProcessDocumentRepository : IGenericRepository<ProcessDocument>
 {
     Task<IEnumerable<ProcessDocument>> GetDocumentosPorEstadoAsync(string estado);
     Task<IEnumerable<ProcessDocument>> GetDocumentosPorPolizaAsync(int polizaId);

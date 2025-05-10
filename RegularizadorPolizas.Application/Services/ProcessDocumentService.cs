@@ -11,18 +11,18 @@ namespace RegularizadorPolizas.Application.Services
 {
     public class ProcessDocumentService : IProcessDocumentService
     {
-        private readonly IProcessDocumentService _processDocumentRepository;
+        private readonly IProcessDocumentRepository _processDocumentRepository;
         private readonly IPolizaRepository _polizaRepository;
         private readonly IAzureDocumentIntelligenceService _documentIntelligenceService;
         private readonly IMapper _mapper;
 
         public ProcessDocumentService(
-            IProcessDocumentService documentoRepository,
+            IProcessDocumentRepository documentRepository,
             IPolizaRepository polizaRepository,
             IAzureDocumentIntelligenceService documentIntelligenceService,
             IMapper mapper)
         {
-            _processDocumentRepository = documentoRepository;
+            _processDocumentRepository = documentRepository;
             _polizaRepository = polizaRepository;
             _documentIntelligenceService = documentIntelligenceService;
             _mapper = mapper;
@@ -94,6 +94,16 @@ namespace RegularizadorPolizas.Application.Services
             resultado.DocumentoId = documentoGuardado.Id;
 
             return resultado;
+        }
+
+        Task<ProcessDocumentDto> IProcessDocumentService.GetDocumentProcessingResultAsync(int documentoId)
+        {
+            throw new NotImplementedException();
+        }
+
+        Task<ProcessDocumentDto> IProcessDocumentService.ProcessDocumentAsync(IFormFile file)
+        {
+            throw new NotImplementedException();
         }
     }
 }

@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RegularizadorPolizas.Application.Interfaces;
+using RegularizadorPolizas.Application.Services;
 using RegularizadorPolizas.Infrastructure.Data;
 using RegularizadorPolizas.Infrastructure.Data.Repositories;
 using RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence;
@@ -18,10 +19,10 @@ namespace RegularizadorPolizas.Infrastructure
                 options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
             services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
-            services.AddScoped<IClientRepository, ClientRepository>();
+            services.AddScoped<IClientRespository, ClientRepository>();
             services.AddScoped<IPolizaRepository, PolizaRepository>();
             services.AddScoped<IProcessDocumentRepository, ProcessDocumentRepository>();
-            services.AddScoped<IRenovationRepository, RenovationRepository>();
+            services.AddScoped<IRenovacionRepository, RenovationRepository>();
 
             services.AddScoped<IAzureDocumentIntelligenceService, AzureDocumentIntelligenceService>();
             services.AddScoped<IVelneoApiService, VelneoApiService>();

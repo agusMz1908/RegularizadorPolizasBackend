@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 
 namespace RegularizadorPolizas.Infrastructure.Data.Repositories
 {
-    public class DocumentoProcesadoRepository : GenericRepository<ProcessDocument>, IDocumentoProcesadoRepository
+    public class ProcessDocumentRepository : GenericRepository<ProcessDocument>, IProcessDocumentRepository
     {
-        public DocumentoProcesadoRepository(ApplicationDbContext context) : base(context)
+        public ProcessDocumentRepository(ApplicationDbContext context) : base(context)
         {
         }
 
