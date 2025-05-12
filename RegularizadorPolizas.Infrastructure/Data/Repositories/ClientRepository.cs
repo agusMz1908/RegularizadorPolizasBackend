@@ -1,11 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Domain.Entities;
-using RegularizadorPolizas.Infrastructure.Data;
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Threading.Tasks;
 
 namespace RegularizadorPolizas.Infrastructure.Data.Repositories
@@ -16,15 +13,15 @@ namespace RegularizadorPolizas.Infrastructure.Data.Repositories
         {
         }
 
-        public async Task<IEnumerable<Client>> GetClientesConPolizasAsync()
+        public async Task<IEnumerable<Client>> GetClientsWithPoliciesAsync()
         {
             return await _context.Clients
-                .Include(c => c.Polizas)
                 .Where(c => c.Activo)
+                .Include(c => c.Polizas.Where(p => p.Activo))
                 .ToListAsync();
         }
 
-        public async Task<Client> GetClienteByEmailAsync(string email)
+        public async Task<Client> GetClientByEmailAsync(string email)
         {
             if (string.IsNullOrWhiteSpace(email))
                 return null;
@@ -33,7 +30,7 @@ namespace RegularizadorPolizas.Infrastructure.Data.Repositories
                 .FirstOrDefaultAsync(c => c.Cliemail.ToLower() == email.ToLower() && c.Activo);
         }
 
-        public async Task<Client> GetClienteByDocumentoAsync(string documento)
+        public async Task<Client> GetClientByDocumentAsync(string documento)
         {
             if (string.IsNullOrWhiteSpace(documento))
                 return null;
@@ -48,18 +45,24 @@ namespace RegularizadorPolizas.Infrastructure.Data.Repositories
                     c.Activo);
         }
 
-        public async Task<Client> GetClienteConPolizasAsync(int id)
+        public async Task<Client> GetClientWithPoliciesAsync(int id)
         {
             return await _context.Clients
-                .Include(c => c.Polizas)
+                .Include(c => c.Polizas.Where(p => p.Activo))
                 .FirstOrDefaultAsync(c => c.Id == id && c.Activo);
         }
 
-        public new async Task<IEnumerable<Client>> FindAsync(Expression<Func<Client, bool>> predicate)
+        public override async Task<IEnumerable<Client>> FindAsync(System.Linq.Expressions.Expression<System.Func<Client, bool>> predicate)
         {
             return await _context.Clients
                 .Where(predicate)
                 .ToListAsync();
+        }
+
+        public override async Task<Client> GetByIdAsync(int id)
+        {
+            return await _context.Clients
+                .FirstOrDefaultAsync(c => c.Id == id && c.Activo);
         }
     }
 }

@@ -26,7 +26,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var clients = await _clientService.GetAllClientesAsync();
+                var clients = await _clientService.GetAllClientsAsync();
                 if (clients == null || !clients.Any())
                     return NotFound("No clients found");
 
@@ -34,6 +34,7 @@ namespace RegularizadorPolizas.API.Controllers
             }
             catch (Exception ex)
             {
+                // Log exception
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
@@ -46,7 +47,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var client = await _clientService.GetClienteByIdAsync(id);
+                var client = await _clientService.GetClientByIdAsync(id);
                 if (client == null)
                     return NotFound($"Client with ID {id} not found");
 
@@ -54,6 +55,7 @@ namespace RegularizadorPolizas.API.Controllers
             }
             catch (Exception ex)
             {
+                // Log exception
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
@@ -66,7 +68,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var clients = await _clientService.SearchClientesAsync(searchTerm);
+                var clients = await _clientService.SearchClientsAsync(searchTerm);
                 if (clients == null || !clients.Any())
                     return NotFound($"No clients found matching '{searchTerm}'");
 
@@ -74,21 +76,22 @@ namespace RegularizadorPolizas.API.Controllers
             }
             catch (Exception ex)
             {
+                // Log exception
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
 
-        [HttpGet("document/{documento}")]
+        [HttpGet("document/{document}")]
         [ProducesResponseType(typeof(ClientDto), 200)]
         [ProducesResponseType(404)]
         [ProducesResponseType(500)]
-        public async Task<ActionResult<ClientDto>> GetClientByDocument(string documento)
+        public async Task<ActionResult<ClientDto>> GetClientByDocument(string document)
         {
             try
             {
-                var client = await _clientService.GetClienteByDocumentoAsync(documento);
+                var client = await _clientService.GetClientByDocumentAsync(document);
                 if (client == null)
-                    return NotFound($"Client with document {documento} not found");
+                    return NotFound($"Client with document {document} not found");
 
                 return Ok(client);
             }
@@ -110,7 +113,7 @@ namespace RegularizadorPolizas.API.Controllers
                 if (clientDto == null)
                     return BadRequest("Client data is null");
 
-                var createdClient = await _clientService.CreateClienteAsync(clientDto);
+                var createdClient = await _clientService.CreateClientAsync(clientDto);
                 return CreatedAtAction(nameof(GetClientById), new { id = createdClient.Id }, createdClient);
             }
             catch (Exception ex)
@@ -135,11 +138,11 @@ namespace RegularizadorPolizas.API.Controllers
                 if (id != clientDto.Id)
                     return BadRequest("Client ID mismatch");
 
-                var existingClient = await _clientService.GetClienteByIdAsync(id);
+                var existingClient = await _clientService.GetClientByIdAsync(id);
                 if (existingClient == null)
                     return NotFound($"Client with ID {id} not found");
 
-                await _clientService.UpdateClienteAsync(clientDto);
+                await _clientService.UpdateClientAsync(clientDto);
                 return NoContent();
             }
             catch (Exception ex)
@@ -157,11 +160,11 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var existingClient = await _clientService.GetClienteByIdAsync(id);
+                var existingClient = await _clientService.GetClientByIdAsync(id);
                 if (existingClient == null)
                     return NotFound($"Client with ID {id} not found");
 
-                await _clientService.DeleteClienteAsync(id);
+                await _clientService.DeleteClientAsync(id);
                 return NoContent();
             }
             catch (Exception ex)

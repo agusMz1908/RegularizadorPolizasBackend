@@ -6,13 +6,13 @@ namespace RegularizadorPolizas.Application.Interfaces
 {
     public interface IClientService
     {
-        Task<IEnumerable<ClientDto>> GetAllClientesAsync();
-        Task<ClientDto> GetClienteByIdAsync(int id);
-        Task<ClientDto> CreateClienteAsync(ClientDto clientDto);
-        Task UpdateClienteAsync(ClientDto clientDto);
-        Task DeleteClienteAsync(int id);
-        Task<ClientDto> GetClienteByEmailAsync(string email);
-        Task<ClientDto> GetClienteByDocumentoAsync(string documento);
-        Task<IEnumerable<ClientDto>> SearchClientesAsync(string searchTerm);
+        Task<IEnumerable<ClientDto>> GetAllClientsAsync();
+        Task<ClientDto> GetClientByIdAsync(int id);
+        Task<ClientDto> CreateClientAsync(ClientDto clientDto);
+        Task UpdateClientAsync(ClientDto clientDto);
+        Task DeleteClientAsync(int id);
+        Task<ClientDto> GetClientByEmailAsync(string email);
+        Task<ClientDto> GetClientByDocumentAsync(string document);
+        Task<IEnumerable<ClientDto>> SearchClientsAsync(string searchTerm);
     }
 }

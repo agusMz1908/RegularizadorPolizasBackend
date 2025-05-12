@@ -4,10 +4,10 @@ using System.Threading.Tasks;
 
 namespace RegularizadorPolizas.Application.Interfaces
 {
-    public interface IRenovacionRepository : IGenericRepository<Renovation>
+    public interface IRenovationRepository : IGenericRepository<Renovation>
     {
-        Task<IEnumerable<Renovation>> GetRenovacionesPorEstadoAsync(string estado);
-        Task<IEnumerable<Renovation>> GetRenovacionesPorPolizaAsync(int polizaId);
-        Task<Renovation> GetRenovacionDetalladaAsync(int id);
+        Task<IEnumerable<Renovation>> GetRenovationsByStatusAsync(string status);
+        Task<IEnumerable<Renovation>> GetRenovationsByPolicyAsync(int polizaId);
+        Task<Renovation> GetRenovationWithDetailsAsync(int id);
     }
 }

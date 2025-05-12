@@ -25,13 +25,14 @@ namespace RegularizadorPolizas.Application.Services
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
         }
 
-        public async Task<ClientDto> CreateClienteAsync(ClientDto clientDto)
+        public async Task<ClientDto> CreateClientAsync(ClientDto clientDto)
         {
             try
             {
+                // Check if client already exists by documento/RUT
                 if (!string.IsNullOrEmpty(clientDto.Cliruc))
                 {
-                    var existingClient = await _clientRepository.GetClienteByDocumentoAsync(clientDto.Cliruc);
+                    var existingClient = await _clientRepository.GetClientByDocumentAsync(clientDto.Cliruc);
                     if (existingClient != null)
                     {
                         throw new ApplicationException($"A client with document {clientDto.Cliruc} already exists");
@@ -58,7 +59,7 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        public async Task DeleteClienteAsync(int id)
+        public async Task DeleteClientAsync(int id)
         {
             try
             {
@@ -68,6 +69,7 @@ namespace RegularizadorPolizas.Application.Services
                     throw new ApplicationException($"Client with ID {id} not found");
                 }
 
+                // Soft delete - just mark as inactive
                 client.Activo = false;
                 client.FechaModificacion = DateTime.Now;
 
@@ -79,7 +81,7 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        public async Task<IEnumerable<ClientDto>> GetAllClientesAsync()
+        public async Task<IEnumerable<ClientDto>> GetAllClientsAsync()
         {
             try
             {
@@ -93,11 +95,11 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        public async Task<ClientDto> GetClienteByDocumentoAsync(string documento)
+        public async Task<ClientDto> GetClientByDocumentAsync(string document)
         {
             try
             {
-                var client = await _clientRepository.GetClienteByDocumentoAsync(documento);
+                var client = await _clientRepository.GetClientByDocumentAsync(document);
                 return _mapper.Map<ClientDto>(client);
             }
             catch (Exception ex)
@@ -106,11 +108,11 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        public async Task<ClientDto> GetClienteByEmailAsync(string email)
+        public async Task<ClientDto> GetClientByEmailAsync(string email)
         {
             try
             {
-                var client = await _clientRepository.GetClienteByEmailAsync(email);
+                var client = await _clientRepository.GetClientByEmailAsync(email);
                 return _mapper.Map<ClientDto>(client);
             }
             catch (Exception ex)
@@ -119,17 +121,20 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        public async Task<ClientDto> GetClienteByIdAsync(int id)
+        public async Task<ClientDto> GetClientByIdAsync(int id)
         {
             try
             {
-                var client = await _clientRepository.GetClienteConPolizasAsync(id);
+                // First try to get from local database
+                var client = await _clientRepository.GetClientWithPoliciesAsync(id);
 
+                // If not found in local database, try to get from Velneo API
                 if (client == null)
                 {
                     var clientDto = await _velneoApiService.GetClientAsync(id);
                     if (clientDto != null)
                     {
+                        // Save client from API to local database for future use
                         client = _mapper.Map<Client>(clientDto);
                         client.FechaCreacion = DateTime.Now;
                         client.FechaModificacion = DateTime.Now;
@@ -149,17 +154,19 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        public async Task<IEnumerable<ClientDto>> SearchClientesAsync(string searchTerm)
+        public async Task<IEnumerable<ClientDto>> SearchClientsAsync(string searchTerm)
         {
             try
             {
                 if (string.IsNullOrWhiteSpace(searchTerm))
                 {
-                    return await GetAllClientesAsync();
+                    return await GetAllClientsAsync();
                 }
 
+                // Normalize search term
                 var normalizedSearchTerm = searchTerm.Trim().ToLower();
 
+                // Search in local database
                 var clients = await _clientRepository.FindAsync(c =>
                     c.Activo && (
                         (c.Clinom != null && c.Clinom.ToLower().Contains(normalizedSearchTerm)) ||
@@ -177,7 +184,7 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        public async Task UpdateClienteAsync(ClientDto clientDto)
+        public async Task UpdateClientAsync(ClientDto clientDto)
         {
             try
             {
@@ -186,12 +193,14 @@ namespace RegularizadorPolizas.Application.Services
                     throw new ArgumentNullException(nameof(clientDto));
                 }
 
+                // Get existing client
                 var existingClient = await _clientRepository.GetByIdAsync(clientDto.Id);
                 if (existingClient == null)
                 {
                     throw new ApplicationException($"Client with ID {clientDto.Id} not found");
                 }
 
+                // Update properties but preserve some
                 var updatedClient = _mapper.Map<Client>(clientDto);
                 updatedClient.FechaCreacion = existingClient.FechaCreacion;
                 updatedClient.FechaModificacion = DateTime.Now;

@@ -10,16 +10,16 @@ namespace RegularizadorPolizas.Application.Services
 {
     public class RenovationService : IRenovationService
     {
-        private readonly IRenovacionRepository _renovacionRepository;
+        private readonly IRenovationRepository _renovationRepository;
         private readonly IPolizaRepository _polizaRepository;
         private readonly IMapper _mapper;
 
         public RenovationService(
-            IRenovacionRepository renovacionRepository,
+            IRenovationRepository renovationRepository,
             IPolizaRepository polizaRepository,
             IMapper mapper)
         {
-            _renovacionRepository = renovacionRepository ?? throw new ArgumentNullException(nameof(renovacionRepository));
+            _renovationRepository = renovationRepository ?? throw new ArgumentNullException(nameof(renovationRepository));
             _polizaRepository = polizaRepository ?? throw new ArgumentNullException(nameof(polizaRepository));
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
         }
@@ -28,7 +28,7 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
-                var renovation = await _renovacionRepository.GetByIdAsync(renovationId);
+                var renovation = await _renovationRepository.GetByIdAsync(renovationId);
                 if (renovation == null)
                 {
                     throw new ApplicationException($"Renovation with ID {renovationId} not found");
@@ -45,7 +45,7 @@ namespace RegularizadorPolizas.Application.Services
                     : $"{renovation.Observaciones}\nCancelada: {reason}";
                 renovation.FechaModificacion = DateTime.Now;
 
-                await _renovacionRepository.UpdateAsync(renovation);
+                await _renovationRepository.UpdateAsync(renovation);
             }
             catch (Exception ex)
             {
@@ -73,13 +73,14 @@ namespace RegularizadorPolizas.Application.Services
                 renovation.FechaModificacion = DateTime.Now;
 
                 // Save to database
-                var createdRenovation = await _renovacionRepository.AddAsync(renovation);
+                var createdRenovation = await _renovationRepository.AddAsync(renovation);
 
                 // Return mapped DTO
                 return _mapper.Map<RenovationDto>(createdRenovation);
             }
             catch (Exception ex)
             {
+                // Log exception
                 throw new ApplicationException($"Error creating renovation: {ex.Message}", ex);
             }
         }
@@ -88,11 +89,12 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
-                var renovations = await _renovacionRepository.GetAllAsync();
+                var renovations = await _renovationRepository.GetAllAsync();
                 return _mapper.Map<IEnumerable<RenovationDto>>(renovations);
             }
             catch (Exception ex)
             {
+                // Log exception
                 throw new ApplicationException($"Error retrieving renovations: {ex.Message}", ex);
             }
         }
@@ -101,11 +103,12 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
-                var renovation = await _renovacionRepository.GetRenovacionDetalladaAsync(id);
+                var renovation = await _renovationRepository.GetRenovationWithDetailsAsync(id);
                 return _mapper.Map<RenovationDto>(renovation);
             }
             catch (Exception ex)
             {
+                // Log exception
                 throw new ApplicationException($"Error retrieving renovation with ID {id}: {ex.Message}", ex);
             }
         }
@@ -114,11 +117,12 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
-                var renovations = await _renovacionRepository.GetRenovacionesPorPolizaAsync(polizaId);
+                var renovations = await _renovationRepository.GetRenovationsByPolicyAsync(polizaId);
                 return _mapper.Map<IEnumerable<RenovationDto>>(renovations);
             }
             catch (Exception ex)
             {
+                // Log exception
                 throw new ApplicationException($"Error retrieving renovations for policy {polizaId}: {ex.Message}", ex);
             }
         }
@@ -127,11 +131,12 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
-                var renovations = await _renovacionRepository.GetRenovacionesPorEstadoAsync(status);
+                var renovations = await _renovationRepository.GetRenovationsByStatusAsync(status);
                 return _mapper.Map<IEnumerable<RenovationDto>>(renovations);
             }
             catch (Exception ex)
             {
+                // Log exception
                 throw new ApplicationException($"Error retrieving renovations with status {status}: {ex.Message}", ex);
             }
         }
@@ -140,7 +145,8 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
-                var renovation = await _renovacionRepository.GetRenovacionDetalladaAsync(renovationId);
+                // Get renovation with details
+                var renovation = await _renovationRepository.GetRenovationWithDetailsAsync(renovationId);
                 if (renovation == null)
                 {
                     throw new ApplicationException($"Renovation with ID {renovationId} not found");
@@ -169,7 +175,7 @@ namespace RegularizadorPolizas.Application.Services
                     Clinro = originalPolicy.Clinro,
                     Comcod = originalPolicy.Comcod,
                     Seccod = originalPolicy.Seccod,
-                    Conpol = $"{originalPolicy.Conpol}-R",
+                    Conpol = $"{originalPolicy.Conpol}-R", // Add suffix to indicate renewal
                     Conmaraut = originalPolicy.Conmaraut,
                     Conanioaut = originalPolicy.Conanioaut,
                     Conmataut = originalPolicy.Conmataut,
@@ -180,10 +186,10 @@ namespace RegularizadorPolizas.Application.Services
                     Moncod = originalPolicy.Moncod,
                     Concuo = originalPolicy.Concuo,
                     Concomcorr = originalPolicy.Concomcorr,
-                    Conpadre = originalPolicy.Id,
+                    Conpadre = originalPolicy.Id, // Reference to original policy
                     Ramo = originalPolicy.Ramo,
                     Com_alias = originalPolicy.Com_alias,
-                    Convig = "1",
+                    Convig = "1", // Active status
                     // Set new validity dates
                     Confchdes = DateTime.Now,
                     Confchhas = DateTime.Now.AddYears(1), // Default 1 year validity
@@ -201,13 +207,14 @@ namespace RegularizadorPolizas.Application.Services
                 renovation.Estado = "COMPLETADA";
                 renovation.FechaModificacion = DateTime.Now;
 
-                await _renovacionRepository.UpdateAsync(renovation);
+                await _renovationRepository.UpdateAsync(renovation);
 
                 // Return the created policy DTO
                 return _mapper.Map<PolizaDto>(polizaCreada);
             }
             catch (Exception ex)
             {
+                // Log exception
                 throw new ApplicationException($"Error processing renovation: {ex.Message}", ex);
             }
         }
@@ -222,7 +229,7 @@ namespace RegularizadorPolizas.Application.Services
                 }
 
                 // Get existing renovation
-                var existingRenovation = await _renovacionRepository.GetByIdAsync(renovationDto.Id);
+                var existingRenovation = await _renovationRepository.GetByIdAsync(renovationDto.Id);
                 if (existingRenovation == null)
                 {
                     throw new ApplicationException($"Renovation with ID {renovationDto.Id} not found");
@@ -240,10 +247,11 @@ namespace RegularizadorPolizas.Application.Services
                 updatedRenovation.FechaSolicitud = existingRenovation.FechaSolicitud;
                 updatedRenovation.FechaModificacion = DateTime.Now;
 
-                await _renovacionRepository.UpdateAsync(updatedRenovation);
+                await _renovationRepository.UpdateAsync(updatedRenovation);
             }
             catch (Exception ex)
             {
+                // Log exception
                 throw new ApplicationException($"Error updating renovation: {ex.Message}", ex);
             }
         }

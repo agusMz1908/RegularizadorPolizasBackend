@@ -7,23 +7,23 @@ using System.Threading.Tasks;
 
 namespace RegularizadorPolizas.Infrastructure.Data.Repositories
 {
-    public class RenovacionRepository : GenericRepository<Renovation>, IRenovacionRepository
+    public class RenovationRepository : GenericRepository<Renovation>, IRenovationRepository
     {
-        public RenovacionRepository(ApplicationDbContext context) : base(context)
+        public RenovationRepository(ApplicationDbContext context) : base(context)
         {
         }
 
-        public async Task<IEnumerable<Renovation>> GetRenovacionesPorEstadoAsync(string estado)
+        public async Task<IEnumerable<Renovation>> GetRenovationsByStatusAsync(string status)
         {
             return await _context.Renovations
-                .Where(r => r.Estado == estado)
+                .Where(r => r.Estado == status)
                 .Include(r => r.PolizaOriginal)
                 .Include(r => r.PolizaNueva)
                 .Include(r => r.User)
                 .ToListAsync();
         }
 
-        public async Task<IEnumerable<Renovation>> GetRenovacionesPorPolizaAsync(int polizaId)
+        public async Task<IEnumerable<Renovation>> GetRenovationsByPolicyAsync(int polizaId)
         {
             return await _context.Renovations
                 .Where(r => r.PolizaId == polizaId || r.PolizaNuevaId == polizaId)
@@ -33,7 +33,7 @@ namespace RegularizadorPolizas.Infrastructure.Data.Repositories
                 .ToListAsync();
         }
 
-        public async Task<Renovation> GetRenovacionDetalladaAsync(int id)
+        public async Task<Renovation> GetRenovationWithDetailsAsync(int id)
         {
             return await _context.Renovations
                 .Include(r => r.PolizaOriginal)
