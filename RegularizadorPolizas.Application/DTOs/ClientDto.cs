@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace RegularizadorPolizas.Application.DTOs
+﻿namespace RegularizadorPolizas.Application.DTOs
 {
     public class ClientDto
     {

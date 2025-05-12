@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace RegularizadorPolizas.Application.DTOs
+﻿namespace RegularizadorPolizas.Application.DTOs
 {
     public class ProcessDocumentDto
     {

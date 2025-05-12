@@ -6,7 +6,6 @@ using RegularizadorPolizas.Infrastructure.Data;
 using RegularizadorPolizas.Infrastructure.Data.Repositories;
 using RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence;
 using RegularizadorPolizas.Infrastructure.External.VelneoAPI;
-using System;
 
 namespace RegularizadorPolizas.Infrastructure
 {

@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.13.35806.99
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RegularizadorPolizasBackend", "RegularizadorPolizasBackend\RegularizadorPolizasBackend.csproj", "{7668346D-B9EB-46EE-B0B6-0382D880531F}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RegularizadorPolizas.Domain", "RegularizadorPolizas.Domain\RegularizadorPolizas.Domain.csproj", "{B52683D9-BBF0-4551-9A96-3EA42861FF78}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RegularizadorPolizas.Application", "RegularizadorPolizas.Application\RegularizadorPolizas.Application.csproj", "{CC2C2CC4-A2EF-42E7-9B58-4B64ACDA5267}"
@@ -19,10 +17,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{7668346D-B9EB-46EE-B0B6-0382D880531F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7668346D-B9EB-46EE-B0B6-0382D880531F}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{7668346D-B9EB-46EE-B0B6-0382D880531F}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{7668346D-B9EB-46EE-B0B6-0382D880531F}.Release|Any CPU.Build.0 = Release|Any CPU
 		{B52683D9-BBF0-4551-9A96-3EA42861FF78}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{B52683D9-BBF0-4551-9A96-3EA42861FF78}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B52683D9-BBF0-4551-9A96-3EA42861FF78}.Release|Any CPU.ActiveCfg = Release|Any CPU

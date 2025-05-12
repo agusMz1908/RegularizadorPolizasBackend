@@ -2,12 +2,9 @@
 using Microsoft.IdentityModel.Tokens;
 using RegularizadorPolizas.Application.DTOs.Auth;
 using RegularizadorPolizas.Application.Interfaces;
-using System;
-using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace RegularizadorPolizas.Application.Services
 {
@@ -24,7 +21,7 @@ namespace RegularizadorPolizas.Application.Services
 
         public async Task<AuthResultDto> Login(LoginDto loginDto)
         {
-            var cliente = await _clientRepository.GetClienteByEmailAsync(loginDto.Username);
+            var cliente = await _clientRepository.GetClientByEmailAsync(loginDto.Username);
 
             if (cliente == null || cliente.Password != loginDto.Password)
             {

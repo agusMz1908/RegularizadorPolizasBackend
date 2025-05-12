@@ -29,7 +29,7 @@ namespace RegularizadorPolizas.Application.Mappings
                 .ReverseMap();
 
             // Mapeo Renovacion <-> RenovacionDto
-            CreateMap<Renovation, RenovacionDto>()
+            CreateMap<Renovation, RenovationDto>()
                 .ForMember(dest => dest.NombrePoliza, opt => opt.MapFrom(src =>
                     src.PolizaOriginal != null ? $"{src.PolizaOriginal.Conpol} - {src.PolizaOriginal.Conmaraut}" : null))
                 .ForMember(dest => dest.NombreUsuario, opt => opt.MapFrom(src =>
