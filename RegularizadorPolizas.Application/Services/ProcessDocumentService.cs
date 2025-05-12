@@ -24,10 +24,10 @@ namespace RegularizadorPolizas.Application.Services
             IAzureDocumentIntelligenceService documentIntelligenceService,
             IMapper mapper)
         {
-            _processDocumentRepository = processDocumentRepository ?? throw new ArgumentNullException(nameof(processDocumentRepository));
-            _polizaRepository = polizaRepository ?? throw new ArgumentNullException(nameof(polizaRepository));
-            _documentIntelligenceService = documentIntelligenceService ?? throw new ArgumentNullException(nameof(documentIntelligenceService));
-            _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
+            _processDocumentRepository = processDocumentRepository;
+            _polizaRepository = polizaRepository;
+            _documentIntelligenceService = documentIntelligenceService;
+            _mapper = mapper;
         }
 
         public async Task<PolizaDto> ExtractPolizaFromDocumentAsync(int documentId)
