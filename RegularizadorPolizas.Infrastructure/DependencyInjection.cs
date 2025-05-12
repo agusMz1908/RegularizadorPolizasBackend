@@ -17,25 +17,33 @@ namespace RegularizadorPolizas.Infrastructure
             // Database
             var connectionString = configuration.GetConnectionString("DefaultConnection");
             services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+                options.UseMySql(
+                    connectionString,
+                    ServerVersion.AutoDetect(connectionString),
+                    mySqlOptions => mySqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 5,
+                        maxRetryDelay: TimeSpan.FromSeconds(30),
+                        errorNumbersToAdd: null
+                    )
+                ));
 
             // Repositories
             services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
             services.AddScoped<IClientRepository, ClientRepository>();
             services.AddScoped<IPolizaRepository, PolizaRepository>();
             services.AddScoped<IProcessDocumentRepository, ProcessDocumentRepository>();
-            services.AddScoped<IRenovacionRepository, RenovationRepository>();
+            services.AddScoped<IRenovationRepository, RenovationRepository>();
 
             // External services
             services.AddScoped<IAzureDocumentIntelligenceService, AzureDocumentIntelligenceService>();
             services.AddScoped<IVelneoApiService, VelneoApiService>();
 
             // HttpClient configuration for Velneo API
-            services.AddHttpClient<IVelneoApiService, VelneoApiService>(client =>
-            {
-                client.BaseAddress = new Uri(configuration["VelneoAPI:BaseUrl"]);
-                client.DefaultRequestHeaders.Add("Accept", "application/json");
-            });
+            //services.AddHttpClient<IVelneoApiService, VelneoApiService>(client =>
+            //{
+            //    client.BaseAddress = new Uri(configuration["VelneoAPI:BaseUrl"]);
+            //    client.DefaultRequestHeaders.Add("Accept", "application/json");
+            //});
 
             return services;
         }

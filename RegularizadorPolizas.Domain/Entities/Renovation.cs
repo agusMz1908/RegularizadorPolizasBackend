@@ -1,6 +1,4 @@
-﻿using RegularizadorPolizas.Domain.Entities;
-using System;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace RegularizadorPolizas.Domain.Entities
