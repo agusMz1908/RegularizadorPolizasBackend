@@ -14,12 +14,14 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 
         public VelneoApiService(HttpClient httpClient, IConfiguration configuration)
         {
-            _httpClient = httpClient;
-            _baseUrl = configuration["VelneoAPI:BaseUrl"];
-            _apiKey = configuration["VelneoAPI:ApiKey"];
+            _httpClient = httpClient ?? new HttpClient(); // Usa un cliente por defecto si no se proporciona uno
+            _baseUrl = configuration?["VelneoAPI:BaseUrl"] ?? "https://api.velneo.com"; // Valor por defecto
+            _apiKey = configuration?["VelneoAPI:ApiKey"] ?? "your-api-key-here"; // Valor por defecto
 
-            _httpClient.DefaultRequestHeaders.Accept.Clear();
-            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            if (_httpClient.DefaultRequestHeaders.Accept.Count == 0)
+            {
+                _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            }
         }
 
         public async Task<ClientDto> GetClientAsync(int id)

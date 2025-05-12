@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.Extensions.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RegularizadorPolizas.Application.Interfaces;
@@ -35,14 +36,13 @@ namespace RegularizadorPolizas.Infrastructure
 
             // External services
             services.AddScoped<IAzureDocumentIntelligenceService, AzureDocumentIntelligenceService>();
-            services.AddScoped<IVelneoApiService, VelneoApiService>();
 
-            // HttpClient configuration for Velneo API
-            //services.AddHttpClient<IVelneoApiService, VelneoApiService>(client =>
-            //{
-            //    client.BaseAddress = new Uri(configuration["VelneoAPI:BaseUrl"]);
-            //    client.DefaultRequestHeaders.Add("Accept", "application/json");
-            //});
+            // HttpClient registration - IMPORTANTE
+            services.AddHttpClient<IVelneoApiService, VelneoApiService>(client =>
+            {
+                client.BaseAddress = new Uri(configuration["VelneoAPI:BaseUrl"] ?? "https://api.velneo.com");
+                client.DefaultRequestHeaders.Add("Accept", "application/json");
+            });
 
             return services;
         }
