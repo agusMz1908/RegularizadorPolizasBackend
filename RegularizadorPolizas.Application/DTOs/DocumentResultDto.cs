@@ -1,6 +1,6 @@
 ﻿namespace RegularizadorPolizas.Application.DTOs
 {
-    public class DocumentResutDto
+    public class DocumentResultDto
     {
         public int DocumentoId { get; set; }
         public string NombreArchivo { get; set; }
@@ -11,7 +11,7 @@
         public string MensajeError { get; set; }
 
         // Constructor
-        public DocumentoResultadoDto()
+        public DocumentResultDto()
         {
             CamposExtraidos = new Dictionary<string, string>();
         }

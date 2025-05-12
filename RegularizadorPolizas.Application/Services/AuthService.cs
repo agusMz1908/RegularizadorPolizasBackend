@@ -13,18 +13,18 @@ namespace RegularizadorPolizas.Application.Services
 {
     public class AuthService : IAuthService
     {
-        private readonly IClienteRepository _clienteRepository;
+        private readonly IClientRepository _clientRepository;
         private readonly IConfiguration _configuration;
 
-        public AuthService(IClienteRepository clienteRepository, IConfiguration configuration)
+        public AuthService(IClientRepository clientRepository, IConfiguration configuration)
         {
-            _clienteRepository = clienteRepository;
+            _clientRepository = clientRepository;
             _configuration = configuration;
         }
 
         public async Task<AuthResultDto> Login(LoginDto loginDto)
         {
-            var cliente = await _clienteRepository.GetClienteByEmailAsync(loginDto.Username);
+            var cliente = await _clientRepository.GetClienteByEmailAsync(loginDto.Username);
 
             if (cliente == null || cliente.Password != loginDto.Password) // En producción usar hash seguro
             {

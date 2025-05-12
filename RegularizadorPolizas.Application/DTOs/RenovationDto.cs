@@ -1,6 +1,6 @@
 ﻿namespace RegularizadorPolizas.Application.DTOs
 {
-    public class RenovacionDto // Renombrado de RenovationDto a RenovacionDto para mantener consistencia
+    public class RenovationDto // Renombrado de RenovationDto a RenovacionDto para mantener consistencia
     {
         public int Id { get; set; }
         public int PolizaId { get; set; }

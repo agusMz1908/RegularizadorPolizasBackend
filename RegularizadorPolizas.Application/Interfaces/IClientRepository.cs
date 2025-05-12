@@ -4,11 +4,7 @@ using System.Threading.Tasks;
 
 namespace RegularizadorPolizas.Application.Interfaces
 {
-    public interface IClientRespository : IGenericRepository<Client>
+    public interface IClientRepository : IGenericRepository<Client>
     {
-        Task<IEnumerable<Client>> GetClientesConPolizasAsync();
-        Task<Client> GetClienteByEmailAsync(string email);
-        Task<Client> GetClienteByDocumentoAsync(string documento);
-        Task<Client> GetClienteConPolizasAsync(int id);
     }
 }

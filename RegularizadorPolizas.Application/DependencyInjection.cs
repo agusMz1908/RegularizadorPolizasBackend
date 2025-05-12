@@ -11,7 +11,7 @@ namespace RegularizadorPolizas.Application
             // Registrar servicios
             services.AddScoped<IClientService, ClientService>();
             services.AddScoped<IPolizaService, PolizaService>();
-            services.AddScoped<IProcessDocumentRepository, ProcessDocumentService>();
+            services.AddScoped<IProcessDocumentService, ProcessDocumentService>();
             services.AddScoped<IAuthService, AuthService>();
 
             return services;
