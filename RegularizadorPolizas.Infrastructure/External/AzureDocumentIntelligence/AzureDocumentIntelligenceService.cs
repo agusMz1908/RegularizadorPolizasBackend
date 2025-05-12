@@ -30,11 +30,11 @@ namespace RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence
                 new AzureKeyCredential(_apiKey));
         }
 
-        public async Task<DocumentResutDto> ProcessDocumentAsync(IFormFile file)
+        public async Task<DocumentResultDto> ProcessDocumentAsync(IFormFile file)
         {
             if (file == null || file.Length == 0)
             {
-                return new DocumentResutDto
+                return new DocumentResultDto
                 {
                     EstadoProcesamiento = "ERROR",
                     MensajeError = "El archivo está vacío o no se ha proporcionado."
@@ -60,7 +60,7 @@ namespace RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence
                     }
                 }
 
-                return new DocumentResutDto
+                return new DocumentResultDto
                 {
                     NombreArchivo = file.FileName,
                     EstadoProcesamiento = "PROCESADO",
@@ -71,7 +71,7 @@ namespace RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence
             }
             catch (Exception ex)
             {
-                return new DocumentResutDto
+                return new DocumentResultDto
                 {
                     NombreArchivo = file.FileName,
                     EstadoProcesamiento = "ERROR",
@@ -80,7 +80,7 @@ namespace RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence
             }
         }
 
-        public PolizaDto MapDocumentToPoliza(DocumentResutDto documento)
+        public PolizaDto MapDocumentToPoliza(DocumentResultDto documento)
         {
             if (documento == null || documento.CamposExtraidos == null || documento.CamposExtraidos.Count == 0)
             {
@@ -90,8 +90,6 @@ namespace RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence
             var poliza = new PolizaDto();
             var campos = documento.CamposExtraidos;
 
-            // Intentar mapear los campos extraídos a la póliza
-            // Este mapeo puede variar dependiendo de la estructura del documento y los campos extraídos
             if (campos.TryGetValue("NumeroPóliza", out var numeroPóliza))
                 poliza.Conpol = numeroPóliza;
 
@@ -127,8 +125,6 @@ namespace RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence
 
             if (campos.TryGetValue("Ramo", out var ramo))
                 poliza.Ramo = ramo;
-
-            // Otros campos según se necesite...
 
             return poliza;
         }

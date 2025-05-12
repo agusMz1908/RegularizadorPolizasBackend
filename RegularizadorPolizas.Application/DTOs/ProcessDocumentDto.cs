@@ -1,6 +1,8 @@
-﻿namespace RegularizadorPolizas.Application.DTOs
+﻿using System;
+
+namespace RegularizadorPolizas.Application.DTOs
 {
-    public class ProcessDocumentDto // Renombrado de ProcessDocumentDto para mantener consistencia
+    public class ProcessDocumentDto
     {
         public int Id { get; set; }
         public string NombreArchivo { get; set; }
@@ -12,16 +14,15 @@
         public DateTime? FechaProcesamiento { get; set; }
         public int? UsuarioId { get; set; }
 
-        // Propiedades adicionales
-        public string UsuarioNombre { get; set; } // Nombre del usuario que procesó el documento
-        public string PolizaNumero { get; set; } // Número de la póliza asociada (si existe)
-        public decimal? TamanoArchivo { get; set; } // Tamaño del archivo en KB
-        public string Extension { get; set; } // Extensión del archivo (PDF, JPG, etc.)
-        public string MensajeError { get; set; } // Mensaje de error si hubo problemas en el procesamiento
+        // Navigation properties
+        public string UsuarioNombre { get; set; }
+        public string PolizaNumero { get; set; }
+        public decimal? TamanoArchivo { get; set; }
+        public string Extension { get; set; }
+        public string MensajeError { get; set; }
 
-        // Propiedades para la aplicación
-        public bool Activo { get; set; } = true;
-        public DateTime FechaCreacion { get; set; } = DateTime.Now;
-        public DateTime FechaModificacion { get; set; } = DateTime.Now;
+        // Application properties
+        public DateTime FechaCreacion { get; set; }
+        public DateTime FechaModificacion { get; set; }
     }
 }

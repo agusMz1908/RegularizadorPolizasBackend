@@ -6,7 +6,7 @@ namespace RegularizadorPolizas.Application.Interfaces
 {
     public interface IAzureDocumentIntelligenceService
     {
-        Task<DocumentResutDto> ProcessDocumentAsync(IFormFile file);
-        PolizaDto MapDocumentToPoliza(DocumentResutDto documento);
+        Task<DocumentResultDto> ProcessDocumentAsync(IFormFile file);
+        PolizaDto MapDocumentToPoliza(DocumentResultDto documento);
     }
 }

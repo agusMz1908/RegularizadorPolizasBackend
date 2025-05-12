@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Application.Services;
+using System.Reflection;
 
 namespace RegularizadorPolizas.Application
 {
@@ -8,11 +9,15 @@ namespace RegularizadorPolizas.Application
     {
         public static IServiceCollection AddApplication(this IServiceCollection services)
         {
-            // Registrar servicios
+            // Register services
             services.AddScoped<IClientService, ClientService>();
             services.AddScoped<IPolizaService, PolizaService>();
             services.AddScoped<IProcessDocumentService, ProcessDocumentService>();
+            services.AddScoped<IRenovationService, RenovationService>();
             services.AddScoped<IAuthService, AuthService>();
+
+            // Register AutoMapper
+            services.AddAutoMapper(Assembly.GetExecutingAssembly());
 
             return services;
         }

@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 
 namespace RegularizadorPolizas.Infrastructure.Data.Repositories
 {
-    public class RenovationRepository : GenericRepository<Renovation>, IRenovacionRepository
+    public class RenovacionRepository : GenericRepository<Renovation>, IRenovacionRepository
     {
-        public RenovationRepository(ApplicationDbContext context) : base(context)
+        public RenovacionRepository(ApplicationDbContext context) : base(context)
         {
         }
 

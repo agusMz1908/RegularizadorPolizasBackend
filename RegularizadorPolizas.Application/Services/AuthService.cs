@@ -26,9 +26,9 @@ namespace RegularizadorPolizas.Application.Services
         {
             var cliente = await _clientRepository.GetClienteByEmailAsync(loginDto.Username);
 
-            if (cliente == null || cliente.Password != loginDto.Password) // En producción usar hash seguro
+            if (cliente == null || cliente.Password != loginDto.Password)
             {
-                return null; // Autenticación fallida
+                return null;
             }
 
             // Generar token JWT

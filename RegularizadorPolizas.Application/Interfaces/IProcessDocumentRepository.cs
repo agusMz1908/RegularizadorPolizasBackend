@@ -1,6 +1,13 @@
-﻿using RegularizadorPolizas.Application.Interfaces;
-using RegularizadorPolizas.Domain.Entities;
+﻿using RegularizadorPolizas.Domain.Entities;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
-public interface IProcessDocumentRepository : IGenericRepository<ProcessDocument>
+namespace RegularizadorPolizas.Application.Interfaces
 {
+    public interface IProcessDocumentRepository : IGenericRepository<ProcessDocument>
+    {
+        Task<IEnumerable<ProcessDocument>> GetDocumentsByStatusAsync(string status);
+        Task<IEnumerable<ProcessDocument>> GetDocumentsByPolizaAsync(int polizaId);
+        Task<ProcessDocument> GetDocumentWithDetailsAsync(int id);
+    }
 }
