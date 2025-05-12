@@ -12,20 +12,20 @@ namespace RegularizadorPolizas.Application.Services
     {
         private readonly IPolizaRepository _polizaRepository;
         private readonly IClientRepository _clientRepository;
-        private readonly IRenovacionRepository _renovacionRepository;
+        private readonly IRenovationRepository _renovationRepository;
         private readonly IVelneoApiService _velneoApiService;
         private readonly IMapper _mapper;
 
         public PolizaService(
             IPolizaRepository polizaRepository,
             IClientRepository clientRepository,
-            IRenovacionRepository renovacionRepository,
+            IRenovationRepository renovacionRepository,
             IVelneoApiService velneoApiService,
             IMapper mapper)
         {
             _polizaRepository = polizaRepository ?? throw new ArgumentNullException(nameof(polizaRepository));
             _clientRepository = clientRepository ?? throw new ArgumentNullException(nameof(clientRepository));
-            _renovacionRepository = renovacionRepository ?? throw new ArgumentNullException(nameof(renovacionRepository));
+            _renovationRepository = renovacionRepository ?? throw new ArgumentNullException(nameof(renovacionRepository));
             _velneoApiService = velneoApiService ?? throw new ArgumentNullException(nameof(velneoApiService));
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
         }
@@ -218,7 +218,7 @@ namespace RegularizadorPolizas.Application.Services
                     FechaModificacion = DateTime.Now
                 };
 
-                await _renovacionRepository.AddAsync(renovacion);
+                await _renovationRepository.AddAsync(renovacion);
 
                 return _mapper.Map<PolizaDto>(polizaCreada);
             }
