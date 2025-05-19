@@ -34,14 +34,17 @@ namespace RegularizadorPolizas.Infrastructure
             services.AddScoped<IProcessDocumentRepository, ProcessDocumentRepository>();
             services.AddScoped<IRenovationRepository, RenovationRepository>();
 
-            // External services
             services.AddScoped<IAzureDocumentIntelligenceService, AzureDocumentIntelligenceService>();
 
-            // HttpClient registration - IMPORTANTE
             services.AddHttpClient<IVelneoApiService, VelneoApiService>(client =>
             {
-                client.BaseAddress = new Uri(configuration["VelneoAPI:BaseUrl"] ?? "https://api.velneo.com");
-                client.DefaultRequestHeaders.Add("Accept", "application/json");
+                var baseUrl = configuration["VelneoAPI:BaseUrl"];
+                if (!string.IsNullOrEmpty(baseUrl))
+                {
+                    client.BaseAddress = new Uri(baseUrl);
+                }
+
+                client.Timeout = TimeSpan.FromSeconds(30);
             });
 
             return services;

@@ -1,24 +1,25 @@
-using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using RegularizadorPolizas.Application;
 using RegularizadorPolizas.Infrastructure;
 using RegularizadorPolizas.Infrastructure.Data;
-using System;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+builder.Configuration
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true)
+    .AddEnvironmentVariables();
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddUserSecrets<Program>();
+}
+
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
-
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
-// Configure CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll",
@@ -30,20 +31,15 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Apply migrations and check database connection
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     try
     {
         var context = services.GetRequiredService<ApplicationDbContext>();
-
-        // Check if the database connection is successful
         if (context.Database.CanConnect())
         {
             app.Logger.LogInformation("Database connection successful");
-
-            // Apply pending migrations
             context.Database.Migrate();
             app.Logger.LogInformation("Migrations applied successfully");
         }
@@ -59,7 +55,6 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -69,7 +64,19 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 app.UseAuthorization();
-
 app.MapControllers();
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapGet("/debug-config", (IConfiguration config) => {
+        var settings = new
+        {
+            AzureEndpoint = config["AzureDocumentIntelligence:Endpoint"],
+            VelneoUrl = config["VelneoAPI:BaseUrl"],
+            ConnectionStringConfigured = !string.IsNullOrEmpty(config.GetConnectionString("DefaultConnection"))
+        };
+        return Results.Json(settings);
+    });
+}
 
 app.Run();
