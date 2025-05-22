@@ -272,5 +272,10 @@
 
         // Propiedades de navegación para la aplicación
         public ClientDto Cliente { get; set; }
+        public string Cliruc { get; set; }
+        public string Clilocnom { get; set; }
+        public string Clidptnom { get; set; }
+        public string Clitelcel { get; set; }
+        public string Cliemail { get; set; }
     }
 }
