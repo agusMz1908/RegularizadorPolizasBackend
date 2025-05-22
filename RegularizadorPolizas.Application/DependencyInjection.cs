@@ -9,14 +9,13 @@ namespace RegularizadorPolizas.Application
     {
         public static IServiceCollection AddApplication(this IServiceCollection services)
         {
-            // Register services
             services.AddScoped<IClientService, ClientService>();
             services.AddScoped<IPolizaService, PolizaService>();
             services.AddScoped<IProcessDocumentService, ProcessDocumentService>();
             services.AddScoped<IRenovationService, RenovationService>();
             services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<IDocumentValidationService, DocumentValidationService>();
 
-            // Register AutoMapper
             services.AddAutoMapper(Assembly.GetExecutingAssembly());
 
             return services;

@@ -277,5 +277,6 @@
         public string Clidptnom { get; set; }
         public string Clitelcel { get; set; }
         public string Cliemail { get; set; }
+        public object Cliposcod { get; set; }
     }
 }

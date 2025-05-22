@@ -390,16 +390,32 @@ namespace RegularizadorPolizas.Domain.Entities
         public DateTime FechaCreacion { get; set; } = DateTime.Now;
         public DateTime FechaModificacion { get; set; } = DateTime.Now;
 
-        // Relaciones
+        // FOREIGN KEYS
+        public int? CompanyId { get; set; }
+        public int? BrokerId { get; set; }
+        public int? CurrencyId { get; set; }
+
+        // PROPIEDADES DE NAVEGACIÓN
         [ForeignKey("Clinro")]
         public virtual Client Client { get; set; }
 
+        [ForeignKey("Clinro1")]
+        public virtual Client Tomador { get; set; }
+
+        [ForeignKey("CompanyId")]
+        public virtual Company Company { get; set; }
+
+        [ForeignKey("BrokerId")]
+        public virtual Broker Broker { get; set; }
+
+        [ForeignKey("CurrencyId")]
+        public virtual Currency Currency { get; set; }
+
         [ForeignKey("Conpadre")]
         public virtual Poliza PolizaPadre { get; set; }
-        public virtual ICollection<Poliza> PolizasHijas { get; set; }
 
+        public virtual ICollection<Poliza> PolizasHijas { get; set; }
         public virtual ICollection<ProcessDocument> ProcessDocuments { get; set; }
-        public virtual ICollection<Renovation> RenovacionesOrigen { get; set; }
-        public virtual ICollection<Renovation> RenovacionesDestino { get; set; }
+        public virtual ICollection<Renovation> Renovations { get; set; }
     }
 }

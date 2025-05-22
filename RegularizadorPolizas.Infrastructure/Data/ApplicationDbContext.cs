@@ -15,60 +15,59 @@ namespace RegularizadorPolizas.Infrastructure.Data
         public DbSet<Poliza> Polizas { get; set; }
         public DbSet<ProcessDocument> ProcessDocuments { get; set; }
         public DbSet<Renovation> Renovations { get; set; }
+        public DbSet<Company> Companys { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            //Relacion Cliente -> Polizas
-            modelBuilder.Entity<Poliza>()
-                .HasOne(p => p.Client)
-                .WithMany(c => c.Polizas)
-                .HasForeignKey(p => p.Clinro)
-                .OnDelete(DeleteBehavior.Restrict);
+            // Configuración de Poliza
+            modelBuilder.Entity<Poliza>(entity =>
+            {
+                entity.HasKey(e => e.Id);
 
-            //Relacion Poliza -> Polizas hijas (Auto-ref)
-            modelBuilder.Entity<Poliza>()
-                .HasOne(p => p.PolizaPadre)
-                .WithMany(p => p.PolizasHijas)
-                .HasForeignKey(p => p.Conpadre)
-                .OnDelete(DeleteBehavior.Restrict);
+                // Cliente principal
+                entity.HasOne(p => p.Client)
+                      .WithMany(c => c.Polizas)
+                      .HasForeignKey(p => p.Clinro)
+                      .OnDelete(DeleteBehavior.Restrict);
 
-            // Relación Poliza -> DocumentosProcesados
-            modelBuilder.Entity<ProcessDocument>()
-                .HasOne(d => d.Poliza)
-                .WithMany(p => p.ProcessDocuments)
-                .HasForeignKey(d => d.PolizaId)
-                .OnDelete(DeleteBehavior.Restrict);
+                // Compañía
+                entity.HasOne(p => p.Company)
+                      .WithMany(c => c.Polizas)
+                      .HasForeignKey(p => p.CompanyId)
+                      .OnDelete(DeleteBehavior.Restrict);
 
-            // Relación Usuario -> DocumentosProcesados
-            modelBuilder.Entity<ProcessDocument>()
-                .HasOne(d => d.User)
-                .WithMany(u => u.ProcessDocuments)
-                .HasForeignKey(d => d.UsuarioId)
-                .OnDelete(DeleteBehavior.Restrict);
+                // Corredor
+                entity.HasOne(p => p.Broker)
+                      .WithMany(b => b.Polizas)
+                      .HasForeignKey(p => p.BrokerId)
+                      .OnDelete(DeleteBehavior.Restrict);
 
-            // Relación Poliza -> RenovacionesOrigen
-            modelBuilder.Entity<Renovation>()
-                .HasOne(r => r.PolizaOriginal)
-                .WithMany(p => p.RenovacionesOrigen)
-                .HasForeignKey(r => r.PolizaId)
-                .OnDelete(DeleteBehavior.Restrict);
+                // Moneda
+                entity.HasOne(p => p.Currency)
+                      .WithMany(c => c.Polizas)
+                      .HasForeignKey(p => p.CurrencyId)
+                      .OnDelete(DeleteBehavior.Restrict);
 
-            // Relación Poliza -> RenovacionesDestino
-            modelBuilder.Entity<Renovation>()
-                .HasOne(r => r.PolizaNueva)
-                .WithMany(p => p.RenovacionesDestino)
-                .HasForeignKey(r => r.PolizaNuevaId)
-                .OnDelete(DeleteBehavior.Restrict);
+                // Auto-relación
+                entity.HasOne(p => p.PolizaPadre)
+                      .WithMany(p => p.PolizasHijas)
+                      .HasForeignKey(p => p.Conpadre)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
 
-            // Relación Usuario -> Renovaciones
-            modelBuilder.Entity<Renovation>()
-                .HasOne(r => r.User)
-                .WithMany(u => u.Renovations)
-                .HasForeignKey(r => r.UsuarioId)
-                .OnDelete(DeleteBehavior.Restrict);
+            // Configuración de Client actualizada
+            modelBuilder.Entity<Client>(entity =>
+            {
+                entity.HasMany(c => c.Polizas)
+                      .WithOne(p => p.Client)
+                      .HasForeignKey(p => p.Clinro);
 
+                entity.HasMany(c => c.Polizas)
+                      .WithOne(p => p.Tomador)
+                      .HasForeignKey(p => p.Clinro1);
+            });
         }
     }
 }

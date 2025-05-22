@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
-using RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence;
 
 public class AzureDocumentIntelligenceService : IAzureDocumentIntelligenceService
 {
@@ -46,7 +45,6 @@ public class AzureDocumentIntelligenceService : IAzureDocumentIntelligenceServic
 
             var camposExtraidos = new Dictionary<string, string>();
 
-            // Extraer los valores de los campos reconocidos
             foreach (var document in result.Documents)
             {
                 foreach (var field in document.Fields)

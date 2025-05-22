@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Infrastructure.Data;
 using RegularizadorPolizas.Infrastructure.Data.Repositories;
-using RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence;
 using RegularizadorPolizas.Infrastructure.External.VelneoAPI;
 
 namespace RegularizadorPolizas.Infrastructure
