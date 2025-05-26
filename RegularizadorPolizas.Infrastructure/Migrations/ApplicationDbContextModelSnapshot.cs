@@ -22,6 +22,188 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
+            modelBuilder.Entity("Broker", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("Domicilio")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<string>("Telefono")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .HasDatabaseName("IX_Brokers_Codigo");
+
+                    b.ToTable("Brokers");
+                });
+
+            modelBuilder.Entity("Company", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Alias")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Companies_Codigo");
+
+                    b.ToTable("Companies");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Activo = true,
+                            Alias = "BSE",
+                            Codigo = "BSE",
+                            Nombre = "Banco de Seguros del Estado"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Activo = true,
+                            Alias = "SURA",
+                            Codigo = "SURA",
+                            Nombre = "SURA Uruguay"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Activo = true,
+                            Alias = "MAPFRE",
+                            Codigo = "MAPFRE",
+                            Nombre = "Mapfre Uruguay"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Activo = true,
+                            Alias = "SAN CRISTOBAL",
+                            Codigo = "SC",
+                            Nombre = "San Cristóbal"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Activo = true,
+                            Alias = "LA CAJA",
+                            Codigo = "CAJA",
+                            Nombre = "La Caja de Seguros"
+                        });
+                });
+
+            modelBuilder.Entity("Currency", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("Simbolo")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .HasColumnType("varchar(5)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Currencies_Codigo");
+
+                    b.ToTable("Currencies");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Activo = true,
+                            Codigo = "UYU",
+                            Nombre = "Peso Uruguayo",
+                            Simbolo = "$"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Activo = true,
+                            Codigo = "USD",
+                            Nombre = "Dólar Americano",
+                            Simbolo = "US$"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Activo = true,
+                            Codigo = "UI",
+                            Nombre = "Unidad Indexada",
+                            Simbolo = "UI"
+                        });
+                });
+
             modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.Client", b =>
                 {
                     b.Property<int>("Id")
@@ -358,6 +540,15 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         .HasColumnType("varchar(50)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Cliced")
+                        .HasDatabaseName("IX_Clients_Cliced");
+
+                    b.HasIndex("Cliemail")
+                        .HasDatabaseName("IX_Clients_Cliemail");
+
+                    b.HasIndex("Cliruc")
+                        .HasDatabaseName("IX_Clients_Cliruc");
 
                     b.ToTable("Clients");
                 });
@@ -1171,7 +1362,15 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
 
                     b.HasIndex("Clinro");
 
+                    b.HasIndex("Clinro1");
+
+                    b.HasIndex("Comcod");
+
                     b.HasIndex("Conpadre");
+
+                    b.HasIndex("Corrnom");
+
+                    b.HasIndex("Moncod");
 
                     b.ToTable("Polizas");
                 });
@@ -1308,6 +1507,26 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Users");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Activo = true,
+                            Email = "admin@sistema.com",
+                            FechaCreacion = new DateTime(2025, 5, 26, 16, 8, 52, 542, DateTimeKind.Local).AddTicks(5783),
+                            FechaModificacion = new DateTime(2025, 5, 26, 16, 8, 52, 542, DateTimeKind.Local).AddTicks(6023),
+                            Nombre = "Administrador"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Activo = true,
+                            Email = "demo@sistema.com",
+                            FechaCreacion = new DateTime(2025, 5, 26, 16, 8, 52, 542, DateTimeKind.Local).AddTicks(6293),
+                            FechaModificacion = new DateTime(2025, 5, 26, 16, 8, 52, 542, DateTimeKind.Local).AddTicks(6294),
+                            Nombre = "Usuario Demo"
+                        });
                 });
 
             modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.Poliza", b =>
@@ -1317,14 +1536,42 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         .HasForeignKey("Clinro")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("RegularizadorPolizas.Domain.Entities.Client", "Tomador")
+                        .WithMany()
+                        .HasForeignKey("Clinro1")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Company", "Company")
+                        .WithMany("Polizas")
+                        .HasForeignKey("Comcod")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("RegularizadorPolizas.Domain.Entities.Poliza", "PolizaPadre")
                         .WithMany("PolizasHijas")
                         .HasForeignKey("Conpadre")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("Broker", "Broker")
+                        .WithMany("Polizas")
+                        .HasForeignKey("Corrnom")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Currency", "Currency")
+                        .WithMany("Polizas")
+                        .HasForeignKey("Moncod")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Broker");
+
                     b.Navigation("Client");
 
+                    b.Navigation("Company");
+
+                    b.Navigation("Currency");
+
                     b.Navigation("PolizaPadre");
+
+                    b.Navigation("Tomador");
                 });
 
             modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.ProcessDocument", b =>
@@ -1367,6 +1614,21 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     b.Navigation("PolizaOriginal");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Broker", b =>
+                {
+                    b.Navigation("Polizas");
+                });
+
+            modelBuilder.Entity("Company", b =>
+                {
+                    b.Navigation("Polizas");
+                });
+
+            modelBuilder.Entity("Currency", b =>
+                {
+                    b.Navigation("Polizas");
                 });
 
             modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.Client", b =>

@@ -38,7 +38,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error obteniendo brokers: {ex.Message}", ex);
+                throw new ApplicationException($"Error retrieving brokers: {ex.Message}", ex);
             }
         }
 
@@ -57,7 +57,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error obteniendo broker por ID {id}: {ex.Message}", ex);
+                throw new ApplicationException($"Error retrieving broker with ID {id}: {ex.Message}", ex);
             }
         }
 
@@ -76,7 +76,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error obteniendo broker por codigo {codigo}: {ex.Message}", ex);
+                throw new ApplicationException($"Error retrieving broker with code {codigo}: {ex.Message}", ex);
             }
         }
 
@@ -95,7 +95,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error obteniendo broker por email {email}: {ex.Message}", ex);
+                throw new ApplicationException($"Error retrieving broker with email {email}: {ex.Message}", ex);
             }
         }
 
@@ -108,7 +108,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error obteniendo brokers activos: {ex.Message}", ex);
+                throw new ApplicationException($"Error retrieving active brokers: {ex.Message}", ex);
             }
         }
 
@@ -121,7 +121,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error obteniendo brokers por lookup: {ex.Message}", ex);
+                throw new ApplicationException($"Error retrieving brokers for lookup: {ex.Message}", ex);
             }
         }
 
@@ -130,19 +130,19 @@ namespace RegularizadorPolizas.Application.Services
             try
             {
                 if (string.IsNullOrWhiteSpace(brokerDto.Nombre))
-                    throw new ArgumentException("El nombre del broker es obligatorio");
+                    throw new ArgumentException("Broker name is required");
 
                 if (string.IsNullOrWhiteSpace(brokerDto.Codigo))
-                    throw new ArgumentException("El codigo del broker es obligatorio");
+                    throw new ArgumentException("Broker code is required");
 
                 if (await _brokerRepository.ExistsByCodigoAsync(brokerDto.Codigo))
-                    throw new ArgumentException($"Broker con codigo '{brokerDto.Codigo}' ya existe");
+                    throw new ArgumentException($"Broker with code '{brokerDto.Codigo}' already exists");
 
                 if (!string.IsNullOrWhiteSpace(brokerDto.Email))
                 {
                     var existingBroker = await _brokerRepository.GetByEmailAsync(brokerDto.Email);
                     if (existingBroker != null)
-                        throw new ArgumentException($"Broker con email '{brokerDto.Email}' ya existe");
+                        throw new ArgumentException($"Broker with email '{brokerDto.Email}' already exists");
                 }
 
                 var broker = _mapper.Map<Broker>(brokerDto);
@@ -153,7 +153,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error creando broker: {ex.Message}", ex);
+                throw new ApplicationException($"Error creating broker: {ex.Message}", ex);
             }
         }
 
@@ -166,21 +166,21 @@ namespace RegularizadorPolizas.Application.Services
 
                 var existingBroker = await _brokerRepository.GetByIdAsync(brokerDto.Id);
                 if (existingBroker == null)
-                    throw new ApplicationException($"Broker con ID {brokerDto.Id} no existe");
+                    throw new ApplicationException($"Broker with ID {brokerDto.Id} not found");
 
                 if (await ExistsByCodigoAsync(brokerDto.Codigo, brokerDto.Id))
-                    throw new ArgumentException($"Broker con codigo '{brokerDto.Codigo}' ya existe");
+                    throw new ArgumentException($"Broker with code '{brokerDto.Codigo}' already exists");
 
                 if (!string.IsNullOrWhiteSpace(brokerDto.Email) &&
                     await ExistsByEmailAsync(brokerDto.Email, brokerDto.Id))
-                    throw new ArgumentException($"Broker con email '{brokerDto.Email}' ya existe");
+                    throw new ArgumentException($"Broker with email '{brokerDto.Email}' already exists");
 
                 _mapper.Map(brokerDto, existingBroker);
                 await _brokerRepository.UpdateAsync(existingBroker);
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error actualizando broker: {ex.Message}", ex);
+                throw new ApplicationException($"Error updating broker: {ex.Message}", ex);
             }
         }
 
@@ -190,18 +190,18 @@ namespace RegularizadorPolizas.Application.Services
             {
                 var broker = await _brokerRepository.GetByIdAsync(id);
                 if (broker == null)
-                    throw new ApplicationException($"Broker con ID {id} no existe");
+                    throw new ApplicationException($"Broker with ID {id} not found");
 
                 var polizasCount = await GetPolizasCountAsync(id);
                 if (polizasCount > 0)
-                    throw new ApplicationException($"No es posible eliminar el broker. Tiene {polizasCount} polizas asociadas.");
+                    throw new ApplicationException($"Cannot delete broker. It has {polizasCount} associated policies");
 
                 broker.Activo = false;
                 await _brokerRepository.UpdateAsync(broker);
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error eliminando broker: {ex.Message}", ex);
+                throw new ApplicationException($"Error deleting broker: {ex.Message}", ex);
             }
         }
 
@@ -214,7 +214,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error checkeando la existencia del codigo del broker: {ex.Message}", ex);
+                throw new ApplicationException($"Error checking broker code existence: {ex.Message}", ex);
             }
         }
 
@@ -230,7 +230,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error checkeando la existencia del mail del broker: {ex.Message}", ex);
+                throw new ApplicationException($"Error checking broker email existence: {ex.Message}", ex);
             }
         }
 
@@ -243,7 +243,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error buscando brokers: {ex.Message}", ex);
+                throw new ApplicationException($"Error searching brokers: {ex.Message}", ex);
             }
         }
 
@@ -251,7 +251,7 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
-                var polizas = await _polizaRepository.FindAsync(p => p.BrokerId == brokerId && p.Activo);
+                var polizas = await _polizaRepository.FindAsync(p => p.Corrnom == brokerId && p.Activo);
                 return polizas.Count();
             }
             catch

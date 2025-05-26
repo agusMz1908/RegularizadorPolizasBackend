@@ -39,7 +39,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error obteniendo monedas: {ex.Message}", ex);
+                throw new ApplicationException($"Error retrieving currencies: {ex.Message}", ex);
             }
         }
 
@@ -59,7 +59,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error obteniendo monedas por ID {id}: {ex.Message}", ex);
+                throw new ApplicationException($"Error retrieving currency with ID {id}: {ex.Message}", ex);
             }
         }
 
@@ -79,7 +79,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error obteniendo moneda por codigo {codigo}: {ex.Message}", ex);
+                throw new ApplicationException($"Error retrieving currency with code {codigo}: {ex.Message}", ex);
             }
         }
 
@@ -99,7 +99,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error obteniendo monedas activas: {ex.Message}", ex);
+                throw new ApplicationException($"Error retrieving active currencies: {ex.Message}", ex);
             }
         }
 
@@ -112,7 +112,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error obteniendo monedas por lookup: {ex.Message}", ex);
+                throw new ApplicationException($"Error retrieving currencies for lookup: {ex.Message}", ex);
             }
         }
 
@@ -131,7 +131,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error obteniendo moneda default: {ex.Message}", ex);
+                throw new ApplicationException($"Error retrieving default currency: {ex.Message}", ex);
             }
         }
 
@@ -140,19 +140,19 @@ namespace RegularizadorPolizas.Application.Services
             try
             {
                 if (string.IsNullOrWhiteSpace(currencyDto.Nombre))
-                    throw new ArgumentException("El nombre de la moneda es obligatorio.");
+                    throw new ArgumentException("Currency name is required");
 
                 if (string.IsNullOrWhiteSpace(currencyDto.Codigo))
-                    throw new ArgumentException("El codigo de la moneda es obligatorio.");
+                    throw new ArgumentException("Currency code is required");
 
                 if (string.IsNullOrWhiteSpace(currencyDto.Simbolo))
-                    throw new ArgumentException("El simbolo de la moneda es obligatorio.");
+                    throw new ArgumentException("Currency symbol is required");
 
                 if (await _currencyRepository.ExistsByCodigoAsync(currencyDto.Codigo))
-                    throw new ArgumentException($"Moneda con codigo: '{currencyDto.Codigo}' ya existe");
+                    throw new ArgumentException($"Currency with code '{currencyDto.Codigo}' already exists");
 
                 if (await ExistsBySimboloAsync(currencyDto.Simbolo))
-                    throw new ArgumentException($"Moneda con simbolo: '{currencyDto.Simbolo}' ya existe");
+                    throw new ArgumentException($"Currency with symbol '{currencyDto.Simbolo}' already exists");
 
                 var currency = _mapper.Map<Currency>(currencyDto);
                 currency.Activo = true;
@@ -165,7 +165,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error creando currency: {ex.Message}", ex);
+                throw new ApplicationException($"Error creating currency: {ex.Message}", ex);
             }
         }
 
@@ -178,20 +178,20 @@ namespace RegularizadorPolizas.Application.Services
 
                 var existingCurrency = await _currencyRepository.GetByIdAsync(currencyDto.Id);
                 if (existingCurrency == null)
-                    throw new ApplicationException($"Moneda con ID: {currencyDto.Id} no existe");
+                    throw new ApplicationException($"Currency with ID {currencyDto.Id} not found");
 
                 if (await ExistsByCodigoAsync(currencyDto.Codigo, currencyDto.Id))
-                    throw new ArgumentException($"Moneda con codigo: '{currencyDto.Codigo}' ya existe");
+                    throw new ArgumentException($"Currency with code '{currencyDto.Codigo}' already exists");
 
                 if (await ExistsBySimboloAsync(currencyDto.Simbolo, currencyDto.Id))
-                    throw new ArgumentException($"Moneda con simbolo '{currencyDto.Simbolo}' ya existe");
+                    throw new ArgumentException($"Currency with symbol '{currencyDto.Simbolo}' already exists");
 
                 _mapper.Map(currencyDto, existingCurrency);
                 await _currencyRepository.UpdateAsync(existingCurrency);
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error actualizando moneda: {ex.Message}", ex);
+                throw new ApplicationException($"Error updating currency: {ex.Message}", ex);
             }
         }
 
@@ -201,21 +201,21 @@ namespace RegularizadorPolizas.Application.Services
             {
                 var currency = await _currencyRepository.GetByIdAsync(id);
                 if (currency == null)
-                    throw new ApplicationException($"Moneda con ID {id} no existe");
+                    throw new ApplicationException($"Currency with ID {id} not found");
 
                 if (currency.Codigo == "UYU")
-                    throw new ApplicationException("No se puede eliminar la moneda por defecto (UYU)");
+                    throw new ApplicationException("Cannot delete the default currency (UYU)");
 
                 var polizasCount = await GetPolizasCountAsync(id);
                 if (polizasCount > 0)
-                    throw new ApplicationException($"No se puede eliminar la moneda. Tiene {polizasCount} polizas asociadas.");
+                    throw new ApplicationException($"Cannot delete currency. It has {polizasCount} associated policies");
 
                 currency.Activo = false;
                 await _currencyRepository.UpdateAsync(currency);
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error eliminando la moneda: {ex.Message}", ex);
+                throw new ApplicationException($"Error deleting currency: {ex.Message}", ex);
             }
         }
 
@@ -228,7 +228,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error chequeando el codigo de la moneda: {ex.Message}", ex);
+                throw new ApplicationException($"Error checking currency code existence: {ex.Message}", ex);
             }
         }
 
@@ -244,7 +244,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error chequeando el simbolo de la moneda: {ex.Message}", ex);
+                throw new ApplicationException($"Error checking currency symbol existence: {ex.Message}", ex);
             }
         }
 
@@ -275,7 +275,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error buscando monedas: {ex.Message}", ex);
+                throw new ApplicationException($"Error searching currencies: {ex.Message}", ex);
             }
         }
 
@@ -283,7 +283,7 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
-                var polizas = await _polizaRepository.FindAsync(p => p.CurrencyId == currencyId && p.Activo);
+                var polizas = await _polizaRepository.FindAsync(p => p.Moncod == currencyId && p.Activo);
                 return polizas.Count();
             }
             catch

@@ -38,7 +38,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error obtendiendo compañias: {ex.Message}", ex);
+                throw new ApplicationException($"Error retrieving companies: {ex.Message}", ex);
             }
         }
 
@@ -57,7 +57,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error obteniendo compañia por ID {id}: {ex.Message}", ex);
+                throw new ApplicationException($"Error retrieving company with ID {id}: {ex.Message}", ex);
             }
         }
 
@@ -76,7 +76,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error obteniendo compañia por codigo {codigo}: {ex.Message}", ex);
+                throw new ApplicationException($"Error retrieving company with code {codigo}: {ex.Message}", ex);
             }
         }
 
@@ -89,7 +89,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error obteniendo compañia activas: {ex.Message}", ex);
+                throw new ApplicationException($"Error retrieving active companies: {ex.Message}", ex);
             }
         }
 
@@ -102,7 +102,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error obteniendo compañia por lookup: {ex.Message}", ex);
+                throw new ApplicationException($"Error retrieving companies for lookup: {ex.Message}", ex);
             }
         }
 
@@ -111,13 +111,13 @@ namespace RegularizadorPolizas.Application.Services
             try
             {
                 if (string.IsNullOrWhiteSpace(companyDto.Nombre))
-                    throw new ArgumentException("El nombre de la compañia es obligatorio");
+                    throw new ArgumentException("Company name is required");
 
                 if (string.IsNullOrWhiteSpace(companyDto.Codigo))
-                    throw new ArgumentException("El codigo de la compañia es obligatorio");
+                    throw new ArgumentException("Company code is required");
 
                 if (await _companyRepository.ExistsByCodigoAsync(companyDto.Codigo))
-                    throw new ArgumentException($"Compañia con codigo: '{companyDto.Codigo}' ya existe");
+                    throw new ArgumentException($"Company with code '{companyDto.Codigo}' already exists");
 
                 var company = _mapper.Map<Company>(companyDto);
                 company.Activo = true;
@@ -127,7 +127,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error creando compañia: {ex.Message}", ex);
+                throw new ApplicationException($"Error creating company: {ex.Message}", ex);
             }
         }
 
@@ -140,17 +140,17 @@ namespace RegularizadorPolizas.Application.Services
 
                 var existingCompany = await _companyRepository.GetByIdAsync(companyDto.Id);
                 if (existingCompany == null)
-                    throw new ApplicationException($"Compañia con ID: {companyDto.Id} no existe.");
+                    throw new ApplicationException($"Company with ID {companyDto.Id} not found");
 
                 if (await ExistsByCodigoAsync(companyDto.Codigo, companyDto.Id))
-                    throw new ArgumentException($"Compañia con codigo: '{companyDto.Codigo}' ya existe");
+                    throw new ArgumentException($"Company with code '{companyDto.Codigo}' already exists");
 
                 _mapper.Map(companyDto, existingCompany);
                 await _companyRepository.UpdateAsync(existingCompany);
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error actualizando compañia: {ex.Message}", ex);
+                throw new ApplicationException($"Error updating company: {ex.Message}", ex);
             }
         }
 
@@ -160,18 +160,18 @@ namespace RegularizadorPolizas.Application.Services
             {
                 var company = await _companyRepository.GetByIdAsync(id);
                 if (company == null)
-                    throw new ApplicationException($"Compañia con ID {id} no existe");
+                    throw new ApplicationException($"Company with ID {id} not found");
 
                 var polizasCount = await GetPolizasCountAsync(id);
                 if (polizasCount > 0)
-                    throw new ApplicationException($"No se puede eliminar la compañia. La misma tiene {polizasCount} polizas asociadas.");
+                    throw new ApplicationException($"Cannot delete company. It has {polizasCount} associated policies");
 
                 company.Activo = false;
                 await _companyRepository.UpdateAsync(company);
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error eliminando compañia: {ex.Message}", ex);
+                throw new ApplicationException($"Error deleting company: {ex.Message}", ex);
             }
         }
 
@@ -184,7 +184,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error al comprobar la existencia del código de compañia: {ex.Message}", ex);
+                throw new ApplicationException($"Error checking company code existence: {ex.Message}", ex);
             }
         }
 
@@ -208,7 +208,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error buscando compañias: {ex.Message}", ex);
+                throw new ApplicationException($"Error searching companies: {ex.Message}", ex);
             }
         }
 
@@ -216,7 +216,7 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
-                var polizas = await _polizaRepository.FindAsync(p => p.CompanyId == companyId && p.Activo);
+                var polizas = await _polizaRepository.FindAsync(p => p.Comcod == companyId && p.Activo);
                 return polizas.Count();
             }
             catch

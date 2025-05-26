@@ -390,24 +390,19 @@ namespace RegularizadorPolizas.Domain.Entities
         public DateTime FechaCreacion { get; set; } = DateTime.Now;
         public DateTime FechaModificacion { get; set; } = DateTime.Now;
 
-        // FOREIGN KEYS
-        public int? CompanyId { get; set; }  // Para Company
-        public int? BrokerId { get; set; }   // Para Broker  
-        public int? CurrencyId { get; set; } // Para Currency
-
         [ForeignKey("Clinro")]
         public virtual Client Client { get; set; }
 
         [ForeignKey("Clinro1")]
         public virtual Client Tomador { get; set; }
 
-        [ForeignKey("CompanyId")]
+        [ForeignKey("Comcod")]
         public virtual Company Company { get; set; }
 
-        [ForeignKey("BrokerId")]
+        [ForeignKey("Corrnom")]
         public virtual Broker Broker { get; set; }
 
-        [ForeignKey("CurrencyId")]
+        [ForeignKey("Moncod")]
         public virtual Currency Currency { get; set; }
 
         [ForeignKey("Conpadre")]

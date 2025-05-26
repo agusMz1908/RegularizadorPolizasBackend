@@ -4,15 +4,41 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
+#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
+
 namespace RegularizadorPolizas.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class BasicMigrationTest : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AlterDatabase()
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "Brokers",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    Nombre = table.Column<string>(type: "varchar(150)", maxLength: 150, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Codigo = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Domicilio = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Telefono = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Email = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Activo = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Brokers", x => x.Id);
+                })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
@@ -149,6 +175,46 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Clients", x => x.Id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "Companies",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    Nombre = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Alias = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Codigo = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Activo = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Companies", x => x.Id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "Currencies",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    Nombre = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Codigo = table.Column<string>(type: "varchar(10)", maxLength: 10, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Simbolo = table.Column<string>(type: "varchar(5)", maxLength: 5, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Activo = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Currencies", x => x.Id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -477,9 +543,33 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                 {
                     table.PrimaryKey("PK_Polizas", x => x.Id);
                     table.ForeignKey(
+                        name: "FK_Polizas_Brokers_Corrnom",
+                        column: x => x.Corrnom,
+                        principalTable: "Brokers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
                         name: "FK_Polizas_Clients_Clinro",
                         column: x => x.Clinro,
                         principalTable: "Clients",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Polizas_Clients_Clinro1",
+                        column: x => x.Clinro1,
+                        principalTable: "Clients",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Polizas_Companies_Comcod",
+                        column: x => x.Comcod,
+                        principalTable: "Companies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Polizas_Currencies_Moncod",
+                        column: x => x.Moncod,
+                        principalTable: "Currencies",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
@@ -572,15 +662,98 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
+            migrationBuilder.InsertData(
+                table: "Companies",
+                columns: new[] { "Id", "Activo", "Alias", "Codigo", "Nombre" },
+                values: new object[,]
+                {
+                    { 1, true, "BSE", "BSE", "Banco de Seguros del Estado" },
+                    { 2, true, "SURA", "SURA", "SURA Uruguay" },
+                    { 3, true, "MAPFRE", "MAPFRE", "Mapfre Uruguay" },
+                    { 4, true, "SAN CRISTOBAL", "SC", "San Cristóbal" },
+                    { 5, true, "LA CAJA", "CAJA", "La Caja de Seguros" }
+                });
+
+            migrationBuilder.InsertData(
+                table: "Currencies",
+                columns: new[] { "Id", "Activo", "Codigo", "Nombre", "Simbolo" },
+                values: new object[,]
+                {
+                    { 1, true, "UYU", "Peso Uruguayo", "$" },
+                    { 2, true, "USD", "Dólar Americano", "US$" },
+                    { 3, true, "UI", "Unidad Indexada", "UI" }
+                });
+
+            migrationBuilder.InsertData(
+                table: "Users",
+                columns: new[] { "Id", "Activo", "Email", "FechaCreacion", "FechaModificacion", "Nombre" },
+                values: new object[,]
+                {
+                    { 1, true, "admin@sistema.com", new DateTime(2025, 5, 26, 16, 8, 52, 542, DateTimeKind.Local).AddTicks(5783), new DateTime(2025, 5, 26, 16, 8, 52, 542, DateTimeKind.Local).AddTicks(6023), "Administrador" },
+                    { 2, true, "demo@sistema.com", new DateTime(2025, 5, 26, 16, 8, 52, 542, DateTimeKind.Local).AddTicks(6293), new DateTime(2025, 5, 26, 16, 8, 52, 542, DateTimeKind.Local).AddTicks(6294), "Usuario Demo" }
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Brokers_Codigo",
+                table: "Brokers",
+                column: "Codigo");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Clients_Cliced",
+                table: "Clients",
+                column: "Cliced");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Clients_Cliemail",
+                table: "Clients",
+                column: "Cliemail");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Clients_Cliruc",
+                table: "Clients",
+                column: "Cliruc");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Companies_Codigo",
+                table: "Companies",
+                column: "Codigo",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Currencies_Codigo",
+                table: "Currencies",
+                column: "Codigo",
+                unique: true);
+
             migrationBuilder.CreateIndex(
                 name: "IX_Polizas_Clinro",
                 table: "Polizas",
                 column: "Clinro");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Polizas_Clinro1",
+                table: "Polizas",
+                column: "Clinro1");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Polizas_Comcod",
+                table: "Polizas",
+                column: "Comcod");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Polizas_Conpadre",
                 table: "Polizas",
                 column: "Conpadre");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Polizas_Corrnom",
+                table: "Polizas",
+                column: "Corrnom");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Polizas_Moncod",
+                table: "Polizas",
+                column: "Moncod");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ProcessDocuments_PolizaId",
@@ -624,7 +797,16 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                 name: "Users");
 
             migrationBuilder.DropTable(
+                name: "Brokers");
+
+            migrationBuilder.DropTable(
                 name: "Clients");
+
+            migrationBuilder.DropTable(
+                name: "Companies");
+
+            migrationBuilder.DropTable(
+                name: "Currencies");
         }
     }
 }

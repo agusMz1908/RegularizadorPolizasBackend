@@ -32,23 +32,23 @@ namespace RegularizadorPolizas.Infrastructure.Data
                       .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne(p => p.Tomador)
-                      .WithMany()
+                      .WithMany() 
                       .HasForeignKey(p => p.Clinro1)
                       .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne(p => p.Company)
                       .WithMany(c => c.Polizas)
-                      .HasForeignKey(p => p.CompanyId)
+                      .HasForeignKey(p => p.Comcod)
                       .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne(p => p.Broker)
                       .WithMany(b => b.Polizas)
-                      .HasForeignKey(p => p.BrokerId)
+                      .HasForeignKey(p => p.Corrnom)
                       .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne(p => p.Currency)
                       .WithMany(c => c.Polizas)
-                      .HasForeignKey(p => p.CurrencyId)
+                      .HasForeignKey(p => p.Moncod)
                       .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne(p => p.PolizaPadre)
