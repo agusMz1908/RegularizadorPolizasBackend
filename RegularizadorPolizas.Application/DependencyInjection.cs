@@ -15,6 +15,9 @@ namespace RegularizadorPolizas.Application
             services.AddScoped<IRenovationService, RenovationService>();
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IDocumentValidationService, DocumentValidationService>();
+            services.AddScoped<ICompanyService, CompanyService>();
+            services.AddScoped<IBrokerService, BrokerService>();
+            services.AddScoped<ICurrencyService, CurrencyService>();
 
             services.AddAutoMapper(Assembly.GetExecutingAssembly());
 

@@ -26,12 +26,15 @@ namespace RegularizadorPolizas.Infrastructure
                     )
                 ));
 
-            // Repositories
             services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
             services.AddScoped<IClientRepository, ClientRepository>();
             services.AddScoped<IPolizaRepository, PolizaRepository>();
             services.AddScoped<IProcessDocumentRepository, ProcessDocumentRepository>();
             services.AddScoped<IRenovationRepository, RenovationRepository>();
+
+            services.AddScoped<ICompanyRepository, CompanyRepository>();
+            services.AddScoped<IBrokerRepository, BrokerRepository>();
+            services.AddScoped<ICurrencyRepository, CurrencyRepository>();
 
             services.AddScoped<IAzureDocumentIntelligenceService, AzureDocumentIntelligenceService>();
 

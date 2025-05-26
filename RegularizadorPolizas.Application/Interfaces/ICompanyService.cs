@@ -1,0 +1,18 @@
+﻿using RegularizadorPolizas.Application.DTOs;
+
+namespace RegularizadorPolizas.Application.Interfaces
+{
+    public interface ICompanyService
+    {
+        Task<IEnumerable<CompanyDto>> GetAllCompaniesAsync();
+        Task<CompanyDto> GetCompanyByIdAsync(int id);
+        Task<CompanyDto> GetCompanyByCodigoAsync(string codigo);
+        Task<IEnumerable<CompanyDto>> GetActiveCompaniesAsync();
+        Task<IEnumerable<CompanyLookupDto>> GetCompaniesForLookupAsync();
+        Task<CompanyDto> CreateCompanyAsync(CompanyDto companyDto);
+        Task UpdateCompanyAsync(CompanyDto companyDto);
+        Task DeleteCompanyAsync(int id); // Soft delete
+        Task<bool> ExistsByCodigoAsync(string codigo, int? excludeId = null);
+        Task<IEnumerable<CompanyDto>> SearchCompaniesAsync(string searchTerm);
+    }
+}
