@@ -1,17 +1,18 @@
-﻿using RegularizadorPolizas.Domain.Entities;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
+using RegularizadorPolizas.Domain.Entities;
 
-public class Currency
+namespace RegularizadorPolizas.Domain.Entities
 {
-    [Key]
-    public int Id { get; set; }
-    [StringLength(50)]
-    public string Nombre { get; set; }
-    [StringLength(10)]
-    public string Codigo { get; set; }
-    [StringLength(5)]
-    public string Simbolo { get; set; }
-    public bool Activo { get; set; } = true;
-
-    public virtual ICollection<Poliza> Polizas { get; set; }
+    public class Currency
+    {
+        [Key]
+        public int Id { get; set; }
+        [Required]
+        [StringLength(100)]
+        public string Moneda { get; set; }
+        public bool Activo { get; set; } = true;
+        public DateTime FechaCreacion { get; set; } = DateTime.Now;
+        public DateTime FechaModificacion { get; set; } = DateTime.Now;
+        public virtual ICollection<Poliza> Polizas { get; set; }
+    }
 }

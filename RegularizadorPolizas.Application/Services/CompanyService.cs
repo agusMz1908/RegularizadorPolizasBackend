@@ -61,11 +61,11 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        public async Task<CompanyDto> GetCompanyByCodigoAsync(string codigo)
+        public async Task<CompanyDto> GetCompanyByRucAsync(string comruc)
         {
             try
             {
-                var company = await _companyRepository.GetByCodigoAsync(codigo);
+                var company = await _companyRepository.GetByRucAsync(comruc);
                 if (company == null)
                     return null;
 
@@ -76,7 +76,26 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error retrieving company with code {codigo}: {ex.Message}", ex);
+                throw new ApplicationException($"Error retrieving company with RUC {comruc}: {ex.Message}", ex);
+            }
+        }
+
+        public async Task<CompanyDto> GetCompanyByAliasAsync(string comalias)
+        {
+            try
+            {
+                var company = await _companyRepository.GetByAliasAsync(comalias);
+                if (company == null)
+                    return null;
+
+                var companyDto = _mapper.Map<CompanyDto>(company);
+                companyDto.TotalPolizas = await GetPolizasCountAsync(company.Id);
+
+                return companyDto;
+            }
+            catch (Exception ex)
+            {
+                throw new ApplicationException($"Error retrieving company with alias {comalias}: {ex.Message}", ex);
             }
         }
 
@@ -90,6 +109,34 @@ namespace RegularizadorPolizas.Application.Services
             catch (Exception ex)
             {
                 throw new ApplicationException($"Error retrieving active companies: {ex.Message}", ex);
+            }
+        }
+
+        public async Task<IEnumerable<CompanyDto>> GetInsuranceCompaniesAsync()
+        {
+            try
+            {
+                // Obtener solo las compañías que NO son brokers (son aseguradoras)
+                var companies = await _companyRepository.FindAsync(c => c.Activo && !c.Broker);
+                return _mapper.Map<IEnumerable<CompanyDto>>(companies);
+            }
+            catch (Exception ex)
+            {
+                throw new ApplicationException($"Error retrieving insurance companies: {ex.Message}", ex);
+            }
+        }
+
+        public async Task<IEnumerable<CompanyDto>> GetBrokerCompaniesAsync()
+        {
+            try
+            {
+                // Obtener solo las compañías que SÍ son brokers
+                var companies = await _companyRepository.FindAsync(c => c.Activo && c.Broker);
+                return _mapper.Map<IEnumerable<CompanyDto>>(companies);
+            }
+            catch (Exception ex)
+            {
+                throw new ApplicationException($"Error retrieving broker companies: {ex.Message}", ex);
             }
         }
 
@@ -110,17 +157,25 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(companyDto.Nombre))
-                    throw new ArgumentException("Company name is required");
+                if (string.IsNullOrWhiteSpace(companyDto.Comnom))
+                    throw new ArgumentException("Company name (Comnom) is required");
 
-                if (string.IsNullOrWhiteSpace(companyDto.Codigo))
-                    throw new ArgumentException("Company code is required");
+                if (!string.IsNullOrWhiteSpace(companyDto.Comruc))
+                {
+                    if (await ExistsByRucAsync(companyDto.Comruc))
+                        throw new ArgumentException($"Company with RUC '{companyDto.Comruc}' already exists");
+                }
 
-                if (await _companyRepository.ExistsByCodigoAsync(companyDto.Codigo))
-                    throw new ArgumentException($"Company with code '{companyDto.Codigo}' already exists");
+                if (!string.IsNullOrWhiteSpace(companyDto.Comalias))
+                {
+                    if (await ExistsByAliasAsync(companyDto.Comalias))
+                        throw new ArgumentException($"Company with alias '{companyDto.Comalias}' already exists");
+                }
 
                 var company = _mapper.Map<Company>(companyDto);
                 company.Activo = true;
+                company.FechaCreacion = DateTime.Now;
+                company.FechaModificacion = DateTime.Now;
 
                 var createdCompany = await _companyRepository.AddAsync(company);
                 return _mapper.Map<CompanyDto>(createdCompany);
@@ -142,10 +197,39 @@ namespace RegularizadorPolizas.Application.Services
                 if (existingCompany == null)
                     throw new ApplicationException($"Company with ID {companyDto.Id} not found");
 
-                if (await ExistsByCodigoAsync(companyDto.Codigo, companyDto.Id))
-                    throw new ArgumentException($"Company with code '{companyDto.Codigo}' already exists");
+                if (!string.IsNullOrWhiteSpace(companyDto.Comruc) &&
+                    await ExistsByRucAsync(companyDto.Comruc, companyDto.Id))
+                    throw new ArgumentException($"Company with RUC '{companyDto.Comruc}' already exists");
 
-                _mapper.Map(companyDto, existingCompany);
+                if (!string.IsNullOrWhiteSpace(companyDto.Comalias) &&
+                    await ExistsByAliasAsync(companyDto.Comalias, companyDto.Id))
+                    throw new ArgumentException($"Company with alias '{companyDto.Comalias}' already exists");
+
+                // Actualizar propiedades siguiendo la estructura de Velneo
+                existingCompany.Comnom = companyDto.Comnom;
+                existingCompany.Comrazsoc = companyDto.Comrazsoc;
+                existingCompany.Comruc = companyDto.Comruc;
+                existingCompany.Comdom = companyDto.Comdom;
+                existingCompany.Comtel = companyDto.Comtel;
+                existingCompany.Comfax = companyDto.Comfax;
+                existingCompany.Comsumodia = companyDto.Comsumodia;
+                existingCompany.Comcntcli = companyDto.Comcntcli;
+                existingCompany.Comcntcon = companyDto.Comcntcon;
+                existingCompany.Comprepes = companyDto.Comprepes;
+                existingCompany.Compredol = companyDto.Compredol;
+                existingCompany.Comcomipe = companyDto.Comcomipe;
+                existingCompany.Comcomido = companyDto.Comcomido;
+                existingCompany.Comtotcomi = companyDto.Comtotcomi;
+                existingCompany.Comtotpre = companyDto.Comtotpre;
+                existingCompany.Comalias = companyDto.Comalias;
+                existingCompany.Comlog = companyDto.Comlog;
+                existingCompany.Broker = companyDto.Broker;
+                existingCompany.Cod_srvcompanias = companyDto.Cod_srvcompanias;
+                existingCompany.No_utiles = companyDto.No_utiles;
+                existingCompany.Paq_dias = companyDto.Paq_dias;
+                existingCompany.Activo = companyDto.Activo;
+                existingCompany.FechaModificacion = DateTime.Now;
+
                 await _companyRepository.UpdateAsync(existingCompany);
             }
             catch (Exception ex)
@@ -167,6 +251,7 @@ namespace RegularizadorPolizas.Application.Services
                     throw new ApplicationException($"Cannot delete company. It has {polizasCount} associated policies");
 
                 company.Activo = false;
+                company.FechaModificacion = DateTime.Now;
                 await _companyRepository.UpdateAsync(company);
             }
             catch (Exception ex)
@@ -175,16 +260,35 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        public async Task<bool> ExistsByCodigoAsync(string codigo, int? excludeId = null)
+        public async Task<bool> ExistsByRucAsync(string comruc, int? excludeId = null)
         {
             try
             {
-                var companies = await _companyRepository.FindAsync(c => c.Codigo == codigo);
+                if (string.IsNullOrWhiteSpace(comruc))
+                    return false;
+
+                var companies = await _companyRepository.FindAsync(c => c.Comruc == comruc);
                 return companies.Any(c => excludeId == null || c.Id != excludeId);
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error checking company code existence: {ex.Message}", ex);
+                throw new ApplicationException($"Error checking company RUC existence: {ex.Message}", ex);
+            }
+        }
+
+        public async Task<bool> ExistsByAliasAsync(string comalias, int? excludeId = null)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(comalias))
+                    return false;
+
+                var companies = await _companyRepository.FindAsync(c => c.Comalias.ToLower() == comalias.ToLower());
+                return companies.Any(c => excludeId == null || c.Id != excludeId);
+            }
+            catch (Exception ex)
+            {
+                throw new ApplicationException($"Error checking company alias existence: {ex.Message}", ex);
             }
         }
 
@@ -198,9 +302,10 @@ namespace RegularizadorPolizas.Application.Services
                 var normalizedSearchTerm = searchTerm.Trim().ToLower();
                 var companies = await _companyRepository.FindAsync(c =>
                     c.Activo && (
-                        c.Nombre.ToLower().Contains(normalizedSearchTerm) ||
-                        c.Alias.ToLower().Contains(normalizedSearchTerm) ||
-                        c.Codigo.ToLower().Contains(normalizedSearchTerm)
+                        c.Comnom.ToLower().Contains(normalizedSearchTerm) ||
+                        (c.Comalias != null && c.Comalias.ToLower().Contains(normalizedSearchTerm)) ||
+                        (c.Comruc != null && c.Comruc.Contains(normalizedSearchTerm)) ||
+                        (c.Comrazsoc != null && c.Comrazsoc.ToLower().Contains(normalizedSearchTerm))
                     )
                 );
 
@@ -225,4 +330,3 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
     }
-}

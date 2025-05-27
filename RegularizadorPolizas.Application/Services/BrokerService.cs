@@ -61,11 +61,11 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        public async Task<BrokerDto> GetBrokerByCodigoAsync(string codigo)
+        public async Task<BrokerDto> GetBrokerByNameAsync(string name)
         {
             try
             {
-                var broker = await _brokerRepository.GetByCodigoAsync(codigo);
+                var broker = await _brokerRepository.GetByNameAsync(name);
                 if (broker == null)
                     return null;
 
@@ -76,15 +76,15 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error retrieving broker with code {codigo}: {ex.Message}", ex);
+                throw new ApplicationException($"Error retrieving broker with name {name}: {ex.Message}", ex);
             }
         }
 
-        public async Task<BrokerDto> GetBrokerByEmailAsync(string email)
+        public async Task<BrokerDto> GetBrokerByTelefonoAsync(string telefono)
         {
             try
             {
-                var broker = await _brokerRepository.GetByEmailAsync(email);
+                var broker = await _brokerRepository.GetByTelefonoAsync(telefono);
                 if (broker == null)
                     return null;
 
@@ -95,7 +95,7 @@ namespace RegularizadorPolizas.Application.Services
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error retrieving broker with email {email}: {ex.Message}", ex);
+                throw new ApplicationException($"Error retrieving broker with phone {telefono}: {ex.Message}", ex);
             }
         }
 
@@ -129,24 +129,22 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(brokerDto.Nombre))
+                if (string.IsNullOrWhiteSpace(brokerDto.Name))
                     throw new ArgumentException("Broker name is required");
 
-                if (string.IsNullOrWhiteSpace(brokerDto.Codigo))
-                    throw new ArgumentException("Broker code is required");
+                if (await ExistsByNameAsync(brokerDto.Name))
+                    throw new ArgumentException($"Broker with name '{brokerDto.Name}' already exists");
 
-                if (await _brokerRepository.ExistsByCodigoAsync(brokerDto.Codigo))
-                    throw new ArgumentException($"Broker with code '{brokerDto.Codigo}' already exists");
-
-                if (!string.IsNullOrWhiteSpace(brokerDto.Email))
+                if (!string.IsNullOrWhiteSpace(brokerDto.Telefono))
                 {
-                    var existingBroker = await _brokerRepository.GetByEmailAsync(brokerDto.Email);
-                    if (existingBroker != null)
-                        throw new ArgumentException($"Broker with email '{brokerDto.Email}' already exists");
+                    if (await ExistsByTelefonoAsync(brokerDto.Telefono))
+                        throw new ArgumentException($"Broker with phone '{brokerDto.Telefono}' already exists");
                 }
 
                 var broker = _mapper.Map<Broker>(brokerDto);
                 broker.Activo = true;
+                broker.FechaCreacion = DateTime.Now;
+                broker.FechaModificacion = DateTime.Now;
 
                 var createdBroker = await _brokerRepository.AddAsync(broker);
                 return _mapper.Map<BrokerDto>(createdBroker);
@@ -168,14 +166,34 @@ namespace RegularizadorPolizas.Application.Services
                 if (existingBroker == null)
                     throw new ApplicationException($"Broker with ID {brokerDto.Id} not found");
 
-                if (await ExistsByCodigoAsync(brokerDto.Codigo, brokerDto.Id))
-                    throw new ArgumentException($"Broker with code '{brokerDto.Codigo}' already exists");
+                if (await ExistsByNameAsync(brokerDto.Name, brokerDto.Id))
+                    throw new ArgumentException($"Broker with name '{brokerDto.Name}' already exists");
 
-                if (!string.IsNullOrWhiteSpace(brokerDto.Email) &&
-                    await ExistsByEmailAsync(brokerDto.Email, brokerDto.Id))
-                    throw new ArgumentException($"Broker with email '{brokerDto.Email}' already exists");
+                if (!string.IsNullOrWhiteSpace(brokerDto.Telefono) &&
+                    await ExistsByTelefonoAsync(brokerDto.Telefono, brokerDto.Id))
+                    throw new ArgumentException($"Broker with phone '{brokerDto.Telefono}' already exists");
 
-                _mapper.Map(brokerDto, existingBroker);
+                // Actualizar propiedades manualmente para mantener control
+                existingBroker.Name = brokerDto.Name;
+                existingBroker.Telefono = brokerDto.Telefono;
+                existingBroker.Direccion = brokerDto.Direccion;
+                existingBroker.Observaciones = brokerDto.Observaciones;
+                existingBroker.Activo = brokerDto.Activo;
+                existingBroker.FechaModificacion = DateTime.Now;
+
+                // Manejar foto si se proporciona
+                if (!string.IsNullOrEmpty(brokerDto.Foto))
+                {
+                    try
+                    {
+                        existingBroker.Foto = Convert.FromBase64String(brokerDto.Foto);
+                    }
+                    catch
+                    {
+                        throw new ArgumentException("Invalid image format. Please provide a valid base64 string.");
+                    }
+                }
+
                 await _brokerRepository.UpdateAsync(existingBroker);
             }
             catch (Exception ex)
@@ -197,6 +215,7 @@ namespace RegularizadorPolizas.Application.Services
                     throw new ApplicationException($"Cannot delete broker. It has {polizasCount} associated policies");
 
                 broker.Activo = false;
+                broker.FechaModificacion = DateTime.Now;
                 await _brokerRepository.UpdateAsync(broker);
             }
             catch (Exception ex)
@@ -205,32 +224,35 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        public async Task<bool> ExistsByCodigoAsync(string codigo, int? excludeId = null)
+        public async Task<bool> ExistsByNameAsync(string name, int? excludeId = null)
         {
             try
             {
-                var brokers = await _brokerRepository.FindAsync(b => b.Codigo == codigo);
+                if (string.IsNullOrWhiteSpace(name))
+                    return false;
+
+                var brokers = await _brokerRepository.FindAsync(b => b.Name.ToLower() == name.ToLower());
                 return brokers.Any(b => excludeId == null || b.Id != excludeId);
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error checking broker code existence: {ex.Message}", ex);
+                throw new ApplicationException($"Error checking broker name existence: {ex.Message}", ex);
             }
         }
 
-        public async Task<bool> ExistsByEmailAsync(string email, int? excludeId = null)
+        public async Task<bool> ExistsByTelefonoAsync(string telefono, int? excludeId = null)
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(email))
+                if (string.IsNullOrWhiteSpace(telefono))
                     return false;
 
-                var brokers = await _brokerRepository.FindAsync(b => b.Email.ToLower() == email.ToLower());
+                var brokers = await _brokerRepository.FindAsync(b => b.Telefono == telefono);
                 return brokers.Any(b => excludeId == null || b.Id != excludeId);
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error checking broker email existence: {ex.Message}", ex);
+                throw new ApplicationException($"Error checking broker phone existence: {ex.Message}", ex);
             }
         }
 
@@ -238,7 +260,18 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
-                var brokers = await _brokerRepository.SearchByNameAsync(searchTerm);
+                if (string.IsNullOrWhiteSpace(searchTerm))
+                    return await GetActiveBrokersAsync();
+
+                var normalizedSearchTerm = searchTerm.Trim().ToLower();
+                var brokers = await _brokerRepository.FindAsync(b =>
+                    b.Activo && (
+                        b.Name.ToLower().Contains(normalizedSearchTerm) ||
+                        (b.Telefono != null && b.Telefono.Contains(normalizedSearchTerm)) ||
+                        (b.Direccion != null && b.Direccion.ToLower().Contains(normalizedSearchTerm))
+                    )
+                );
+
                 return _mapper.Map<IEnumerable<BrokerDto>>(brokers);
             }
             catch (Exception ex)

@@ -1,11 +1,12 @@
-﻿namespace RegularizadorPolizas.Application.Interfaces
+﻿using RegularizadorPolizas.Domain.Entities;
+
+namespace RegularizadorPolizas.Application.Interfaces
 {
     public interface ICurrencyRepository : IGenericRepository<Currency>
     {
-        Task<Currency> GetByCodigoAsync(string codigo);
-        Task<Currency> GetBySimboloAsync(string simbolo);
+        Task<Currency> GetByMonedaAsync(string moneda);
         Task<IEnumerable<Currency>> GetActiveCurrenciesAsync();
-        Task<bool> ExistsByCodigoAsync(string codigo);
-        Task<Currency> GetDefaultCurrencyAsync(); 
+        Task<bool> ExistsByMonedaAsync(string moneda);
+        Task<Currency> GetDefaultCurrencyAsync();
     }
 }

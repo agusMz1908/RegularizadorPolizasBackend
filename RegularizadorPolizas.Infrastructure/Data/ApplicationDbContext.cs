@@ -14,26 +14,25 @@ namespace RegularizadorPolizas.Infrastructure.Data
         public DbSet<Poliza> Polizas { get; set; }
         public DbSet<ProcessDocument> ProcessDocuments { get; set; }
         public DbSet<Renovation> Renovations { get; set; }
-        public DbSet<Company> Companies { get; set; } // Cambiado de Companys a Companies
-        public DbSet<Broker> Brokers { get; set; } // Agregado
-        public DbSet<Currency> Currencies { get; set; } // Agregado
+        public DbSet<Company> Companies { get; set; }
+        public DbSet<Broker> Brokers { get; set; }
+        public DbSet<Currency> Currencies { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-
             modelBuilder.Entity<Poliza>(entity =>
             {
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.Condom)
+                    .HasColumnType("TEXT");
+
+                entity.Property(e => e.Observaciones)
+                    .HasColumnType("TEXT");
 
                 entity.HasOne(p => p.Client)
                       .WithMany(c => c.Polizas)
                       .HasForeignKey(p => p.Clinro)
-                      .OnDelete(DeleteBehavior.Restrict);
-
-                entity.HasOne(p => p.Tomador)
-                      .WithMany() 
-                      .HasForeignKey(p => p.Clinro1)
                       .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne(p => p.Company)
@@ -55,11 +54,23 @@ namespace RegularizadorPolizas.Infrastructure.Data
                       .WithMany(p => p.PolizasHijas)
                       .HasForeignKey(p => p.Conpadre)
                       .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(e => e.Conpol);
+                entity.HasIndex(e => e.Conmataut);
+                entity.HasIndex(e => e.Confchdes);
+                entity.HasIndex(e => e.Confchhas);
+                entity.HasIndex(e => e.Activo);
             });
 
             modelBuilder.Entity<Client>(entity =>
             {
                 entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Cliobse)
+                    .HasColumnType("TEXT");
+
+                entity.Property(e => e.Clifoto)
+                    .HasColumnType("LONGBLOB");
 
                 entity.HasIndex(e => e.Cliruc).HasDatabaseName("IX_Clients_Cliruc");
                 entity.HasIndex(e => e.Cliced).HasDatabaseName("IX_Clients_Cliced");
@@ -68,6 +79,9 @@ namespace RegularizadorPolizas.Infrastructure.Data
 
             modelBuilder.Entity<ProcessDocument>(entity =>
             {
+                entity.Property(e => e.ResultadoJson)
+                    .HasColumnType("TEXT");
+
                 entity.HasOne(pd => pd.Poliza)
                       .WithMany(p => p.ProcessDocuments)
                       .HasForeignKey(pd => pd.PolizaId)
@@ -81,6 +95,9 @@ namespace RegularizadorPolizas.Infrastructure.Data
 
             modelBuilder.Entity<Renovation>(entity =>
             {
+                entity.Property(e => e.Observaciones)
+                    .HasColumnType("TEXT");
+
                 entity.HasOne(r => r.PolizaOriginal)
                       .WithMany(p => p.RenovacionesOrigen)
                       .HasForeignKey(r => r.PolizaId)
@@ -97,24 +114,25 @@ namespace RegularizadorPolizas.Infrastructure.Data
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
-            modelBuilder.Entity<Company>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.HasIndex(e => e.Codigo).IsUnique().HasDatabaseName("IX_Companies_Codigo");
-            });
+            //modelBuilder.Entity<Company>(entity =>
+            //{
+            //    entity.HasKey(e => e.Id);
+            //    entity.HasIndex(e => e.Comalias).IsUnique().HasDatabaseName("IX_Companies_Codigo");
+            //});
 
-            modelBuilder.Entity<Broker>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.HasIndex(e => e.Codigo).HasDatabaseName("IX_Brokers_Codigo");
-            });
+            //modelBuilder.Entity<Broker>(entity =>
+            //{
+            //    entity.HasKey(e => e.Id);
+            //    entity.HasIndex(e => e.Codigo).HasDatabaseName("IX_Brokers_Codigo");
+            //});
 
-            modelBuilder.Entity<Currency>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.HasIndex(e => e.Codigo).IsUnique().HasDatabaseName("IX_Currencies_Codigo");
-            });
+            //modelBuilder.Entity<Currency>(entity =>
+            //{
+            //    entity.HasKey(e => e.Id);
+            //    entity.HasIndex(e => e.Codigo).IsUnique().HasDatabaseName("IX_Currencies_Codigo");
+            //});
 
+            // Aplicar datos semilla
             SeedData.ApplyAllSeedData(modelBuilder);
         }
     }

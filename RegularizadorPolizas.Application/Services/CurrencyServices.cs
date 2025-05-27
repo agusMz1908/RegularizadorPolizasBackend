@@ -32,7 +32,6 @@ namespace RegularizadorPolizas.Application.Services
                 {
                     var polizasCount = await GetPolizasCountAsync(currencyDto.Id);
                     currencyDto.TotalPolizas = polizasCount;
-                    currencyDto.EsMonedaPorDefecto = currencyDto.Codigo == "UYU";
                 }
 
                 return currenciesDto;
@@ -53,7 +52,6 @@ namespace RegularizadorPolizas.Application.Services
 
                 var currencyDto = _mapper.Map<CurrencyDto>(currency);
                 currencyDto.TotalPolizas = await GetPolizasCountAsync(id);
-                currencyDto.EsMonedaPorDefecto = currencyDto.Codigo == "UYU";
 
                 return currencyDto;
             }
@@ -63,23 +61,22 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        public async Task<CurrencyDto> GetCurrencyByCodigoAsync(string codigo)
+        public async Task<CurrencyDto> GetCurrencyByMonedaAsync(string moneda)
         {
             try
             {
-                var currency = await _currencyRepository.GetByCodigoAsync(codigo);
+                var currency = await _currencyRepository.GetByMonedaAsync(moneda);
                 if (currency == null)
                     return null;
 
                 var currencyDto = _mapper.Map<CurrencyDto>(currency);
                 currencyDto.TotalPolizas = await GetPolizasCountAsync(currency.Id);
-                currencyDto.EsMonedaPorDefecto = currencyDto.Codigo == "UYU";
 
                 return currencyDto;
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error retrieving currency with code {codigo}: {ex.Message}", ex);
+                throw new ApplicationException($"Error retrieving currency with moneda {moneda}: {ex.Message}", ex);
             }
         }
 
@@ -88,14 +85,7 @@ namespace RegularizadorPolizas.Application.Services
             try
             {
                 var currencies = await _currencyRepository.GetActiveCurrenciesAsync();
-                var currenciesDto = _mapper.Map<IEnumerable<CurrencyDto>>(currencies);
-
-                foreach (var currencyDto in currenciesDto)
-                {
-                    currencyDto.EsMonedaPorDefecto = currencyDto.Codigo == "UYU";
-                }
-
-                return currenciesDto;
+                return _mapper.Map<IEnumerable<CurrencyDto>>(currencies);
             }
             catch (Exception ex)
             {
@@ -120,14 +110,16 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
-                var currency = await _currencyRepository.GetDefaultCurrencyAsync();
+                // Buscar Peso Uruguayo como moneda por defecto
+                var currency = await _currencyRepository.GetByMonedaAsync("Peso Uruguayo");
                 if (currency == null)
-                    return null;
+                {
+                    // Si no existe, tomar la primera activa
+                    var currencies = await _currencyRepository.GetActiveCurrenciesAsync();
+                    currency = currencies.FirstOrDefault();
+                }
 
-                var currencyDto = _mapper.Map<CurrencyDto>(currency);
-                currencyDto.EsMonedaPorDefecto = true;
-
-                return currencyDto;
+                return currency != null ? _mapper.Map<CurrencyDto>(currency) : null;
             }
             catch (Exception ex)
             {
@@ -139,29 +131,19 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(currencyDto.Nombre))
-                    throw new ArgumentException("Currency name is required");
+                if (string.IsNullOrWhiteSpace(currencyDto.Moneda))
+                    throw new ArgumentException("Currency name (Moneda) is required");
 
-                if (string.IsNullOrWhiteSpace(currencyDto.Codigo))
-                    throw new ArgumentException("Currency code is required");
-
-                if (string.IsNullOrWhiteSpace(currencyDto.Simbolo))
-                    throw new ArgumentException("Currency symbol is required");
-
-                if (await _currencyRepository.ExistsByCodigoAsync(currencyDto.Codigo))
-                    throw new ArgumentException($"Currency with code '{currencyDto.Codigo}' already exists");
-
-                if (await ExistsBySimboloAsync(currencyDto.Simbolo))
-                    throw new ArgumentException($"Currency with symbol '{currencyDto.Simbolo}' already exists");
+                if (await ExistsByMonedaAsync(currencyDto.Moneda))
+                    throw new ArgumentException($"Currency with name '{currencyDto.Moneda}' already exists");
 
                 var currency = _mapper.Map<Currency>(currencyDto);
                 currency.Activo = true;
+                currency.FechaCreacion = DateTime.Now;
+                currency.FechaModificacion = DateTime.Now;
 
                 var createdCurrency = await _currencyRepository.AddAsync(currency);
-                var result = _mapper.Map<CurrencyDto>(createdCurrency);
-                result.EsMonedaPorDefecto = result.Codigo == "UYU";
-
-                return result;
+                return _mapper.Map<CurrencyDto>(createdCurrency);
             }
             catch (Exception ex)
             {
@@ -180,13 +162,13 @@ namespace RegularizadorPolizas.Application.Services
                 if (existingCurrency == null)
                     throw new ApplicationException($"Currency with ID {currencyDto.Id} not found");
 
-                if (await ExistsByCodigoAsync(currencyDto.Codigo, currencyDto.Id))
-                    throw new ArgumentException($"Currency with code '{currencyDto.Codigo}' already exists");
+                if (await ExistsByMonedaAsync(currencyDto.Moneda, currencyDto.Id))
+                    throw new ArgumentException($"Currency with name '{currencyDto.Moneda}' already exists");
 
-                if (await ExistsBySimboloAsync(currencyDto.Simbolo, currencyDto.Id))
-                    throw new ArgumentException($"Currency with symbol '{currencyDto.Simbolo}' already exists");
+                existingCurrency.Moneda = currencyDto.Moneda;
+                existingCurrency.Activo = currencyDto.Activo;
+                existingCurrency.FechaModificacion = DateTime.Now;
 
-                _mapper.Map(currencyDto, existingCurrency);
                 await _currencyRepository.UpdateAsync(existingCurrency);
             }
             catch (Exception ex)
@@ -203,14 +185,12 @@ namespace RegularizadorPolizas.Application.Services
                 if (currency == null)
                     throw new ApplicationException($"Currency with ID {id} not found");
 
-                if (currency.Codigo == "UYU")
-                    throw new ApplicationException("Cannot delete the default currency (UYU)");
-
                 var polizasCount = await GetPolizasCountAsync(id);
                 if (polizasCount > 0)
                     throw new ApplicationException($"Cannot delete currency. It has {polizasCount} associated policies");
 
                 currency.Activo = false;
+                currency.FechaModificacion = DateTime.Now;
                 await _currencyRepository.UpdateAsync(currency);
             }
             catch (Exception ex)
@@ -219,32 +199,19 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        public async Task<bool> ExistsByCodigoAsync(string codigo, int? excludeId = null)
+        public async Task<bool> ExistsByMonedaAsync(string moneda, int? excludeId = null)
         {
             try
             {
-                var currencies = await _currencyRepository.FindAsync(c => c.Codigo == codigo);
-                return currencies.Any(c => excludeId == null || c.Id != excludeId);
-            }
-            catch (Exception ex)
-            {
-                throw new ApplicationException($"Error checking currency code existence: {ex.Message}", ex);
-            }
-        }
-
-        public async Task<bool> ExistsBySimboloAsync(string simbolo, int? excludeId = null)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(simbolo))
+                if (string.IsNullOrWhiteSpace(moneda))
                     return false;
 
-                var currencies = await _currencyRepository.FindAsync(c => c.Simbolo == simbolo);
+                var currencies = await _currencyRepository.FindAsync(c => c.Moneda.ToLower() == moneda.ToLower());
                 return currencies.Any(c => excludeId == null || c.Id != excludeId);
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error checking currency symbol existence: {ex.Message}", ex);
+                throw new ApplicationException($"Error checking currency name existence: {ex.Message}", ex);
             }
         }
 
@@ -257,21 +224,10 @@ namespace RegularizadorPolizas.Application.Services
 
                 var normalizedSearchTerm = searchTerm.Trim().ToLower();
                 var currencies = await _currencyRepository.FindAsync(c =>
-                    c.Activo && (
-                        c.Nombre.ToLower().Contains(normalizedSearchTerm) ||
-                        c.Codigo.ToLower().Contains(normalizedSearchTerm) ||
-                        c.Simbolo.ToLower().Contains(normalizedSearchTerm)
-                    )
+                    c.Activo && c.Moneda.ToLower().Contains(normalizedSearchTerm)
                 );
 
-                var currenciesDto = _mapper.Map<IEnumerable<CurrencyDto>>(currencies);
-
-                foreach (var currencyDto in currenciesDto)
-                {
-                    currencyDto.EsMonedaPorDefecto = currencyDto.Codigo == "UYU";
-                }
-
-                return currenciesDto;
+                return _mapper.Map<IEnumerable<CurrencyDto>>(currencies);
             }
             catch (Exception ex)
             {
