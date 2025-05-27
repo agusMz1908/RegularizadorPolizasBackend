@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace RegularizadorPolizas.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class BasicMigrationTest : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -89,7 +89,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Clitelant = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Cliobse = table.Column<string>(type: "longtext", nullable: false)
+                    Cliobse = table.Column<string>(type: "TEXT", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Clifax = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -102,7 +102,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     Clidircob = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Clibse = table.Column<int>(type: "int", nullable: true),
-                    Clifoto = table.Column<byte[]>(type: "longblob", nullable: false),
+                    Clifoto = table.Column<byte[]>(type: "LONGBLOB", nullable: false),
                     Pruebamillares = table.Column<int>(type: "int", nullable: true),
                     Ingresado = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -247,7 +247,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     Clinro = table.Column<int>(type: "int", nullable: true),
                     Comcod = table.Column<int>(type: "int", nullable: true),
                     Seccod = table.Column<int>(type: "int", nullable: true),
-                    Condom = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
+                    Condom = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Conmaraut = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -448,7 +448,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     Otrcorrcod = table.Column<int>(type: "int", nullable: true),
                     Condeta = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Observaciones = table.Column<string>(type: "longtext", nullable: false)
+                    Observaciones = table.Column<string>(type: "TEXT", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Clipcupfia = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
                     Conclieda = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
@@ -555,12 +555,6 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_Polizas_Clients_Clinro1",
-                        column: x => x.Clinro1,
-                        principalTable: "Clients",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
                         name: "FK_Polizas_Companies_Comcod",
                         column: x => x.Comcod,
                         principalTable: "Companies",
@@ -595,7 +589,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     EstadoProcesamiento = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    ResultadoJson = table.Column<string>(type: "longtext", nullable: false)
+                    ResultadoJson = table.Column<string>(type: "TEXT", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     PolizaId = table.Column<int>(type: "int", nullable: true),
                     FechaProcesamiento = table.Column<DateTime>(type: "datetime(6)", nullable: true),
@@ -632,7 +626,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     FechaSolicitud = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     Estado = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Observaciones = table.Column<string>(type: "longtext", nullable: false)
+                    Observaciones = table.Column<string>(type: "TEXT", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     UsuarioId = table.Column<int>(type: "int", nullable: true),
                     FechaCreacion = table.Column<DateTime>(type: "datetime(6)", nullable: false),
@@ -670,8 +664,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     { 1, true, "BSE", "BSE", "Banco de Seguros del Estado" },
                     { 2, true, "SURA", "SURA", "SURA Uruguay" },
                     { 3, true, "MAPFRE", "MAPFRE", "Mapfre Uruguay" },
-                    { 4, true, "SAN CRISTOBAL", "SC", "San Cristóbal" },
-                    { 5, true, "LA CAJA", "CAJA", "La Caja de Seguros" }
+                    { 4, true, "SAN CRISTOBAL", "SC", "San Cristóbal" }
                 });
 
             migrationBuilder.InsertData(
@@ -687,11 +680,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
             migrationBuilder.InsertData(
                 table: "Users",
                 columns: new[] { "Id", "Activo", "Email", "FechaCreacion", "FechaModificacion", "Nombre" },
-                values: new object[,]
-                {
-                    { 1, true, "admin@sistema.com", new DateTime(2025, 5, 26, 16, 8, 52, 542, DateTimeKind.Local).AddTicks(5783), new DateTime(2025, 5, 26, 16, 8, 52, 542, DateTimeKind.Local).AddTicks(6023), "Administrador" },
-                    { 2, true, "demo@sistema.com", new DateTime(2025, 5, 26, 16, 8, 52, 542, DateTimeKind.Local).AddTicks(6293), new DateTime(2025, 5, 26, 16, 8, 52, 542, DateTimeKind.Local).AddTicks(6294), "Usuario Demo" }
-                });
+                values: new object[] { 1, true, "admin@sistema.com", new DateTime(2025, 5, 26, 16, 8, 52, 542, DateTimeKind.Local).AddTicks(5783), new DateTime(2025, 5, 26, 16, 8, 52, 542, DateTimeKind.Local).AddTicks(6023), "Administrador" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Brokers_Codigo",
@@ -726,14 +715,14 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_Polizas_Activo",
+                table: "Polizas",
+                column: "Activo");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Polizas_Clinro",
                 table: "Polizas",
                 column: "Clinro");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Polizas_Clinro1",
-                table: "Polizas",
-                column: "Clinro1");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Polizas_Comcod",
@@ -741,9 +730,29 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                 column: "Comcod");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Polizas_Confchdes",
+                table: "Polizas",
+                column: "Confchdes");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Polizas_Confchhas",
+                table: "Polizas",
+                column: "Confchhas");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Polizas_Conmataut",
+                table: "Polizas",
+                column: "Conmataut");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Polizas_Conpadre",
                 table: "Polizas",
                 column: "Conpadre");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Polizas_Conpol",
+                table: "Polizas",
+                column: "Conpol");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Polizas_Corrnom",

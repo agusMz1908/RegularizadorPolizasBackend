@@ -4,12 +4,11 @@ namespace RegularizadorPolizas.Application.Interfaces
 {
     public interface IBrokerRepository : IGenericRepository<Broker>
     {
-        Task<Broker> GetByNameAsync(string name);
-        Task<Broker> GetByTelefonoAsync(string telefono);
+        Task<Broker> GetByCodigoAsync(string codigo);
+        Task<Broker> GetByEmailAsync(string email);
         Task<IEnumerable<Broker>> GetActiveBrokersAsync();
         Task<IEnumerable<Broker>> SearchByNameAsync(string searchTerm);
-        Task<bool> ExistsByNameAsync(string name);
-        Task<bool> ExistsByTelefonoAsync(string telefono);
+        Task<bool> ExistsByCodigoAsync(string codigo);
         Task<IEnumerable<Broker>> GetBrokersWithPoliciesAsync();
     }
 }

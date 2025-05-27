@@ -21,9 +21,11 @@ namespace RegularizadorPolizas.Infrastructure.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
             modelBuilder.Entity<Poliza>(entity =>
             {
                 entity.HasKey(e => e.Id);
+
                 entity.Property(e => e.Condom)
                     .HasColumnType("TEXT");
 
@@ -114,25 +116,29 @@ namespace RegularizadorPolizas.Infrastructure.Data
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
-            //modelBuilder.Entity<Company>(entity =>
-            //{
-            //    entity.HasKey(e => e.Id);
-            //    entity.HasIndex(e => e.Comalias).IsUnique().HasDatabaseName("IX_Companies_Codigo");
-            //});
+            modelBuilder.Entity<Company>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.Codigo)
+                    .IsUnique()
+                    .HasDatabaseName("IX_Companies_Codigo");
+            });
 
-            //modelBuilder.Entity<Broker>(entity =>
-            //{
-            //    entity.HasKey(e => e.Id);
-            //    entity.HasIndex(e => e.Codigo).HasDatabaseName("IX_Brokers_Codigo");
-            //});
+            modelBuilder.Entity<Broker>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.Codigo)
+                    .HasDatabaseName("IX_Brokers_Codigo");
+            });
 
-            //modelBuilder.Entity<Currency>(entity =>
-            //{
-            //    entity.HasKey(e => e.Id);
-            //    entity.HasIndex(e => e.Codigo).IsUnique().HasDatabaseName("IX_Currencies_Codigo");
-            //});
+            modelBuilder.Entity<Currency>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.Codigo)
+                    .IsUnique()
+                    .HasDatabaseName("IX_Currencies_Codigo");
+            });
 
-            // Aplicar datos semilla
             SeedData.ApplyAllSeedData(modelBuilder);
         }
     }

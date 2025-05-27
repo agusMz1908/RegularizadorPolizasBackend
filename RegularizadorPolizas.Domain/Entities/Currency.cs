@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using RegularizadorPolizas.Domain.Entities;
 
 namespace RegularizadorPolizas.Domain.Entities
 {
@@ -7,12 +6,22 @@ namespace RegularizadorPolizas.Domain.Entities
     {
         [Key]
         public int Id { get; set; }
+
         [Required]
-        [StringLength(100)]
-        public string Moneda { get; set; }
+        [StringLength(50)]
+        public string Nombre { get; set; }
+
+        [Required]
+        [StringLength(10)]
+        public string Codigo { get; set; }
+
+        [Required]
+        [StringLength(5)]
+        public string Simbolo { get; set; }
+
         public bool Activo { get; set; } = true;
-        public DateTime FechaCreacion { get; set; } = DateTime.Now;
-        public DateTime FechaModificacion { get; set; } = DateTime.Now;
-        public virtual ICollection<Poliza> Polizas { get; set; }
+
+        // Navegación
+        public virtual ICollection<Poliza> Polizas { get; set; } = new List<Poliza>();
     }
 }
