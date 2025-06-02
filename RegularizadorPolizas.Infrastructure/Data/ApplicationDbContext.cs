@@ -22,16 +22,18 @@ namespace RegularizadorPolizas.Infrastructure.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            // === CONFIGURACIÓN DE POLIZA ===
             modelBuilder.Entity<Poliza>(entity =>
             {
                 entity.HasKey(e => e.Id);
 
-                entity.Property(e => e.Condom)
-                    .HasColumnType("TEXT");
+                // Campos que deben ser TEXT (sin límite de longitud)
+                entity.Property(e => e.Condom).HasColumnType("TEXT");
+                entity.Property(e => e.Observaciones).HasColumnType("TEXT");
+                entity.Property(e => e.Sublistas).HasColumnType("TEXT");
+                entity.Property(e => e.Cotizacion).HasColumnType("TEXT");
 
-                entity.Property(e => e.Observaciones)
-                    .HasColumnType("TEXT");
-
+                // Relaciones
                 entity.HasOne(p => p.Client)
                       .WithMany(c => c.Polizas)
                       .HasForeignKey(p => p.Clinro)
@@ -57,13 +59,20 @@ namespace RegularizadorPolizas.Infrastructure.Data
                       .HasForeignKey(p => p.Conpadre)
                       .OnDelete(DeleteBehavior.Restrict);
 
+                // Índices para optimizar consultas
                 entity.HasIndex(e => e.Conpol);
                 entity.HasIndex(e => e.Conmataut);
                 entity.HasIndex(e => e.Confchdes);
                 entity.HasIndex(e => e.Confchhas);
                 entity.HasIndex(e => e.Activo);
+                entity.HasIndex(e => e.Clinro);
+                entity.HasIndex(e => e.Comcod);
+                entity.HasIndex(e => e.Corrnom);
+                entity.HasIndex(e => e.Moncod);
+                entity.HasIndex(e => e.Conpadre);
             });
 
+            // === CONFIGURACIÓN DE CLIENT ===
             modelBuilder.Entity<Client>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -79,6 +88,7 @@ namespace RegularizadorPolizas.Infrastructure.Data
                 entity.HasIndex(e => e.Cliemail).HasDatabaseName("IX_Clients_Cliemail");
             });
 
+            // === CONFIGURACIÓN DE PROCESSDOCUMENT ===
             modelBuilder.Entity<ProcessDocument>(entity =>
             {
                 entity.Property(e => e.ResultadoJson)
@@ -95,6 +105,7 @@ namespace RegularizadorPolizas.Infrastructure.Data
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
+            // === CONFIGURACIÓN DE RENOVATION ===
             modelBuilder.Entity<Renovation>(entity =>
             {
                 entity.Property(e => e.Observaciones)
@@ -116,6 +127,7 @@ namespace RegularizadorPolizas.Infrastructure.Data
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
+            // === CONFIGURACIÓN DE COMPANY ===
             modelBuilder.Entity<Company>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -124,6 +136,7 @@ namespace RegularizadorPolizas.Infrastructure.Data
                     .HasDatabaseName("IX_Companies_Codigo");
             });
 
+            // === CONFIGURACIÓN DE BROKER ===
             modelBuilder.Entity<Broker>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -131,6 +144,7 @@ namespace RegularizadorPolizas.Infrastructure.Data
                     .HasDatabaseName("IX_Brokers_Codigo");
             });
 
+            // === CONFIGURACIÓN DE CURRENCY ===
             modelBuilder.Entity<Currency>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -139,6 +153,7 @@ namespace RegularizadorPolizas.Infrastructure.Data
                     .HasDatabaseName("IX_Currencies_Codigo");
             });
 
+            // === APLICAR SEED DATA ===
             SeedData.ApplyAllSeedData(modelBuilder);
         }
     }

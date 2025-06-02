@@ -17,11 +17,6 @@ namespace RegularizadorPolizas.API.Controllers
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
         }
 
-        /// <summary>
-        /// Login user and get authentication token
-        /// </summary>
-        /// <param name="loginDto">Login credentials</param>
-        /// <returns>Authentication result with token</returns>
         [HttpPost("login")]
         [ProducesResponseType(typeof(AuthResultDto), 200)]
         [ProducesResponseType(401)]
@@ -43,11 +38,6 @@ namespace RegularizadorPolizas.API.Controllers
             }
         }
 
-        /// <summary>
-        /// Validate authentication token
-        /// </summary>
-        /// <param name="token">JWT token</param>
-        /// <returns>Token validation result</returns>
         [HttpPost("validate-token")]
         [ProducesResponseType(typeof(bool), 200)]
         [ProducesResponseType(400)]
@@ -64,7 +54,6 @@ namespace RegularizadorPolizas.API.Controllers
             }
             catch (Exception ex)
             {
-                // Log exception
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }

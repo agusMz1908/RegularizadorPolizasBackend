@@ -247,20 +247,20 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     Clinro = table.Column<int>(type: "int", nullable: true),
                     Comcod = table.Column<int>(type: "int", nullable: true),
                     Seccod = table.Column<int>(type: "int", nullable: true),
-                    Condom = table.Column<string>(type: "TEXT", maxLength: 255, nullable: false)
+                    Condom = table.Column<string>(type: "TEXT", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Conmaraut = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Conmaraut = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Conanioaut = table.Column<int>(type: "int", nullable: true),
                     Concodrev = table.Column<int>(type: "int", nullable: true),
-                    Conmataut = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
+                    Conmataut = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Conficto = table.Column<int>(type: "int", nullable: true),
-                    Conmotor = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Conmotor = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Conpadaut = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Conpadaut = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Conchasis = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Conchasis = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Conclaaut = table.Column<int>(type: "int", nullable: true),
                     Condedaut = table.Column<int>(type: "int", nullable: true),
@@ -268,9 +268,9 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     Conbonnsin = table.Column<int>(type: "int", nullable: true),
                     Conbonant = table.Column<int>(type: "int", nullable: true),
                     Concaraut = table.Column<int>(type: "int", nullable: true),
-                    Concesnom = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Concesnom = table.Column<string>(type: "varchar(40)", maxLength: 40, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Concestel = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Concestel = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Concapaut = table.Column<int>(type: "int", nullable: true),
                     Conpremio = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
@@ -282,70 +282,70 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     Desdsc = table.Column<int>(type: "int", nullable: true),
                     Caldsc = table.Column<int>(type: "int", nullable: true),
                     Flocod = table.Column<int>(type: "int", nullable: true),
-                    Concar = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Concar = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Conpol = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Conpol = table.Column<string>(type: "varchar(40)", maxLength: 40, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Conend = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
+                    Conend = table.Column<string>(type: "varchar(3)", maxLength: 3, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Confchdes = table.Column<DateTime>(type: "datetime(6)", nullable: true),
                     Confchhas = table.Column<DateTime>(type: "datetime(6)", nullable: true),
                     Conimp = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
                     Connroser = table.Column<int>(type: "int", nullable: true),
-                    Rieres = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Rieres = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Conges = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Conges = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Congesti = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Congesti = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Congesfi = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    Congeses = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Congeses = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Convig = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
+                    Convig = table.Column<string>(type: "varchar(15)", maxLength: 15, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Concan = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
-                    Congrucon = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Congrucon = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Conpadre = table.Column<int>(type: "int", nullable: true),
                     Conidpad = table.Column<int>(type: "int", nullable: true),
                     Confchcan = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    Concaucan = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Concaucan = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Contipoemp = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Contipoemp = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Conmatpar = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Conmatpar = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Conmatte = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Conmatte = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Concapla = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
                     Conflota = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
                     Condednum = table.Column<int>(type: "int", nullable: true),
-                    Consta = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Consta = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Contra = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Contra = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Conconf = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Conconf = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Conobjtot = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
-                    Contpoact = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Contpoact = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Conesp = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Conesp = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Convalacr = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
                     Convallet = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
-                    Condecram = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Condecram = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Conmedtra = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Conmedtra = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Conviades = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Conviades = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Conviaa = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Conviaa = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Conviaenb = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Conviaenb = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Conviakb = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
                     Conviakn = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
-                    Conviatra = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Conviatra = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Conviacos = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
                     Conviafle = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
@@ -355,18 +355,18 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     Condecpri = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
                     Condecpro = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
                     Condecptj = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
-                    Conubi = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
+                    Conubi = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Concaudsc = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
+                    Concaudsc = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Conincuno = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Conincuno = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Conviagas = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
                     Conviarec = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
                     Conviapri = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
                     Linobs = table.Column<int>(type: "int", nullable: true),
                     Concomdes = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    Concalcom = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Concalcom = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Tpoconcod = table.Column<int>(type: "int", nullable: true),
                     Tpovivcod = table.Column<int>(type: "int", nullable: true),
@@ -374,10 +374,10 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     Modcod = table.Column<int>(type: "int", nullable: true),
                     Concapase = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
                     Conpricap = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
-                    Tposegdsc = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Tposegdsc = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Conriecod = table.Column<int>(type: "int", nullable: true),
-                    Conriedsc = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Conriedsc = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Conrecfin = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
                     Conimprf = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
@@ -385,39 +385,39 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     Conautcor = table.Column<int>(type: "int", nullable: true),
                     Conlinrie = table.Column<int>(type: "int", nullable: true),
                     Conconesp = table.Column<int>(type: "int", nullable: true),
-                    Conlimnav = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Conlimnav = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Contpocob = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Contpocob = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Connomemb = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Connomemb = table.Column<string>(type: "varchar(40)", maxLength: 40, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Contpoemb = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Contpoemb = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Lincarta = table.Column<int>(type: "int", nullable: true),
                     Cancecod = table.Column<int>(type: "int", nullable: true),
                     Concomotr = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
-                    Conautcome = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Conautcome = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Conviafac = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Conviafac = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Conviamon = table.Column<int>(type: "int", nullable: true),
-                    Conviatpo = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Conviatpo = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Connrorc = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Connrorc = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Condedurc = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Condedurc = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Lininclu = table.Column<int>(type: "int", nullable: true),
                     Linexclu = table.Column<int>(type: "int", nullable: true),
                     Concapret = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
-                    Forpagvid = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Forpagvid = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Clinom = table.Column<string>(type: "varchar(150)", maxLength: 150, nullable: false)
+                    Clinom = table.Column<string>(type: "varchar(120)", maxLength: 120, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Tarcod = table.Column<int>(type: "int", nullable: true),
                     Corrnom = table.Column<int>(type: "int", nullable: true),
                     Connroint = table.Column<int>(type: "int", nullable: true),
-                    Conautnd = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Conautnd = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Conpadend = table.Column<int>(type: "int", nullable: true),
                     Contotpri = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
@@ -426,60 +426,60 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     Conflotimp = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
                     Conflottotal = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
                     Conflotsaldo = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
-                    Conaccicer = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Conaccicer = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Concerfin = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    Condetemb = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Condetemb = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Conclaemb = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Conclaemb = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Confabemb = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Confabemb = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Conbanemb = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Conbanemb = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Conmatemb = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Conmatemb = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Convelemb = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Convelemb = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Conmatriemb = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Conmatriemb = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Conptoemb = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Conptoemb = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Otrcorrcod = table.Column<int>(type: "int", nullable: true),
-                    Condeta = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Condeta = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Observaciones = table.Column<string>(type: "TEXT", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Clipcupfia = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
-                    Conclieda = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Conclieda = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Condecrea = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Condecrea = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Condecaju = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Condecaju = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Conviatot = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
-                    Contpoemp = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Contpoemp = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Congaran = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Congaran = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Congarantel = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Congarantel = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Mot_no_ren = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Mot_no_ren = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Condetrc = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Condetrc = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Conautcort = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    Condetail = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
+                    Condetail = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Clinro1 = table.Column<int>(type: "int", nullable: true),
                     Consumsal = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
-                    Conespbon = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Conespbon = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Leer = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     Enviado = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     Sob_recib = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     Leer_obs = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    Sublistas = table.Column<string>(type: "longtext", nullable: false)
+                    Sublistas = table.Column<string>(type: "TEXT", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Com_sub_corr = table.Column<int>(type: "int", nullable: true),
                     Tipos_de_alarma = table.Column<int>(type: "int", nullable: true),
@@ -488,14 +488,14 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     Com_bro = table.Column<int>(type: "int", nullable: true),
                     Com_bo = table.Column<int>(type: "int", nullable: true),
                     Contotant = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
-                    Cotizacion = table.Column<string>(type: "longtext", nullable: false)
+                    Cotizacion = table.Column<string>(type: "TEXT", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Motivos_no_renovacion = table.Column<int>(type: "int", nullable: true),
-                    Com_alias = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Com_alias = table.Column<string>(type: "varchar(40)", maxLength: 40, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Ramo = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Ramo = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Clausula = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Clausula = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Aereo = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     Maritimo = table.Column<bool>(type: "tinyint(1)", nullable: false),
@@ -504,18 +504,18 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     Max_mar = table.Column<int>(type: "int", nullable: true),
                     Max_terrestre = table.Column<int>(type: "int", nullable: true),
                     Tasa = table.Column<decimal>(type: "decimal(5,2)", nullable: true),
-                    Facturacion = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Facturacion = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Importacion = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     Exportacion = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     Offshore = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     Transito_interno = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    Coning = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Coning = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Cat_cli = table.Column<int>(type: "int", nullable: true),
                     Llamar = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     Granizo = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    Idorden = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Idorden = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Var_ubi = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     Mis_rie = table.Column<bool>(type: "tinyint(1)", nullable: false),
@@ -527,12 +527,12 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     Productos_de_vida = table.Column<int>(type: "int", nullable: true),
                     App_id = table.Column<int>(type: "int", nullable: true),
                     Update_date = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    Gestion = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Gestion = table.Column<string>(type: "varchar(80)", maxLength: 80, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Asignado = table.Column<int>(type: "int", nullable: true),
-                    Combustibles = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Combustibles = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    DocumentoPdf = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
+                    DocumentoPdf = table.Column<string>(type: "varchar(250)", maxLength: 250, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Procesado = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     Activo = table.Column<bool>(type: "tinyint(1)", nullable: false),
