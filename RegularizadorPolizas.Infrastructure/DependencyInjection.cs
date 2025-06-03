@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Http;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RegularizadorPolizas.Application.Interfaces;
@@ -13,7 +12,6 @@ namespace RegularizadorPolizas.Infrastructure
     {
         public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
-            // Database
             var connectionString = configuration.GetConnectionString("DefaultConnection");
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseMySql(
@@ -35,6 +33,8 @@ namespace RegularizadorPolizas.Infrastructure
             services.AddScoped<ICompanyRepository, CompanyRepository>();
             services.AddScoped<IBrokerRepository, BrokerRepository>();
             services.AddScoped<ICurrencyRepository, CurrencyRepository>();
+
+            services.AddScoped<IAuditRepository, AuditRepository>();
 
             services.AddScoped<IAzureDocumentIntelligenceService, AzureDocumentIntelligenceService>();
 
