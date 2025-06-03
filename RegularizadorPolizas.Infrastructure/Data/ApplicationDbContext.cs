@@ -145,6 +145,31 @@ namespace RegularizadorPolizas.Infrastructure.Data
                     .HasDatabaseName("IX_Currencies_Codigo");
             });
 
+            modelBuilder.Entity<AuditLog>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.OldValues).HasColumnType("TEXT");
+                entity.Property(e => e.NewValues).HasColumnType("TEXT");
+                entity.Property(e => e.AdditionalData).HasColumnType("TEXT");
+                entity.Property(e => e.StackTrace).HasColumnType("TEXT");
+
+                entity.HasOne(a => a.User)
+                      .WithMany()
+                      .HasForeignKey(a => a.UserId)
+                      .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasIndex(e => e.Timestamp);
+                entity.HasIndex(e => e.EventType);
+                entity.HasIndex(e => e.Category);
+                entity.HasIndex(e => e.EntityName);
+                entity.HasIndex(e => e.EntityId);
+                entity.HasIndex(e => e.UserId);
+                entity.HasIndex(e => e.Success);
+                entity.HasIndex(e => new { e.EntityName, e.EntityId });
+                entity.HasIndex(e => new { e.UserId, e.Timestamp });
+            });
+
             SeedData.ApplyAllSeedData(modelBuilder);
         }
     }

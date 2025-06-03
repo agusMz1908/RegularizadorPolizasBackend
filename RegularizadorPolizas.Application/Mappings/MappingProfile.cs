@@ -1,10 +1,14 @@
 ﻿using AutoMapper;
 using RegularizadorPolizas.Application.DTOs;
+using RegularizadorPolizas.Application.DTOs.Audit;
 using RegularizadorPolizas.Domain.Entities;
+using RegularizadorPolizas.Domain.Enums;
+using System.ComponentModel;
+using System.Reflection;
 
 namespace RegularizadorPolizas.Application.Mappings
 {
-    public class MappingProfile : Profile
+    public partial class MappingProfile : Profile
     {
         public MappingProfile()
         {
@@ -40,7 +44,7 @@ namespace RegularizadorPolizas.Application.Mappings
 
             CreateMap<Company, CompanyDto>()
                 .ReverseMap()
-                .ForMember(dest => dest.Polizas, opt => opt.Ignore()); 
+                .ForMember(dest => dest.Polizas, opt => opt.Ignore());
 
             CreateMap<Company, CompanyLookupDto>();
 
@@ -54,8 +58,18 @@ namespace RegularizadorPolizas.Application.Mappings
                 .ReverseMap()
                 .ForMember(dest => dest.Polizas, opt => opt.Ignore());
 
-            // Mapeo Currency <-> CurrencyLookupDto (simplificado para dropdowns)
             CreateMap<Currency, CurrencyLookupDto>();
+
+            CreateMap<AuditLog, AuditLogDto>()
+                .ForMember(dest => dest.EventTypeDescription, opt => opt.MapFrom(src => GetAuditEventDescription(src.EventType)))
+                .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category.ToString()));
+        }
+
+        private string GetAuditEventDescription(AuditEventType eventType)
+        {
+            var field = eventType.GetType().GetField(eventType.ToString());
+            var attribute = field?.GetCustomAttribute<DescriptionAttribute>();
+            return attribute?.Description ?? eventType.ToString();
         }
     }
 }
