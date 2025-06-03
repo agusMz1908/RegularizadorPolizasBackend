@@ -3,7 +3,7 @@ using RegularizadorPolizas.Application;
 using RegularizadorPolizas.Infrastructure;
 using RegularizadorPolizas.Infrastructure.Data;
 using Microsoft.AspNetCore.Diagnostics;
-using System.Security.Claims;
+using RegularizadorPolizas.API.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,6 +32,13 @@ builder.Services.AddCors(options =>
             .AllowAnyOrigin() 
             .AllowAnyMethod()
             .AllowAnyHeader());
+});
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
 });
 
 var app = builder.Build();
@@ -95,7 +102,9 @@ app.Map("/error", (HttpContext context) =>
 
 
 app.UseHttpsRedirection(); 
-app.UseCors("AllowAll"); 
+app.UseCors("AllowAll");
+app.UseSession();
+app.UseAuditMiddleware();
 app.UseAuthentication();  
 app.UseAuthorization();   
 

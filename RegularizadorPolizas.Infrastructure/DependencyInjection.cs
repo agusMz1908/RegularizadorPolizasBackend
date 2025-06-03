@@ -16,7 +16,7 @@ namespace RegularizadorPolizas.Infrastructure
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseMySql(
                     connectionString,
-                    ServerVersion.AutoDetect(connectionString),
+                    new MySqlServerVersion(new Version(8, 0, 28)),
                     mySqlOptions => mySqlOptions.EnableRetryOnFailure(
                         maxRetryCount: 5,
                         maxRetryDelay: TimeSpan.FromSeconds(30),
