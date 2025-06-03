@@ -1,8 +1,6 @@
 ﻿using RegularizadorPolizas.Application.Interfaces;
-using RegularizadorPolizas.Application.Interfaces.RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Domain.Enums;
 using System.Diagnostics;
-using System.Security.Claims;
 
 namespace RegularizadorPolizas.API.Middleware
 {

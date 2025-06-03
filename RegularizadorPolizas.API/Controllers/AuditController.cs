@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using RegularizadorPolizas.Application.DTOs.Audit;
 using RegularizadorPolizas.Application.Interfaces;
-using RegularizadorPolizas.Application.Interfaces.RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Domain.Enums;
 
 namespace RegularizadorPolizas.API.Controllers
