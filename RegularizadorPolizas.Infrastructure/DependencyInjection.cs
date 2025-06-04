@@ -2,9 +2,10 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RegularizadorPolizas.Application.Interfaces;
+using RegularizadorPolizas.Application.Configuration; // ← AGREGAR ESTA LÍNEA
 using RegularizadorPolizas.Infrastructure.Data;
 using RegularizadorPolizas.Infrastructure.Data.Repositories;
-using RegularizadorPolizas.Infrastructure.External.VelneoAPI;
+using RegularizadorPolizas.Infrastructure.External.VelneoAPI; // ← Ubicación correcta
 
 namespace RegularizadorPolizas.Infrastructure
 {
@@ -29,24 +30,40 @@ namespace RegularizadorPolizas.Infrastructure
             services.AddScoped<IPolizaRepository, PolizaRepository>();
             services.AddScoped<IProcessDocumentRepository, ProcessDocumentRepository>();
             services.AddScoped<IRenovationRepository, RenovationRepository>();
-
             services.AddScoped<ICompanyRepository, CompanyRepository>();
             services.AddScoped<IBrokerRepository, BrokerRepository>();
             services.AddScoped<ICurrencyRepository, CurrencyRepository>();
-
             services.AddScoped<IAuditRepository, AuditRepository>();
 
             services.AddScoped<IAzureDocumentIntelligenceService, AzureDocumentIntelligenceService>();
 
-            services.AddHttpClient<IVelneoApiService, VelneoApiService>(client =>
+            services.AddHttpClient<IVelneoApiService, VelneoApiService>((serviceProvider, client) =>
             {
+                // Configuración desde appsettings (como antes)
                 var baseUrl = configuration["VelneoAPI:BaseUrl"];
                 if (!string.IsNullOrEmpty(baseUrl))
                 {
                     client.BaseAddress = new Uri(baseUrl);
                 }
 
-                client.Timeout = TimeSpan.FromSeconds(30);
+                // Timeout desde configuración o default
+                var timeoutSeconds = configuration.GetValue<int>("VelneoAPI:TimeoutSeconds", 30);
+                client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+
+                // Headers adicionales
+                var apiKey = configuration["VelneoAPI:ApiKey"];
+                if (!string.IsNullOrEmpty(apiKey))
+                {
+                    client.DefaultRequestHeaders.Add("ApiKey", apiKey);
+                }
+
+                client.DefaultRequestHeaders.Add("User-Agent", "RegularizadorPolizas-API/1.0");
+
+                var apiVersion = configuration["VelneoAPI:ApiVersion"];
+                if (!string.IsNullOrEmpty(apiVersion))
+                {
+                    client.DefaultRequestHeaders.Add("Api-Version", apiVersion);
+                }
             });
 
             return services;

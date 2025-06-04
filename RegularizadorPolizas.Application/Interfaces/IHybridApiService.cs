@@ -1,64 +1,44 @@
-﻿using Microsoft.AspNetCore.Http;
-using RegularizadorPolizas.Application.DTOs;
-using RegularizadorPolizas.Application.Configuration;
+﻿using RegularizadorPolizas.Application.DTOs;
 
 namespace RegularizadorPolizas.Application.Interfaces
 {
     public interface IHybridApiService
     {
-        #region Clientes - CRUD Directo a Velneo
-        Task<ClientDto> GetClientAsync(int id);
+        // Client operations
+        Task<ClientDto?> GetClientAsync(int id);
         Task<ClientDto> CreateClientAsync(ClientDto clientDto);
-        Task<ClientDto> UpdateClientAsync(ClientDto clientDto);
-        Task<bool> DeleteClientAsync(int id);
+        Task UpdateClientAsync(ClientDto clientDto);
+        Task DeleteClientAsync(int id);
         Task<IEnumerable<ClientDto>> SearchClientsAsync(string searchTerm);
-        #endregion
 
-        #region Brokers - CRUD Directo a Velneo
-        Task<BrokerDto> GetBrokerAsync(int id);
+        // Broker operations
+        Task<BrokerDto?> GetBrokerAsync(int id);
         Task<BrokerDto> CreateBrokerAsync(BrokerDto brokerDto);
-        Task<BrokerDto> UpdateBrokerAsync(BrokerDto brokerDto);
-        Task<bool> DeleteBrokerAsync(int id);
-        #endregion
+        Task UpdateBrokerAsync(BrokerDto brokerDto);
+        Task DeleteBrokerAsync(int id);
+        Task<IEnumerable<BrokerDto>> SearchBrokersAsync(string searchTerm);
 
-        #region Monedas - CRUD Directo a Velneo
-        Task<CurrencyDto> GetCurrencyAsync(int id);
+        // Currency operations
+        Task<CurrencyDto?> GetCurrencyAsync(int id);
         Task<CurrencyDto> CreateCurrencyAsync(CurrencyDto currencyDto);
-        Task<CurrencyDto> UpdateCurrencyAsync(CurrencyDto currencyDto);
-        Task<bool> DeleteCurrencyAsync(int id);
-        #endregion
+        Task UpdateCurrencyAsync(CurrencyDto currencyDto);
+        Task DeleteCurrencyAsync(int id);
 
-        #region Compañías - CRUD Directo a Velneo
-        Task<CompanyDto> GetCompanyAsync(int id);
+        // Company operations
+        Task<CompanyDto?> GetCompanyAsync(int id);
         Task<CompanyDto> CreateCompanyAsync(CompanyDto companyDto);
-        Task<CompanyDto> UpdateCompanyAsync(CompanyDto companyDto);
-        Task<bool> DeleteCompanyAsync(int id);
-        #endregion
+        Task UpdateCompanyAsync(CompanyDto companyDto);
+        Task DeleteCompanyAsync(int id);
 
-        #region Pólizas - Consultas desde Velneo
-        Task<PolizaDto> GetPolizaAsync(int id);
-        Task<PolizaDto> CreatePolizaAsync(PolizaDto polizaDto);
-        Task<PolizaDto> UpdatePolizaAsync(PolizaDto polizaDto);
-        Task<bool> DeletePolizaAsync(int id);
+        // Poliza operations
+        Task<PolizaDto?> GetPolizaAsync(int id);
+        Task<PolizaCreationResult> CreatePolizaAsync(PolizaDto polizaDto);
+        Task UpdatePolizaAsync(PolizaDto polizaDto);
+        Task DeletePolizaAsync(int id);
         Task<IEnumerable<PolizaDto>> SearchPolizasAsync(string searchTerm);
-        #endregion
 
-        #region Documentos - Tu Valor Diferencial (Local)
-        Task<DocumentResultDto> ProcessDocumentAsync(IFormFile file);
-        Task<PolizaDto> ExtractPolizaFromDocumentAsync(int documentId);
-        Task<ProcessDocumentDto> LinkDocumentToPolizaAsync(int documentId, int polizaId);
-        Task<PolizaCreationResult> CreatePolizaFromDocumentAsync(int documentId);
-        #endregion
-
-        #region Renovaciones - Para el futuro
-        Task<RenovationDto> CreateRenovationAsync(RenovationDto renovationDto);
-        Task<PolizaDto> ProcessRenovationAsync(int renovationId);
-        Task<bool> CancelRenovationAsync(int renovationId, string reason);
-        #endregion
-
-        #region Configuración y utilidades
-        Task<ApiTarget> GetRoutingFor(string entity, string operation);
-        Task<bool> TestConnectivityAsync();
-        #endregion
+        // System operations
+        Task<Dictionary<string, object>> GetSystemHealthAsync();
+        Task<bool> TestVelneoConnectivityAsync();
     }
 }
