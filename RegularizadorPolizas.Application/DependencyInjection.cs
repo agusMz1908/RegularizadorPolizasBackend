@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using RegularizadorPolizas.Application.Configuration;
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Application.Services;
 using System.Reflection;
@@ -19,6 +20,32 @@ namespace RegularizadorPolizas.Application
             services.AddScoped<IBrokerService, BrokerService>();
             services.AddScoped<ICurrencyService, CurrencyService>();
             services.AddScoped<IAuditService, AuditService>();
+            services.AddScoped<IHybridApiService, BusinessSpecificHybridService>();
+
+            services.Configure<HybridApiConfiguration>(config =>
+            {
+                config.EnableLocalAudit = true;
+                config.EnableVelneoFallback = true;
+                config.EnableLocalCaching = false;
+
+                if (!config.EntityRouting.Any())
+                {
+                    var entities = new[] { "Client", "Broker", "Currency", "Company", "Poliza" };
+                    var operations = new[] { "GET", "CREATE", "UPDATE", "DELETE", "SEARCH" };
+
+                    foreach (var entity in entities)
+                    {
+                        foreach (var operation in operations)
+                        {
+                            config.EntityRouting[$"{entity}.{operation}"] = "Local";
+                        }
+                    }
+
+                    config.EntityRouting["Document.PROCESS"] = "Local";
+                    config.EntityRouting["Document.EXTRACT"] = "Local";
+                    config.EntityRouting["Document.CREATE_POLIZA"] = "Local";
+                }
+            });
 
             services.AddAutoMapper(Assembly.GetExecutingAssembly());
 
