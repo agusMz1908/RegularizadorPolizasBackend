@@ -11,14 +11,17 @@ namespace RegularizadorPolizas.Application
         {
             services.AddScoped<IClientService, ClientService>();
             services.AddScoped<IPolizaService, PolizaService>();
-            services.AddScoped<IProcessDocumentService, ProcessDocumentService>();
             services.AddScoped<IRenovationService, RenovationService>();
+            services.AddScoped<IBrokerService, BrokerService>();
+            services.AddScoped<ICompanyService, CompanyService>();
+            services.AddScoped<ICurrencyService, CurrencyService>();
+
+            services.AddScoped<IProcessDocumentService, ProcessDocumentService>();
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IDocumentValidationService, DocumentValidationService>();
-            services.AddScoped<ICompanyService, CompanyService>();
-            services.AddScoped<IBrokerService, BrokerService>();
-            services.AddScoped<ICurrencyService, CurrencyService>();
             services.AddScoped<IAuditService, AuditService>();
+
+            services.AddScoped<IHybridApiService, BusinessSpecificHybridService>();
 
             services.AddAutoMapper(Assembly.GetExecutingAssembly());
 
