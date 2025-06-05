@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
 using System.Net.Http.Json;
@@ -868,17 +867,11 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
         {
             try
             {
-                _logger.LogDebug("Testing Velneo API connectivity");
-
                 var response = await _httpClient.GetAsync("health");
-                var isConnected = response.IsSuccessStatusCode;
-
-                _logger.LogInformation("Velneo API connectivity test result: {IsConnected}", isConnected);
-                return isConnected;
+                return response.IsSuccessStatusCode;
             }
-            catch (Exception ex)
+            catch
             {
-                _logger.LogWarning(ex, "Velneo API connectivity test failed");
                 return false;
             }
         }
@@ -919,11 +912,10 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 
         #endregion
 
-        #region Batch Operations - Implementación Simple
+        #region Batch Operations
 
         public async Task<IEnumerable<ClientDto>> GetClientsBatchAsync(IEnumerable<int> ids)
         {
-            // Implementación simple: hacer llamadas individuales
             var results = new List<ClientDto>();
             foreach (var id in ids)
             {
@@ -945,7 +937,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 
         public async Task<IEnumerable<PolizaDto>> GetPolizasBatchAsync(IEnumerable<int> ids)
         {
-            // Implementación simple: hacer llamadas individuales
             var results = new List<PolizaDto>();
             foreach (var id in ids)
             {
@@ -1033,11 +1024,10 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 
         #endregion
 
-        #region Search and Filter Operations - Implementación Simple
+        #region Search and Filter Operations
 
         public async Task<PagedResult<ClientDto>> SearchClientsPagedAsync(string searchTerm, int page = 1, int pageSize = 50)
         {
-            // Implementación simple: obtener todos y paginar localmente
             try
             {
                 var allClients = await SearchClientsAsync(searchTerm);
@@ -1064,7 +1054,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 
         public async Task<PagedResult<PolizaDto>> SearchPolizasPagedAsync(string searchTerm, int page = 1, int pageSize = 50)
         {
-            // Implementación simple: obtener todos y paginar localmente
             try
             {
                 var allPolizas = await SearchPolizasAsync(searchTerm);
@@ -1091,21 +1080,18 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 
         public async Task<IEnumerable<ClientDto>> GetClientsModifiedSinceAsync(DateTime since)
         {
-            // Por ahora, devolver todos los clientes - se puede mejorar cuando Velneo soporte este filtro
             _logger.LogWarning("GetClientsModifiedSinceAsync not fully implemented - returning all clients");
             return await GetAllClientsAsync();
         }
 
         public async Task<IEnumerable<PolizaDto>> GetPolizasModifiedSinceAsync(DateTime since)
         {
-            // Por ahora, devolver todas las pólizas - se puede mejorar cuando Velneo soporte este filtro
             _logger.LogWarning("GetPolizasModifiedSinceAsync not fully implemented - returning all polizas");
             return await GetAllPolizasAsync();
         }
 
         public async Task<IEnumerable<PolizaDto>> GetPolizasExpiringAsync(DateTime fromDate, DateTime toDate)
         {
-            // Implementación simple: obtener todas y filtrar localmente
             try
             {
                 var allPolizas = await GetAllPolizasAsync();
