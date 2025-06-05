@@ -135,7 +135,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
 
                     b.HasIndex("UserId", "Timestamp");
 
-                    b.ToTable("AuditLogs");
+                    b.ToTable("AuditLogs", (string)null);
                 });
 
             modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.Broker", b =>
@@ -179,7 +179,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     b.HasIndex("Codigo")
                         .HasDatabaseName("IX_Brokers_Codigo");
 
-                    b.ToTable("Brokers");
+                    b.ToTable("Brokers", (string)null);
                 });
 
             modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.Client", b =>
@@ -528,7 +528,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     b.HasIndex("Cliruc")
                         .HasDatabaseName("IX_Clients_Cliruc");
 
-                    b.ToTable("Clients");
+                    b.ToTable("Clients", (string)null);
                 });
 
             modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.Company", b =>
@@ -563,7 +563,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("IX_Companies_Codigo");
 
-                    b.ToTable("Companies");
+                    b.ToTable("Companies", (string)null);
 
                     b.HasData(
                         new
@@ -632,7 +632,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("IX_Currencies_Codigo");
 
-                    b.ToTable("Currencies");
+                    b.ToTable("Currencies", (string)null);
 
                     b.HasData(
                         new
@@ -1487,7 +1487,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
 
                     b.HasIndex("Moncod");
 
-                    b.ToTable("Polizas");
+                    b.ToTable("Polizas", (string)null);
                 });
 
             modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.ProcessDocument", b =>
@@ -1543,7 +1543,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
 
                     b.HasIndex("UsuarioId");
 
-                    b.ToTable("ProcessDocuments");
+                    b.ToTable("ProcessDocuments", (string)null);
                 });
 
             modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.Renovation", b =>
@@ -1589,7 +1589,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
 
                     b.HasIndex("UsuarioId");
 
-                    b.ToTable("Renovations");
+                    b.ToTable("Renovations", (string)null);
                 });
 
             modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.User", b =>
@@ -1621,7 +1621,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
 
                     b.HasData(
                         new

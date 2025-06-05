@@ -1,9 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 	<PropertyGroup>
 		<TargetFramework>net8.0</TargetFramework>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
-	</PropertyGroup>
+	  <UserSecretsId>d923020b-60bb-4ecd-b424-9cdf52052a39</UserSecretsId>
+  </PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="AutoMapper" Version="14.0.0" />
 		<PackageReference Include="JWT" Version="11.0.0" />
