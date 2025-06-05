@@ -509,6 +509,29 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             }
         }
 
+        public async Task<IEnumerable<CurrencyDto>> SearchCurrenciesAsync(string searchTerm)
+        {
+            try
+            {
+                var allCurrencies = await GetAllCurrenciesAsync();
+
+                if (string.IsNullOrWhiteSpace(searchTerm))
+                    return allCurrencies;
+
+                var normalizedSearchTerm = searchTerm.Trim().ToLower();
+
+                return allCurrencies.Where(c =>
+                    (c.Nombre?.ToLower().Contains(normalizedSearchTerm) ?? false) ||
+                    (c.Moneda?.ToLower().Contains(normalizedSearchTerm) ?? false) ||
+                    (c.Simbolo?.ToLower().Contains(normalizedSearchTerm) ?? false)
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error searching currencies in Velneo API with term: {SearchTerm}", searchTerm);
+                throw;
+            }
+        }
         #endregion
 
         #region Company Operations

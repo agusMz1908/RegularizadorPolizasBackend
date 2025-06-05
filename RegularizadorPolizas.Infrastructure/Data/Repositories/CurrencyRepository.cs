@@ -1,8 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Polly;
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Domain.Entities;
+using RegularizadorPolizas.Infrastructure.Data;
+using RegularizadorPolizas.Infrastructure.Data.Repositories;
 
-namespace RegularizadorPolizas.Infrastructure.Data.Repositories
+namespace RegularizadorPolizas.Infrastructure.Repositories
 {
     public class CurrencyRepository : GenericRepository<Currency>, ICurrencyRepository
     {
@@ -12,20 +15,14 @@ namespace RegularizadorPolizas.Infrastructure.Data.Repositories
 
         public async Task<Currency> GetByCodigoAsync(string codigo)
         {
-            if (string.IsNullOrWhiteSpace(codigo))
-                return null;
-
             return await _context.Currencies
-                .FirstOrDefaultAsync(c => c.Codigo == codigo && c.Activo);
+                .FirstOrDefaultAsync(c => c.Codigo == codigo || c.Moneda == codigo);
         }
 
         public async Task<Currency> GetBySimboloAsync(string simbolo)
         {
-            if (string.IsNullOrWhiteSpace(simbolo))
-                return null;
-
             return await _context.Currencies
-                .FirstOrDefaultAsync(c => c.Simbolo == simbolo && c.Activo);
+                .FirstOrDefaultAsync(c => c.Simbolo == simbolo);
         }
 
         public async Task<IEnumerable<Currency>> GetActiveCurrenciesAsync()
@@ -38,34 +35,25 @@ namespace RegularizadorPolizas.Infrastructure.Data.Repositories
 
         public async Task<bool> ExistsByCodigoAsync(string codigo)
         {
-            if (string.IsNullOrWhiteSpace(codigo))
-                return false;
-
             return await _context.Currencies
-                .AnyAsync(c => c.Codigo == codigo);
+                .AnyAsync(c => c.Codigo == codigo || c.Moneda == codigo);
         }
 
         public async Task<Currency> GetDefaultCurrencyAsync()
         {
-            // Retorna el Peso Uruguayo como moneda por defecto
-            return await _context.Currencies
-                .FirstOrDefaultAsync(c => c.Codigo == "UYU" && c.Activo) ??
-                   await _context.Currencies
-                .FirstOrDefaultAsync(c => c.Activo);
-        }
+            var defaultCurrency = await _context.Currencies
+                .Where(c => c.Activo && (c.Codigo == "UYU" || c.Moneda == "UYU"))
+                .FirstOrDefaultAsync();
 
-        public override async Task<IEnumerable<Currency>> GetAllAsync()
-        {
-            return await _context.Currencies
-                .Where(c => c.Activo)
-                .OrderBy(c => c.Nombre)
-                .ToListAsync();
-        }
+            if (defaultCurrency == null)
+            {
+                defaultCurrency = await _context.Currencies
+                    .Where(c => c.Activo)
+                    .OrderBy(c => c.Nombre)
+                    .FirstOrDefaultAsync();
+            }
 
-        public override async Task<Currency> GetByIdAsync(int id)
-        {
-            return await _context.Currencies
-                .FirstOrDefaultAsync(c => c.Id == id && c.Activo);
+            return defaultCurrency;
         }
     }
 }

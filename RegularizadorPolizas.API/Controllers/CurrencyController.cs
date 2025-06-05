@@ -71,6 +71,32 @@ namespace RegularizadorPolizas.API.Controllers
             }
         }
 
+        [HttpGet("summary")]
+        [ProducesResponseType(typeof(IEnumerable<CurrencySummaryDto>), 200)]
+        [ProducesResponseType(500)]
+        public async Task<ActionResult<IEnumerable<CurrencySummaryDto>>> GetCurrenciesSummary()
+        {
+            try
+            {
+                var currencies = await _currencyService.GetActiveCurrenciesAsync();
+                var summary = currencies.Select(c => new CurrencySummaryDto
+                {
+                    Id = c.Id,
+                    Moneda = c.Moneda,
+                    Nombre = c.Nombre,
+                    Simbolo = c.Simbolo,
+                    Activo = c.Activo,
+                    TotalPolizas = c.TotalPolizas
+                });
+
+                return Ok(summary);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
         [HttpGet("default")]
         [ProducesResponseType(typeof(CurrencyDto), 200)]
         [ProducesResponseType(404)]
@@ -151,7 +177,39 @@ namespace RegularizadorPolizas.API.Controllers
         [ProducesResponseType(typeof(CurrencyDto), 201)]
         [ProducesResponseType(400)]
         [ProducesResponseType(500)]
-        public async Task<ActionResult<CurrencyDto>> CreateCurrency(CurrencyDto currencyDto)
+        public async Task<ActionResult<CurrencyDto>> CreateCurrency([FromBody] CurrencyCreateDto currencyCreateDto)
+        {
+            try
+            {
+                if (currencyCreateDto == null)
+                    return BadRequest("Currency data is null");
+
+                var currencyDto = new CurrencyDto
+                {
+                    Moneda = currencyCreateDto.Moneda,
+                    Nombre = currencyCreateDto.Nombre,
+                    Simbolo = currencyCreateDto.Simbolo,
+                    Activo = true
+                };
+
+                var createdCurrency = await _currencyService.CreateCurrencyAsync(currencyDto);
+                return CreatedAtAction(nameof(GetCurrencyById), new { id = createdCurrency.Id }, createdCurrency);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        [HttpPost("full")]
+        [ProducesResponseType(typeof(CurrencyDto), 201)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(500)]
+        public async Task<ActionResult<CurrencyDto>> CreateCurrencyFull([FromBody] CurrencyDto currencyDto)
         {
             try
             {
@@ -176,7 +234,7 @@ namespace RegularizadorPolizas.API.Controllers
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
         [ProducesResponseType(500)]
-        public async Task<IActionResult> UpdateCurrency(int id, CurrencyDto currencyDto)
+        public async Task<IActionResult> UpdateCurrency(int id, [FromBody] CurrencyDto currencyDto)
         {
             try
             {
@@ -254,6 +312,87 @@ namespace RegularizadorPolizas.API.Controllers
             {
                 var exists = await _currencyService.ExistsBySimboloAsync(simbolo, excludeId);
                 return Ok(exists);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        [HttpGet("legacy")]
+        [ProducesResponseType(typeof(IEnumerable<object>), 200)]
+        [ProducesResponseType(500)]
+        public async Task<ActionResult<IEnumerable<object>>> GetCurrenciesLegacyFormat()
+        {
+            try
+            {
+                var currencies = await _currencyService.GetActiveCurrenciesAsync();
+                var legacyFormat = currencies.Select(c => new
+                {
+                    id = c.Id,
+                    moneda = c.Moneda,
+                    nombre = c.Nombre,
+                    simbolo = c.Simbolo,
+                    codigo = c.Codigo, // Campo de compatibilidad
+                    activo = c.Activo,
+                    totalPolizas = c.TotalPolizas,
+                    puedeEliminar = c.PuedeEliminar
+                });
+
+                return Ok(legacyFormat);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        [HttpGet("{id}/stats")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        public async Task<ActionResult<object>> GetCurrencyStats(int id)
+        {
+            try
+            {
+                var currency = await _currencyService.GetCurrencyByIdAsync(id);
+                if (currency == null)
+                    return NotFound($"Currency with ID {id} not found");
+
+                var stats = new
+                {
+                    currency.Id,
+                    currency.Moneda,
+                    currency.Nombre,
+                    currency.Simbolo,
+                    currency.TotalPolizas,
+                    IsActive = currency.Activo,
+                    CanDelete = currency.PuedeEliminar
+                };
+
+                return Ok(stats);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        [HttpGet("by-symbol/{simbolo}")]
+        [ProducesResponseType(typeof(CurrencyDto), 200)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        public async Task<ActionResult<CurrencyDto>> GetCurrencyBySymbol(string simbolo)
+        {
+            try
+            {
+                var currencies = await _currencyService.SearchCurrenciesAsync(simbolo);
+                var currency = currencies.FirstOrDefault(c => c.Simbolo.Equals(simbolo, StringComparison.OrdinalIgnoreCase));
+
+                if (currency == null)
+                    return NotFound($"Currency with symbol '{simbolo}' not found");
+
+                return Ok(currency);
             }
             catch (Exception ex)
             {

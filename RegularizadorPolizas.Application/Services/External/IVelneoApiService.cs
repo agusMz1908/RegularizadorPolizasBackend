@@ -36,6 +36,7 @@ namespace RegularizadorPolizas.Application.Interfaces
         Task<IEnumerable<CurrencyDto>> GetAllCurrenciesAsync();
         Task<IEnumerable<CurrencyLookupDto>> GetCurrenciesForLookupAsync();
         Task<CurrencyDto?> GetDefaultCurrencyAsync();
+        Task<IEnumerable<CurrencyDto>> SearchCurrenciesAsync(string searchTerm);
         #endregion
 
         #region Company Operations

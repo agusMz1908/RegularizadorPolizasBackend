@@ -23,6 +23,11 @@ namespace RegularizadorPolizas.Application.Interfaces
         Task<CurrencyDto> CreateCurrencyAsync(CurrencyDto currencyDto);
         Task UpdateCurrencyAsync(CurrencyDto currencyDto);
         Task DeleteCurrencyAsync(int id);
+        Task<CurrencyDto?> GetCurrencyByCodigoAsync(string codigo);
+        Task<IEnumerable<CurrencyDto>> GetAllCurrenciesAsync();
+        Task<IEnumerable<CurrencyLookupDto>> GetCurrenciesForLookupAsync();
+        Task<CurrencyDto?> GetDefaultCurrencyAsync();
+        Task<IEnumerable<CurrencyDto>> SearchCurrenciesAsync(string searchTerm);
 
         // Company operations
         Task<CompanyDto?> GetCompanyAsync(int id);
