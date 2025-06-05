@@ -361,3 +361,87 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Archivos de configuración con credenciales
+appsettings.Development.json
+appsettings.Staging.json  
+appsettings.Production.json
+# Solo ignorar si contienen credenciales, el appsettings.json principal debe estar en el repo
+
+# Variables de entorno
+.env
+.env.local
+.env.development
+.env.staging
+.env.production
+*.env
+
+# User secrets (protección adicional por si acaso)
+secrets.json
+**/secrets.json
+
+# Azure, AWS, otros servicios en la nube
+.azure/
+.aws/
+
+# Bases de datos locales y archivos de desarrollo
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# Logs personalizados del proyecto
+logs/
+app-logs/
+audit-logs/
+
+# Archivos subidos durante desarrollo/testing
+uploads/
+temp/
+documents/
+Documents/  # Carpeta que usa tu ProcessDocumentService
+
+# Certificados y claves privadas
+*.pfx
+*.p12
+*.key
+*.pem
+*.crt
+*.cer
+ssl/
+certificates/
+
+# Archivos de respaldo temporales
+*.bak
+*.backup
+*.old
+*.orig
+*.swp
+*.swo
+*~
+
+# Archivos específicos del sistema operativo
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Archivos de configuración de IDEs adicionales
+.vscode/
+.idea/
+
+# Archivos de Docker locales (si usas Docker)
+docker-compose.override.yml
+.dockerignore.local
+
+# Archivos de testing con datos sensibles
+**/TestResults/
+test-data/
+sample-data/
+
+# Archivos de migración temporal
+migration-backup/
+db-backup/

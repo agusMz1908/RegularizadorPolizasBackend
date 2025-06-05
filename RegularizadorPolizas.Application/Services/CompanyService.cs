@@ -65,7 +65,10 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
-                var company = await _companyRepository.GetByCodigoAsync(codigo);
+                var companies = await _companyRepository.FindAsync(c =>
+                    c.Cod_srvcompanias == codigo || c.Codigo == codigo);
+
+                var company = companies.FirstOrDefault();
                 if (company == null)
                     return null;
 
@@ -84,7 +87,10 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
-                var company = await _companyRepository.GetByAliasAsync(alias);
+                var companies = await _companyRepository.FindAsync(c =>
+                    c.Comalias == alias || c.Alias == alias);
+
+                var company = companies.FirstOrDefault();
                 if (company == null)
                     return null;
 
@@ -103,7 +109,7 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
-                var companies = await _companyRepository.GetActiveCompaniesAsync();
+                var companies = await _companyRepository.FindAsync(c => c.Activo);
                 return _mapper.Map<IEnumerable<CompanyDto>>(companies);
             }
             catch (Exception ex)
@@ -116,8 +122,14 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
-                var companies = await _companyRepository.GetActiveCompaniesAsync();
-                return _mapper.Map<IEnumerable<CompanyLookupDto>>(companies);
+                var companies = await GetActiveCompaniesAsync();
+                return companies.Select(c => new CompanyLookupDto
+                {
+                    Id = c.Id,
+                    Comnom = c.Comnom,
+                    Comalias = c.Comalias,
+                    Cod_srvcompanias = c.Cod_srvcompanias
+                });
             }
             catch (Exception ex)
             {
@@ -129,17 +141,22 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(companyDto.Nombre))
-                    throw new ArgumentException("Company name is required");
+                ValidateCompanyDto(companyDto);
 
-                if (string.IsNullOrWhiteSpace(companyDto.Codigo))
-                    throw new ArgumentException("Company code is required");
-
-                if (await ExistsByCodigoAsync(companyDto.Codigo))
-                    throw new ArgumentException($"Company with code '{companyDto.Codigo}' already exists");
+                if (!string.IsNullOrEmpty(companyDto.Cod_srvcompanias))
+                {
+                    var existingCompany = await GetCompanyByCodigoAsync(companyDto.Cod_srvcompanias);
+                    if (existingCompany != null)
+                        throw new ArgumentException($"Company with code '{companyDto.Cod_srvcompanias}' already exists");
+                }
 
                 var company = _mapper.Map<Company>(companyDto);
+
+                SyncCompatibilityFields(company);
+
                 company.Activo = true;
+                company.FechaCreacion = DateTime.Now;
+                company.FechaModificacion = DateTime.Now;
 
                 var createdCompany = await _companyRepository.AddAsync(company);
                 return _mapper.Map<CompanyDto>(createdCompany);
@@ -157,14 +174,25 @@ namespace RegularizadorPolizas.Application.Services
                 if (companyDto == null)
                     throw new ArgumentNullException(nameof(companyDto));
 
+                ValidateCompanyDto(companyDto);
+
                 var existingCompany = await _companyRepository.GetByIdAsync(companyDto.Id);
                 if (existingCompany == null)
                     throw new ApplicationException($"Company with ID {companyDto.Id} not found");
 
-                if (await ExistsByCodigoAsync(companyDto.Codigo, companyDto.Id))
-                    throw new ArgumentException($"Company with code '{companyDto.Codigo}' already exists");
+                if (!string.IsNullOrEmpty(companyDto.Cod_srvcompanias))
+                {
+                    var existingByCode = await GetCompanyByCodigoAsync(companyDto.Cod_srvcompanias);
+                    if (existingByCode != null && existingByCode.Id != companyDto.Id)
+                        throw new ArgumentException($"Company with code '{companyDto.Cod_srvcompanias}' already exists");
+                }
 
                 _mapper.Map(companyDto, existingCompany);
+
+                SyncCompatibilityFields(existingCompany);
+
+                existingCompany.FechaModificacion = DateTime.Now;
+
                 await _companyRepository.UpdateAsync(existingCompany);
             }
             catch (Exception ex)
@@ -186,6 +214,8 @@ namespace RegularizadorPolizas.Application.Services
                     throw new ApplicationException($"Cannot delete company. It has {polizasCount} associated policies");
 
                 company.Activo = false;
+                company.FechaModificacion = DateTime.Now;
+
                 await _companyRepository.UpdateAsync(company);
             }
             catch (Exception ex)
@@ -201,7 +231,9 @@ namespace RegularizadorPolizas.Application.Services
                 if (string.IsNullOrWhiteSpace(codigo))
                     return false;
 
-                var companies = await _companyRepository.FindAsync(c => c.Codigo == codigo);
+                var companies = await _companyRepository.FindAsync(c =>
+                    c.Cod_srvcompanias == codigo || c.Codigo == codigo);
+
                 return companies.Any(c => excludeId == null || c.Id != excludeId);
             }
             catch (Exception ex)
@@ -220,9 +252,14 @@ namespace RegularizadorPolizas.Application.Services
                 var normalizedSearchTerm = searchTerm.Trim().ToLower();
                 var companies = await _companyRepository.FindAsync(c =>
                     c.Activo && (
-                        c.Nombre.ToLower().Contains(normalizedSearchTerm) ||
+                        (c.Comnom != null && c.Comnom.ToLower().Contains(normalizedSearchTerm)) ||
+                        (c.Nombre != null && c.Nombre.ToLower().Contains(normalizedSearchTerm)) ||
+                        (c.Comalias != null && c.Comalias.ToLower().Contains(normalizedSearchTerm)) ||
                         (c.Alias != null && c.Alias.ToLower().Contains(normalizedSearchTerm)) ||
-                        c.Codigo.ToLower().Contains(normalizedSearchTerm)
+                        (c.Cod_srvcompanias != null && c.Cod_srvcompanias.ToLower().Contains(normalizedSearchTerm)) ||
+                        (c.Codigo != null && c.Codigo.ToLower().Contains(normalizedSearchTerm)) ||
+                        (c.Comrazsoc != null && c.Comrazsoc.ToLower().Contains(normalizedSearchTerm)) ||
+                        (c.Comruc != null && c.Comruc.ToLower().Contains(normalizedSearchTerm))
                     )
                 );
 
@@ -245,6 +282,36 @@ namespace RegularizadorPolizas.Application.Services
             {
                 return 0;
             }
+        }
+
+        private void ValidateCompanyDto(CompanyDto companyDto)
+        {
+            if (string.IsNullOrWhiteSpace(companyDto.Comnom))
+                throw new ArgumentException("Company name (Comnom) is required");
+
+            if (string.IsNullOrWhiteSpace(companyDto.Cod_srvcompanias))
+                throw new ArgumentException("Company code (Cod_srvcompanias) is required");
+        }
+
+        private void SyncCompatibilityFields(Company company)
+        {
+            if (!string.IsNullOrEmpty(company.Comnom))
+                company.Nombre = company.Comnom;
+
+            if (!string.IsNullOrEmpty(company.Comalias))
+                company.Alias = company.Comalias;
+
+            if (!string.IsNullOrEmpty(company.Cod_srvcompanias))
+                company.Codigo = company.Cod_srvcompanias;
+
+            if (string.IsNullOrEmpty(company.Comnom) && !string.IsNullOrEmpty(company.Nombre))
+                company.Comnom = company.Nombre;
+
+            if (string.IsNullOrEmpty(company.Comalias) && !string.IsNullOrEmpty(company.Alias))
+                company.Comalias = company.Alias;
+
+            if (string.IsNullOrEmpty(company.Cod_srvcompanias) && !string.IsNullOrEmpty(company.Codigo))
+                company.Cod_srvcompanias = company.Codigo;
         }
     }
 }

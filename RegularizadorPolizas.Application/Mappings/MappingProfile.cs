@@ -42,11 +42,7 @@ namespace RegularizadorPolizas.Application.Mappings
             CreateMap<User, UserDto>()
                 .ReverseMap();
 
-            CreateMap<Company, CompanyDto>()
-                .ReverseMap()
-                .ForMember(dest => dest.Polizas, opt => opt.Ignore());
-
-            CreateMap<Company, CompanyLookupDto>();
+            CreateCompanyMappings();
 
             CreateMap<Broker, BrokerDto>()
                 .ReverseMap()
@@ -65,11 +61,70 @@ namespace RegularizadorPolizas.Application.Mappings
                 .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category.ToString()));
         }
 
+        private void CreateCompanyMappings()
+        {
+            CreateMap<Company, CompanyDto>()
+                .ForMember(dest => dest.TotalPolizas, opt => opt.Ignore())
+                .ReverseMap()
+                .ForMember(dest => dest.Polizas, opt => opt.Ignore())
+                .ForMember(dest => dest.FechaCreacion, opt => opt.Ignore())
+                .ForMember(dest => dest.FechaModificacion, opt => opt.MapFrom(src => DateTime.Now));
+
+            CreateMap<Company, CompanyLookupDto>();
+            CreateMap<CompanyDto, CompanyLookupDto>();
+
+            CreateMap<CompanyCreateDto, CompanyDto>()
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.TotalPolizas, opt => opt.Ignore())
+                .ForMember(dest => dest.Activo, opt => opt.MapFrom(src => true));
+
+            CreateMap<CompanyCreateDto, Company>()
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.Polizas, opt => opt.Ignore())
+                .ForMember(dest => dest.Activo, opt => opt.MapFrom(src => true))
+                .ForMember(dest => dest.FechaCreacion, opt => opt.MapFrom(src => DateTime.Now))
+                .ForMember(dest => dest.FechaModificacion, opt => opt.MapFrom(src => DateTime.Now))
+                .ForMember(dest => dest.Nombre, opt => opt.MapFrom(src => src.Comnom))
+                .ForMember(dest => dest.Alias, opt => opt.MapFrom(src => src.Comalias))
+                .ForMember(dest => dest.Codigo, opt => opt.MapFrom(src => src.Cod_srvcompanias));
+
+            CreateMap<Company, CompanySummaryDto>();
+            CreateMap<CompanyDto, CompanySummaryDto>();
+
+            CreateMap<CompanyDto, object>()
+                .ConvertUsing<CompanyLegacyConverter>();
+        }
+
         private string GetAuditEventDescription(AuditEventType eventType)
         {
             var field = eventType.GetType().GetField(eventType.ToString());
             var attribute = field?.GetCustomAttribute<DescriptionAttribute>();
             return attribute?.Description ?? eventType.ToString();
+        }
+    }
+
+    public class CompanyLegacyConverter : ITypeConverter<CompanyDto, object>
+    {
+        public object Convert(CompanyDto source, object destination, ResolutionContext context)
+        {
+            if (source == null) return null;
+
+            return new
+            {
+                id = source.Id,
+                nombre = source.Nombre,
+                alias = source.Alias,
+                codigo = source.Codigo,
+                activo = source.Activo,
+                totalPolizas = source.TotalPolizas,
+                puedeEliminar = source.PuedeEliminar,
+                comnom = source.Comnom,
+                comalias = source.Comalias,
+                cod_srvcompanias = source.Cod_srvcompanias,
+                broker = source.Broker,
+                comrazsoc = source.Comrazsoc,
+                comruc = source.Comruc
+            };
         }
     }
 }
