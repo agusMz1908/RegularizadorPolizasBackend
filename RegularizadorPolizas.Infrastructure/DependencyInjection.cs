@@ -2,10 +2,11 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RegularizadorPolizas.Application.Interfaces;
-using RegularizadorPolizas.Application.Configuration; // ← AGREGAR ESTA LÍNEA
+using RegularizadorPolizas.Application.Configuration; 
 using RegularizadorPolizas.Infrastructure.Data;
 using RegularizadorPolizas.Infrastructure.Data.Repositories;
-using RegularizadorPolizas.Infrastructure.External.VelneoAPI; // ← Ubicación correcta
+using RegularizadorPolizas.Infrastructure.External.VelneoAPI;
+using RegularizadorPolizas.Infrastructure.Repositories;
 
 namespace RegularizadorPolizas.Infrastructure
 {

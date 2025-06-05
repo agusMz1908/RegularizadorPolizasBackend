@@ -37,7 +37,14 @@ namespace RegularizadorPolizas.Application
                     {
                         foreach (var operation in operations)
                         {
-                            config.EntityRouting[$"{entity}.{operation}"] = "Local";
+                            if (entity == "Currency")
+                            {
+                                config.EntityRouting[$"{entity}.{operation}"] = "Velneo";
+                            }
+                            else
+                            {
+                                config.EntityRouting[$"{entity}.{operation}"] = "Local";
+                            }
                         }
                     }
 

@@ -316,6 +316,76 @@ namespace RegularizadorPolizas.Application.Services
         }
     }
 
+    public async Task<CurrencyDto?> GetCurrencyByCodigoAsync(string codigo)
+    {
+        if (_config.ShouldRouteToVelneo("Currency", "GET"))
+        {
+            return await ExecuteWithFallback(
+                () => _velneoApiService.GetCurrencyByCodeAsync(codigo),
+                () => _localCurrencyService.GetCurrencyByCodigoAsync(codigo),
+                "Currency.GET_BY_CODE",
+                codigo);
+        }
+
+        return await _localCurrencyService.GetCurrencyByCodigoAsync(codigo);
+    }
+
+    public async Task<IEnumerable<CurrencyDto>> GetAllCurrenciesAsync()
+    {
+        if (_config.ShouldRouteToVelneo("Currency", "GET"))
+        {
+            return await ExecuteWithFallback(
+                () => _velneoApiService.GetAllCurrenciesAsync(),
+                () => _localCurrencyService.GetAllCurrenciesAsync(),
+                "Currency.GETALL",
+                "all_currencies");
+        }
+
+        return await _localCurrencyService.GetAllCurrenciesAsync();
+    }
+
+    public async Task<IEnumerable<CurrencyLookupDto>> GetCurrenciesForLookupAsync()
+    {
+        if (_config.ShouldRouteToVelneo("Currency", "GET"))
+        {
+            return await ExecuteWithFallback(
+                () => _velneoApiService.GetCurrenciesForLookupAsync(),
+                () => _localCurrencyService.GetCurrenciesForLookupAsync(),
+                "Currency.LOOKUP",
+                "currencies_lookup");
+        }
+
+        return await _localCurrencyService.GetCurrenciesForLookupAsync();
+    }
+
+    public async Task<CurrencyDto?> GetDefaultCurrencyAsync()
+    {
+        if (_config.ShouldRouteToVelneo("Currency", "GET"))
+        {
+            return await ExecuteWithFallback(
+                () => _velneoApiService.GetDefaultCurrencyAsync(),
+                () => _localCurrencyService.GetDefaultCurrencyAsync(),
+                "Currency.DEFAULT",
+                "default_currency");
+        }
+
+        return await _localCurrencyService.GetDefaultCurrencyAsync();
+    }
+
+    public async Task<IEnumerable<CurrencyDto>> SearchCurrenciesAsync(string searchTerm)
+    {
+        if (_config.ShouldRouteToVelneo("Currency", "SEARCH"))
+        {
+            return await ExecuteWithFallback(
+                () => _velneoApiService.SearchCurrenciesAsync(searchTerm),
+                () => _localCurrencyService.SearchCurrenciesAsync(searchTerm),
+                "Currency.SEARCH",
+                searchTerm);
+        }
+
+        return await _localCurrencyService.SearchCurrenciesAsync(searchTerm);
+    }
+
     #endregion
 
     #region Company Operations
