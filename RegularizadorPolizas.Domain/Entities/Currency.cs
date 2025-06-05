@@ -9,17 +9,24 @@ namespace RegularizadorPolizas.Domain.Entities
 
         [Required]
         [StringLength(50)]
-        public string Nombre { get; set; }
+        public string Nombre { get; set; } = string.Empty;
 
         [Required]
         [StringLength(10)]
-        public string Codigo { get; set; }
+        public string Codigo { get; set; } = string.Empty;
 
         [Required]
         [StringLength(5)]
-        public string Simbolo { get; set; }
+        public string Simbolo { get; set; } = string.Empty;
 
         public bool Activo { get; set; } = true;
+
+        [Required]
+        [StringLength(10)]
+        public string Moneda { get; set; } = string.Empty;
+
+        public DateTime? FechaCreacion { get; set; } = DateTime.Now;
+        public DateTime? FechaModificacion { get; set; } = DateTime.Now;
 
         // Navegación
         public virtual ICollection<Poliza> Polizas { get; set; } = new List<Poliza>();

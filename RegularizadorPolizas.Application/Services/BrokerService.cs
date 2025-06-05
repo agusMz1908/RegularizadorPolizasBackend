@@ -116,8 +116,14 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
-                var brokers = await _brokerRepository.GetActiveBrokersAsync();
-                return _mapper.Map<IEnumerable<BrokerLookupDto>>(brokers);
+                var brokers = await GetActiveBrokersAsync();
+                return brokers.Select(b => new BrokerLookupDto
+                {
+                    Id = b.Id,
+                    Name = b.Name,
+                    Codigo = b.Codigo,
+                    Telefono = b.Telefono
+                });
             }
             catch (Exception ex)
             {
@@ -129,17 +135,21 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(brokerDto.Nombre))
-                    throw new ArgumentException("Broker name is required");
-
-                if (string.IsNullOrWhiteSpace(brokerDto.Codigo))
-                    throw new ArgumentException("Broker code is required");
-
-                if (await ExistsByCodigoAsync(brokerDto.Codigo))
-                    throw new ArgumentException($"Broker with code '{brokerDto.Codigo}' already exists");
+                ValidateBrokerDto(brokerDto);
+                if (!string.IsNullOrEmpty(brokerDto.Codigo))
+                {
+                    var existingBroker = await GetBrokerByCodigoAsync(brokerDto.Codigo);
+                    if (existingBroker != null)
+                        throw new ArgumentException($"Broker with code '{brokerDto.Codigo}' already exists");
+                }
 
                 var broker = _mapper.Map<Broker>(brokerDto);
+
+                SyncCompatibilityFields(broker);
+
                 broker.Activo = true;
+                broker.FechaCreacion = DateTime.Now;
+                broker.FechaModificacion = DateTime.Now;
 
                 var createdBroker = await _brokerRepository.AddAsync(broker);
                 return _mapper.Map<BrokerDto>(createdBroker);
@@ -157,14 +167,24 @@ namespace RegularizadorPolizas.Application.Services
                 if (brokerDto == null)
                     throw new ArgumentNullException(nameof(brokerDto));
 
+                ValidateBrokerDto(brokerDto);
+
                 var existingBroker = await _brokerRepository.GetByIdAsync(brokerDto.Id);
                 if (existingBroker == null)
                     throw new ApplicationException($"Broker with ID {brokerDto.Id} not found");
 
-                if (await ExistsByCodigoAsync(brokerDto.Codigo, brokerDto.Id))
-                    throw new ArgumentException($"Broker with code '{brokerDto.Codigo}' already exists");
-
+                if (!string.IsNullOrEmpty(brokerDto.Codigo))
+                {
+                    var existingByCode = await GetBrokerByCodigoAsync(brokerDto.Codigo);
+                    if (existingByCode != null && existingByCode.Id != brokerDto.Id)
+                        throw new ArgumentException($"Broker with code '{brokerDto.Codigo}' already exists");
+                }
                 _mapper.Map(brokerDto, existingBroker);
+
+                SyncCompatibilityFields(existingBroker);
+
+                existingBroker.FechaModificacion = DateTime.Now;
+
                 await _brokerRepository.UpdateAsync(existingBroker);
             }
             catch (Exception ex)
@@ -186,6 +206,8 @@ namespace RegularizadorPolizas.Application.Services
                     throw new ApplicationException($"Cannot delete broker. It has {polizasCount} associated policies");
 
                 broker.Activo = false;
+                broker.FechaModificacion = DateTime.Now;
+
                 await _brokerRepository.UpdateAsync(broker);
             }
             catch (Exception ex)
@@ -233,7 +255,19 @@ namespace RegularizadorPolizas.Application.Services
                 if (string.IsNullOrWhiteSpace(searchTerm))
                     return await GetActiveBrokersAsync();
 
-                var brokers = await _brokerRepository.SearchByNameAsync(searchTerm);
+                var normalizedSearchTerm = searchTerm.Trim().ToLower();
+                var brokers = await _brokerRepository.FindAsync(b =>
+                    b.Activo && (
+                        (b.Name != null && b.Name.ToLower().Contains(normalizedSearchTerm)) ||
+                        (b.Nombre != null && b.Nombre.ToLower().Contains(normalizedSearchTerm)) ||
+                        (b.Codigo != null && b.Codigo.ToLower().Contains(normalizedSearchTerm)) ||
+                        (b.Email != null && b.Email.ToLower().Contains(normalizedSearchTerm)) ||
+                        (b.Telefono != null && b.Telefono.ToLower().Contains(normalizedSearchTerm)) ||
+                        (b.Direccion != null && b.Direccion.ToLower().Contains(normalizedSearchTerm)) ||
+                        (b.Domicilio != null && b.Domicilio.ToLower().Contains(normalizedSearchTerm))
+                    )
+                );
+
                 return _mapper.Map<IEnumerable<BrokerDto>>(brokers);
             }
             catch (Exception ex)
@@ -253,6 +287,30 @@ namespace RegularizadorPolizas.Application.Services
             {
                 return 0;
             }
+        }
+
+        private void ValidateBrokerDto(BrokerDto brokerDto)
+        {
+            if (string.IsNullOrWhiteSpace(brokerDto.Name))
+                throw new ArgumentException("Broker name is required");
+
+            if (string.IsNullOrWhiteSpace(brokerDto.Codigo))
+                throw new ArgumentException("Broker code is required");
+        }
+
+        private void SyncCompatibilityFields(Broker broker)
+        {
+            if (!string.IsNullOrEmpty(broker.Name))
+                broker.Nombre = broker.Name;
+
+            if (!string.IsNullOrEmpty(broker.Direccion))
+                broker.Domicilio = broker.Direccion;
+
+            if (string.IsNullOrEmpty(broker.Name) && !string.IsNullOrEmpty(broker.Nombre))
+                broker.Name = broker.Nombre;
+
+            if (string.IsNullOrEmpty(broker.Direccion) && !string.IsNullOrEmpty(broker.Domicilio))
+                broker.Direccion = broker.Domicilio;
         }
     }
 }

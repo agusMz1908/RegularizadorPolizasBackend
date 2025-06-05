@@ -71,6 +71,32 @@ namespace RegularizadorPolizas.API.Controllers
             }
         }
 
+        [HttpGet("summary")]
+        [ProducesResponseType(typeof(IEnumerable<BrokerSummaryDto>), 200)]
+        [ProducesResponseType(500)]
+        public async Task<ActionResult<IEnumerable<BrokerSummaryDto>>> GetBrokersSummary()
+        {
+            try
+            {
+                var brokers = await _brokerService.GetActiveBrokersAsync();
+                var summary = brokers.Select(b => new BrokerSummaryDto
+                {
+                    Id = b.Id,
+                    Name = b.Name,
+                    Codigo = b.Codigo,
+                    Telefono = b.Telefono,
+                    Activo = b.Activo,
+                    TotalPolizas = b.TotalPolizas
+                });
+
+                return Ok(summary);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
         [HttpGet("{id}")]
         [ProducesResponseType(typeof(BrokerDto), 200)]
         [ProducesResponseType(404)]
@@ -151,7 +177,43 @@ namespace RegularizadorPolizas.API.Controllers
         [ProducesResponseType(typeof(BrokerDto), 201)]
         [ProducesResponseType(400)]
         [ProducesResponseType(500)]
-        public async Task<ActionResult<BrokerDto>> CreateBroker(BrokerDto brokerDto)
+        public async Task<ActionResult<BrokerDto>> CreateBroker([FromBody] BrokerCreateDto brokerCreateDto)
+        {
+            try
+            {
+                if (brokerCreateDto == null)
+                    return BadRequest("Broker data is null");
+
+                var brokerDto = new BrokerDto
+                {
+                    Name = brokerCreateDto.Name,
+                    Telefono = brokerCreateDto.Telefono,
+                    Direccion = brokerCreateDto.Direccion,
+                    Observaciones = brokerCreateDto.Observaciones,
+                    Foto = brokerCreateDto.Foto,
+                    Codigo = brokerCreateDto.Codigo,
+                    Email = brokerCreateDto.Email,
+                    Activo = true
+                };
+
+                var createdBroker = await _brokerService.CreateBrokerAsync(brokerDto);
+                return CreatedAtAction(nameof(GetBrokerById), new { id = createdBroker.Id }, createdBroker);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        [HttpPost("full")]
+        [ProducesResponseType(typeof(BrokerDto), 201)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(500)]
+        public async Task<ActionResult<BrokerDto>> CreateBrokerFull([FromBody] BrokerDto brokerDto)
         {
             try
             {
@@ -176,7 +238,7 @@ namespace RegularizadorPolizas.API.Controllers
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
         [ProducesResponseType(500)]
-        public async Task<IActionResult> UpdateBroker(int id, BrokerDto brokerDto)
+        public async Task<IActionResult> UpdateBroker(int id, [FromBody] BrokerDto brokerDto)
         {
             try
             {
@@ -192,6 +254,10 @@ namespace RegularizadorPolizas.API.Controllers
             catch (ArgumentException ex)
             {
                 return BadRequest(ex.Message);
+            }
+            catch (ApplicationException ex) when (ex.Message.Contains("not found"))
+            {
+                return NotFound(ex.Message);
             }
             catch (Exception ex)
             {
@@ -250,6 +316,108 @@ namespace RegularizadorPolizas.API.Controllers
             {
                 var exists = await _brokerService.ExistsByEmailAsync(email, excludeId);
                 return Ok(exists);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        [HttpGet("legacy")]
+        [ProducesResponseType(typeof(IEnumerable<object>), 200)]
+        [ProducesResponseType(500)]
+        public async Task<ActionResult<IEnumerable<object>>> GetBrokersLegacyFormat()
+        {
+            try
+            {
+                var brokers = await _brokerService.GetActiveBrokersAsync();
+                var legacyFormat = brokers.Select(b => new
+                {
+                    id = b.Id,
+                    nombre = b.Nombre, // Campo de compatibilidad
+                    codigo = b.Codigo,
+                    domicilio = b.Domicilio, // Campo de compatibilidad
+                    telefono = b.Telefono,
+                    email = b.Email,
+                    activo = b.Activo,
+                    totalPolizas = b.TotalPolizas,
+                    puedeEliminar = b.PuedeEliminar
+                });
+
+                return Ok(legacyFormat);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        [HttpGet("{id}/stats")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        public async Task<ActionResult<object>> GetBrokerStats(int id)
+        {
+            try
+            {
+                var broker = await _brokerService.GetBrokerByIdAsync(id);
+                if (broker == null)
+                    return NotFound($"Broker with ID {id} not found");
+
+                var stats = new
+                {
+                    broker.Id,
+                    broker.Name,
+                    broker.Codigo,
+                    broker.TotalPolizas,
+                    broker.Telefono,
+                    broker.Email,
+                    HasPhoto = !string.IsNullOrEmpty(broker.Foto),
+                    IsActive = broker.Activo
+                };
+
+                return Ok(stats);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        [HttpGet("with-photos")]
+        [ProducesResponseType(typeof(IEnumerable<BrokerDto>), 200)]
+        [ProducesResponseType(500)]
+        public async Task<ActionResult<IEnumerable<BrokerDto>>> GetBrokersWithPhotos()
+        {
+            try
+            {
+                var brokers = await _brokerService.GetActiveBrokersAsync();
+                var brokersWithPhotos = brokers.Where(b => !string.IsNullOrEmpty(b.Foto));
+                return Ok(brokersWithPhotos);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        [HttpPatch("{id}/photo")]
+        [ProducesResponseType(204)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        public async Task<IActionResult> UpdateBrokerPhoto(int id, [FromBody] string photoUrl)
+        {
+            try
+            {
+                var broker = await _brokerService.GetBrokerByIdAsync(id);
+                if (broker == null)
+                    return NotFound($"Broker with ID {id} not found");
+
+                broker.Foto = photoUrl ?? string.Empty;
+                await _brokerService.UpdateBrokerAsync(broker);
+
+                return NoContent();
             }
             catch (Exception ex)
             {
