@@ -366,6 +366,7 @@ FodyWeavers.xsd
 appsettings.Development.json
 appsettings.Staging.json  
 appsettings.Production.json
+appsettings.backup.json
 # Solo ignorar si contienen credenciales, el appsettings.json principal debe estar en el repo
 
 # Variables de entorno
