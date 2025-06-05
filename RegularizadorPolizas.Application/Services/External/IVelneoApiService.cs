@@ -1,5 +1,4 @@
 ﻿using RegularizadorPolizas.Application.DTOs;
-using RegularizadorPolizas.Application.Configuration;
 
 namespace RegularizadorPolizas.Application.Interfaces
 {
@@ -62,7 +61,7 @@ namespace RegularizadorPolizas.Application.Interfaces
         Task<PolizaDto> RenewPolizaAsync(int polizaId, RenovationDto renovationData);
         #endregion
 
-        #region User Operations (if needed)
+        #region User Operations
         Task<UserDto?> GetUsersAsync(int id);
         Task<IEnumerable<UserDto>> GetAllUsersAsync();
         #endregion
@@ -87,79 +86,5 @@ namespace RegularizadorPolizas.Application.Interfaces
         Task<IEnumerable<PolizaDto>> GetPolizasModifiedSinceAsync(DateTime since);
         Task<IEnumerable<PolizaDto>> GetPolizasExpiringAsync(DateTime fromDate, DateTime toDate);
         #endregion
-    }
-
-    public class BatchOperationResult<T>
-    {
-        public int TotalRequested { get; set; }
-        public int SuccessCount { get; set; }
-        public int ErrorCount { get; set; }
-        public List<T> SuccessfulItems { get; set; } = new();
-        public List<BatchOperationError> Errors { get; set; } = new();
-        public TimeSpan Duration { get; set; }
-        public DateTime ProcessedAt { get; set; } = DateTime.UtcNow;
-
-        public double SuccessRate => TotalRequested > 0 ? (double)SuccessCount / TotalRequested * 100 : 0;
-        public bool AllSucceeded => ErrorCount == 0;
-    }
-
-    public class BatchOperationError
-    {
-        public int Index { get; set; }
-        public string Error { get; set; } = string.Empty;
-        public object? Item { get; set; }
-        public string? ErrorCode { get; set; }
-    }
-
-    public class PagedResult<T>
-    {
-        public IEnumerable<T> Items { get; set; } = new List<T>();
-        public int TotalCount { get; set; }
-        public int PageNumber { get; set; }
-        public int PageSize { get; set; }
-        public int TotalPages => (int)Math.Ceiling((double)TotalCount / PageSize);
-        public bool HasNextPage => PageNumber < TotalPages;
-        public bool HasPreviousPage => PageNumber > 1;
-    }
-
-    // Configuración específica para Velneo
-    public class VelneoApiConfiguration
-    {
-        public const string SectionName = "VelneoAPI";
-
-        public string BaseUrl { get; set; } = string.Empty;
-        public string ApiKey { get; set; } = string.Empty;
-        public int TimeoutSeconds { get; set; } = 30;
-        public bool EnableRetryPolicy { get; set; } = true;
-        public RetryPolicyConfiguration RetryPolicy { get; set; } = new();
-        public bool EnableLogging { get; set; } = true;
-        public bool LogRequestResponse { get; set; } = false;
-        public string ApiVersion { get; set; } = "v1";
-
-        // Headers adicionales si son necesarios
-        public Dictionary<string, string> DefaultHeaders { get; set; } = new();
-
-        // Configuración de endpoints específicos
-        public VelneoEndpointsConfiguration Endpoints { get; set; } = new();
-    }
-
-    public class RetryPolicyConfiguration
-    {
-        public int MaxRetries { get; set; } = 3;
-        public int BaseDelaySeconds { get; set; } = 1;
-        public int MaxDelaySeconds { get; set; } = 30;
-        public bool UseExponentialBackoff { get; set; } = true;
-    }
-
-    public class VelneoEndpointsConfiguration
-    {
-        public string Clients { get; set; } = "clients";
-        public string Brokers { get; set; } = "brokers";
-        public string Currencies { get; set; } = "currencies";
-        public string Companies { get; set; } = "companies";
-        public string Polizas { get; set; } = "polizas";
-        public string Users { get; set; } = "users";
-        public string Health { get; set; } = "health";
-        public string System { get; set; } = "system";
     }
 }
