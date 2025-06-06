@@ -316,6 +316,9 @@ namespace RegularizadorPolizas.Application.Services
             if (string.IsNullOrWhiteSpace(currencyDto.Moneda))
                 throw new ArgumentException("Currency code (Moneda) is required");
 
+            if (currencyDto.Moneda.Length != 3)
+                throw new ArgumentException("Currency code must be exactly 3 characters");
+
             if (string.IsNullOrWhiteSpace(currencyDto.Simbolo))
                 throw new ArgumentException("Currency symbol is required");
         }
