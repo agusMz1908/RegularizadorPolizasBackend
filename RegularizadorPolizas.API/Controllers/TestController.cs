@@ -30,6 +30,7 @@ namespace RegularizadorPolizas.API.Controllers
                     EstadoProcesamiento = "PROCESADO",
                     ConfianzaExtraccion = 89.5m,
                     RequiereRevision = false,
+                    MensajeError = string.Empty, // CORRECCIÓN: Inicializar propiedad
                     CamposExtraidos = new Dictionary<string, string>
                     {
                         // Póliza básica
@@ -57,8 +58,8 @@ namespace RegularizadorPolizas.API.Controllers
 
                         // Financiero
                         ["premio_total"] = "28750.50",
-                        ["impuestos"] = "2875.05",
-                        ["total_impuestos"] = "31625.55",
+                        ["prima_comercial"] = "25000.00", // CORRECCIÓN: Cambié "impuestos" por "prima_comercial"
+                        ["impuestos"] = "3750.50",
                         ["cuotas"] = "6",
                         ["moneda"] = "UYU",
 
@@ -72,6 +73,7 @@ namespace RegularizadorPolizas.API.Controllers
                     }
                 };
 
+                // CORRECCIÓN: Usar el método correcto del parser
                 var parser = new DocumentResultParser(_logger);
                 var polizaResultado = parser.ParseToPolizaDto(documentoPrueba);
 
@@ -182,6 +184,9 @@ namespace RegularizadorPolizas.API.Controllers
                     DocumentoId = 998,
                     NombreArchivo = "test_custom.pdf",
                     EstadoProcesamiento = "PROCESADO",
+                    ConfianzaExtraccion = null,
+                    RequiereRevision = false,
+                    MensajeError = string.Empty, // CORRECCIÓN: Inicializar
                     CamposExtraidos = camposPersonalizados
                 };
 
@@ -236,9 +241,15 @@ namespace RegularizadorPolizas.API.Controllers
                 {
                     var documento = new DocumentResultDto
                     {
+                        DocumentoId = Array.IndexOf(formatosFecha, formato) + 1,
+                        NombreArchivo = $"test_fecha_{Array.IndexOf(formatosFecha, formato)}.pdf",
+                        EstadoProcesamiento = "PROCESADO",
+                        ConfianzaExtraccion = null,
+                        RequiereRevision = false,
+                        MensajeError = string.Empty, // CORRECCIÓN: Inicializar
                         CamposExtraidos = new Dictionary<string, string>
                         {
-                            ["numero_poliza"] = $"TEST-FECHA-{formatosFecha.ToList().IndexOf(formato)}",
+                            ["numero_poliza"] = $"TEST-FECHA-{Array.IndexOf(formatosFecha, formato)}",
                             ["fecha_desde"] = formato,
                             ["fecha_hasta"] = formato // Usamos la misma para ver si corrige automáticamente
                         }
@@ -271,7 +282,10 @@ namespace RegularizadorPolizas.API.Controllers
             {
                 message = "Test de formatos de fecha completado",
                 resultados = resultados,
-                exitosos = resultados.Count(r => (bool)r.GetType().GetProperty("exitoso")?.GetValue(r)),
+                exitosos = resultados.Count(r => {
+                    var exitosoProperty = r.GetType().GetProperty("exitoso");
+                    return exitosoProperty != null && (bool)exitosoProperty.GetValue(r)!;
+                }),
                 total = resultados.Count
             });
         }
@@ -282,13 +296,19 @@ namespace RegularizadorPolizas.API.Controllers
         {
             var documento = new DocumentResultDto
             {
+                DocumentoId = 777,
+                NombreArchivo = "test_cleaning.pdf",
+                EstadoProcesamiento = "PROCESADO",
+                ConfianzaExtraccion = null,
+                RequiereRevision = false,
+                MensajeError = string.Empty, // CORRECCIÓN: Inicializar
                 CamposExtraidos = new Dictionary<string, string>
                 {
                     ["numero_poliza"] = "  BSE-AUTO-123  \n\r\t",
                     ["cliente_documento"] = "1.234.567-8",
                     ["vehiculo_matricula"] = "SBD-1234",
                     ["cliente_telefono"] = "099-123-456",
-                    ["premio_total"] = "$UYU 15,000.50",
+                    ["premio_total"] = "15,000.50",
                     ["cliente_email"] = "test@email.com",
                     ["cliente_email_invalido"] = "email-sin-arroba"
                 }
@@ -303,12 +323,12 @@ namespace RegularizadorPolizas.API.Controllers
                 original = documento.CamposExtraidos,
                 limpiado = new
                 {
-                    numeroPoliza = poliza.Conpol, 
-                    documento = poliza.Cliruc, 
-                    matricula = poliza.Conmataut, 
+                    numeroPoliza = poliza.Conpol,
+                    documento = poliza.Cliruc,
+                    matricula = poliza.Conmataut,
                     telefono = poliza.Clitelcel,
-                    premio = poliza.Conpremio, 
-                    email = poliza.Cliemail 
+                    premio = poliza.Conpremio,
+                    email = poliza.Cliemail
                 },
                 validaciones = new
                 {
