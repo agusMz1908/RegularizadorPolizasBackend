@@ -9,8 +9,6 @@ namespace RegularizadorPolizas.Infrastructure.Data
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
         {
         }
-
-        // DbSets existentes
         public DbSet<User> Users { get; set; }
         public DbSet<Client> Clients { get; set; }
         public DbSet<Poliza> Polizas { get; set; }
@@ -20,8 +18,6 @@ namespace RegularizadorPolizas.Infrastructure.Data
         public DbSet<Broker> Brokers { get; set; }
         public DbSet<Currency> Currencies { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
-
-        // NUEVOS DbSets para autenticación
         public DbSet<Role> Roles { get; set; }
         public DbSet<Permission> Permissions { get; set; }
         public DbSet<UserRole> UserRoles { get; set; }
@@ -34,6 +30,7 @@ namespace RegularizadorPolizas.Infrastructure.Data
             ConfigureAuthenticationEntities(modelBuilder);
             //SeedData.ApplyAllSeedData(modelBuilder);
             SeedAuthenticationData(modelBuilder);
+            ConfigureUserEntities(modelBuilder);
         }
 
         private void ConfigureExistingEntities(ModelBuilder modelBuilder)
@@ -187,7 +184,6 @@ namespace RegularizadorPolizas.Infrastructure.Data
 
         private void ConfigureAuthenticationEntities(ModelBuilder modelBuilder)
         {
-            // Configuración de Role
             modelBuilder.Entity<Role>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -196,7 +192,6 @@ namespace RegularizadorPolizas.Infrastructure.Data
                 entity.Property(e => e.Description).HasMaxLength(200);
             });
 
-            // Configuración de Permission
             modelBuilder.Entity<Permission>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -208,7 +203,6 @@ namespace RegularizadorPolizas.Infrastructure.Data
                 entity.Property(e => e.Description).HasMaxLength(200);
             });
 
-            // Configuración de UserRole
             modelBuilder.Entity<UserRole>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -232,7 +226,6 @@ namespace RegularizadorPolizas.Infrastructure.Data
                     .OnDelete(DeleteBehavior.SetNull);
             });
 
-            // Configuración de RolePermission
             modelBuilder.Entity<RolePermission>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -253,6 +246,156 @@ namespace RegularizadorPolizas.Infrastructure.Data
                 entity.HasOne(rp => rp.GrantedByUser)
                     .WithMany()
                     .HasForeignKey(rp => rp.GrantedBy)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+        }
+
+        private void ConfigureUserEntities(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<User>(entity =>
+            {
+                entity.ToTable("Users");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Nombre)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.Email)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.HasIndex(e => e.Email)
+                    .IsUnique()
+                    .HasDatabaseName("IX_Users_Email");
+
+                entity.Property(e => e.Activo)
+                    .HasDefaultValue(true);
+
+                entity.Property(e => e.FechaCreacion)
+                    .HasDefaultValueSql("GETDATE()");
+
+                entity.Property(e => e.FechaModificacion)
+                    .HasDefaultValueSql("GETDATE()");
+            });
+
+            modelBuilder.Entity<Role>(entity =>
+            {
+                entity.ToTable("Roles");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Name)
+                    .IsRequired()
+                    .HasMaxLength(50);
+
+                entity.Property(e => e.Description)
+                    .HasMaxLength(200);
+
+                entity.HasIndex(e => e.Name)
+                    .IsUnique()
+                    .HasDatabaseName("IX_Roles_Name");
+
+                entity.Property(e => e.IsActive)
+                    .HasDefaultValue(true);
+
+                entity.Property(e => e.CreatedAt)
+                    .HasDefaultValueSql("GETUTCDATE()");
+
+                entity.Property(e => e.UpdatedAt)
+                    .HasDefaultValueSql("GETUTCDATE()");
+            });
+
+            modelBuilder.Entity<Permission>(entity =>
+            {
+                entity.ToTable("Permissions");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Name)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.Resource)
+                    .IsRequired()
+                    .HasMaxLength(50);
+
+                entity.Property(e => e.Action)
+                    .IsRequired()
+                    .HasMaxLength(20);
+
+                entity.Property(e => e.Description)
+                    .HasMaxLength(200);
+
+                entity.HasIndex(e => e.Name)
+                    .IsUnique()
+                    .HasDatabaseName("IX_Permissions_Name");
+
+                entity.HasIndex(e => new { e.Resource, e.Action })
+                    .HasDatabaseName("IX_Permissions_Resource_Action");
+
+                entity.Property(e => e.IsActive)
+                    .HasDefaultValue(true);
+
+                entity.Property(e => e.CreatedAt)
+                    .HasDefaultValueSql("GETUTCDATE()");
+            });
+
+            modelBuilder.Entity<UserRole>(entity =>
+            {
+                entity.ToTable("UserRoles");
+                entity.HasKey(e => e.Id);
+
+                entity.HasIndex(e => new { e.UserId, e.RoleId })
+                    .HasDatabaseName("IX_UserRoles_User_Role");
+
+                entity.Property(e => e.AssignedAt)
+                    .HasDefaultValueSql("GETUTCDATE()");
+
+                entity.Property(e => e.IsActive)
+                    .HasDefaultValue(true);
+
+                entity.HasOne(e => e.User)
+                    .WithMany(u => u.UserRoles)
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Role)
+                    .WithMany(r => r.UserRoles)
+                    .HasForeignKey(e => e.RoleId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.AssignedByUser)
+                    .WithMany()
+                    .HasForeignKey(e => e.AssignedBy)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<RolePermission>(entity =>
+            {
+                entity.ToTable("RolePermissions");
+                entity.HasKey(e => e.Id);
+
+                entity.HasIndex(e => new { e.RoleId, e.PermissionId })
+                    .HasDatabaseName("IX_RolePermissions_Role_Permission");
+
+                entity.Property(e => e.GrantedAt)
+                    .HasDefaultValueSql("GETUTCDATE()");
+
+                entity.Property(e => e.IsActive)
+                    .HasDefaultValue(true);
+
+                entity.HasOne(e => e.Role)
+                    .WithMany(r => r.RolePermissions)
+                    .HasForeignKey(e => e.RoleId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Permission)
+                    .WithMany(p => p.RolePermissions)
+                    .HasForeignKey(e => e.PermissionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.GrantedByUser)
+                    .WithMany()
+                    .HasForeignKey(e => e.GrantedBy)
                     .OnDelete(DeleteBehavior.SetNull);
             });
         }

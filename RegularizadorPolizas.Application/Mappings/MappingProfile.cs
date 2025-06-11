@@ -46,6 +46,7 @@ namespace RegularizadorPolizas.Application.Mappings
             CreateCompanyMappings();
             CreateBrokerMappings();
             CreateCurrencyMappings();
+            CreateUserMappings();
 
             CreateMap<Currency, CurrencyDto>()
                 .ReverseMap()
@@ -179,6 +180,59 @@ namespace RegularizadorPolizas.Application.Mappings
                 .ForMember(dest => dest.Activo, opt => opt.MapFrom(src => true))
                 .ForMember(dest => dest.TotalPolizas, opt => opt.Ignore());
         }
+
+        private void CreateUserMappings()
+        {
+            // User Entity <-> UserDto
+            CreateMap<User, UserDto>()
+                .ForMember(dest => dest.Roles, opt => opt.Ignore()) // Se carga por separado en el servicio
+                .ForMember(dest => dest.RoleNames, opt => opt.Ignore()) // Se carga por separado en el servicio
+                .ReverseMap()
+                .ForMember(dest => dest.ProcessDocuments, opt => opt.Ignore())
+                .ForMember(dest => dest.Renovations, opt => opt.Ignore())
+                .ForMember(dest => dest.UserRoles, opt => opt.Ignore());
+
+            // UserCreateDto -> User
+            CreateMap<UserCreateDto, User>()
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.FechaCreacion, opt => opt.MapFrom(src => DateTime.Now))
+                .ForMember(dest => dest.FechaModificacion, opt => opt.MapFrom(src => DateTime.Now))
+                .ForMember(dest => dest.ProcessDocuments, opt => opt.Ignore())
+                .ForMember(dest => dest.Renovations, opt => opt.Ignore())
+                .ForMember(dest => dest.UserRoles, opt => opt.Ignore());
+
+            // User -> UserSummaryDto
+            CreateMap<User, UserSummaryDto>()
+                .ForMember(dest => dest.TotalRoles, opt => opt.Ignore()) // Se calcula en el servicio
+                .ForMember(dest => dest.PrimaryRole, opt => opt.Ignore()) // Se calcula en el servicio
+                .ForMember(dest => dest.UltimaActividad, opt => opt.MapFrom(src => src.FechaModificacion))
+                .ForMember(dest => dest.PuedeEliminar, opt => opt.Ignore()); // Se calcula en el servicio
+
+            // User -> UserLookupDto
+            CreateMap<User, UserLookupDto>();
+
+            // Role mappings
+            CreateMap<Role, RoleDto>()
+                .ForMember(dest => dest.TotalUsers, opt => opt.Ignore()) // Se calcula por separado si es necesario
+                .ForMember(dest => dest.TotalPermissions, opt => opt.Ignore()) // Se calcula por separado si es necesario
+                .ReverseMap()
+                .ForMember(dest => dest.UserRoles, opt => opt.Ignore())
+                .ForMember(dest => dest.RolePermissions, opt => opt.Ignore());
+
+            // Role -> RoleLookupDto
+            CreateMap<Role, RoleLookupDto>();
+
+            // UserRole mappings
+            CreateMap<UserRole, UserRoleAssignmentDto>()
+                .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User.Nombre))
+                .ForMember(dest => dest.RoleName, opt => opt.MapFrom(src => src.Role.Name))
+                .ForMember(dest => dest.AssignedByName, opt => opt.MapFrom(src => src.AssignedByUser != null ? src.AssignedByUser.Nombre : "Sistema"));
+
+            // Permission mappings
+            CreateMap<Permission, PermissionDto>()
+                .ReverseMap();
+        }
+
         private string GetAuditEventDescription(AuditEventType eventType)
         {
             var field = eventType.GetType().GetField(eventType.ToString());

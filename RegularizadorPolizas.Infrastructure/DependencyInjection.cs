@@ -7,6 +7,7 @@ using RegularizadorPolizas.Infrastructure.Data;
 using RegularizadorPolizas.Infrastructure.Data.Repositories;
 using RegularizadorPolizas.Infrastructure.External.VelneoAPI;
 using RegularizadorPolizas.Infrastructure.Repositories;
+using RegularizadorPolizas.Domain.Entities;
 
 namespace RegularizadorPolizas.Infrastructure
 {
@@ -31,10 +32,22 @@ namespace RegularizadorPolizas.Infrastructure
             services.AddScoped<IPolizaRepository, PolizaRepository>();
             services.AddScoped<IProcessDocumentRepository, ProcessDocumentRepository>();
             services.AddScoped<IRenovationRepository, RenovationRepository>();
-            services.AddScoped<ICompanyRepository, CompanyRepository>();
             services.AddScoped<IBrokerRepository, BrokerRepository>();
+            services.AddScoped<ICompanyRepository, CompanyRepository>();
             services.AddScoped<ICurrencyRepository, CurrencyRepository>();
             services.AddScoped<IAuditRepository, AuditRepository>();
+
+            services.AddScoped<IUserRepository, UserRepository>();
+            services.AddScoped<IRoleRepository, RoleRepository>();
+            services.AddScoped<IUserRoleRepository, UserRoleRepository>();
+            services.AddScoped<IPermissionRepository, PermissionRepository>();
+            services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
+
+            services.AddScoped<IGenericRepository<User>, GenericRepository<User>>();
+            services.AddScoped<IGenericRepository<Role>, GenericRepository<Role>>();
+            services.AddScoped<IGenericRepository<UserRole>, GenericRepository<UserRole>>();
+            services.AddScoped<IGenericRepository<Permission>, GenericRepository<Permission>>();
+            services.AddScoped<IGenericRepository<RolePermission>, GenericRepository<RolePermission>>();
 
             services.AddScoped<IAzureDocumentIntelligenceService, AzureDocumentIntelligenceService>();
 

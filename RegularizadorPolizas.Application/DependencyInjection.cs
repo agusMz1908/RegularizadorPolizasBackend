@@ -21,6 +21,9 @@ namespace RegularizadorPolizas.Application
             services.AddScoped<ICurrencyService, CurrencyService>();
             services.AddScoped<IAuditService, AuditService>();
             services.AddScoped<IHybridApiService, BusinessSpecificHybridService>();
+            services.AddScoped<IUserService, UserService>();
+            services.AddScoped<IRoleService, RoleService>();
+            services.AddScoped<IPermissionService, PermissionService>();
 
             services.Configure<HybridApiConfiguration>(config =>
             {
