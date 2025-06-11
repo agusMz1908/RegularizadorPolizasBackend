@@ -1,11 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Polly;
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Domain.Entities;
-using RegularizadorPolizas.Infrastructure.Data;
-using RegularizadorPolizas.Infrastructure.Data.Repositories;
+using RegularizadorPolizas.Infrastructure.Repositories;
 
-namespace RegularizadorPolizas.Infrastructure.Repositories
+namespace RegularizadorPolizas.Infrastructure.Data.Repositories 
 {
     public class RolePermissionRepository : GenericRepository<RolePermission>, IRolePermissionRepository
     {

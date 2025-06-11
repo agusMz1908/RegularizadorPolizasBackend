@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Domain.Entities;
+using RegularizadorPolizas.Infrastructure.Repositories;
 
 namespace RegularizadorPolizas.Infrastructure.Data.Repositories
 {
@@ -31,8 +32,6 @@ namespace RegularizadorPolizas.Infrastructure.Data.Repositories
         {
             if (string.IsNullOrWhiteSpace(documento))
                 return null;
-
-            // Normalize the document number (remove spaces, dots, etc.)
             documento = documento.Trim().Replace(".", "").Replace("-", "");
 
             return await _context.Clients

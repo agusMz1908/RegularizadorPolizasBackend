@@ -28,6 +28,7 @@ namespace RegularizadorPolizas.Infrastructure
                 ));
 
             services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+
             services.AddScoped<IClientRepository, ClientRepository>();
             services.AddScoped<IPolizaRepository, PolizaRepository>();
             services.AddScoped<IProcessDocumentRepository, ProcessDocumentRepository>();
@@ -43,28 +44,18 @@ namespace RegularizadorPolizas.Infrastructure
             services.AddScoped<IPermissionRepository, PermissionRepository>();
             services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
 
-            services.AddScoped<IGenericRepository<User>, GenericRepository<User>>();
-            services.AddScoped<IGenericRepository<Role>, GenericRepository<Role>>();
-            services.AddScoped<IGenericRepository<UserRole>, GenericRepository<UserRole>>();
-            services.AddScoped<IGenericRepository<Permission>, GenericRepository<Permission>>();
-            services.AddScoped<IGenericRepository<RolePermission>, GenericRepository<RolePermission>>();
-
             services.AddScoped<IAzureDocumentIntelligenceService, AzureDocumentIntelligenceService>();
-
             services.AddHttpClient<IVelneoApiService, VelneoApiService>((serviceProvider, client) =>
             {
-                // Configuración desde appsettings (como antes)
                 var baseUrl = configuration["VelneoAPI:BaseUrl"];
                 if (!string.IsNullOrEmpty(baseUrl))
                 {
                     client.BaseAddress = new Uri(baseUrl);
                 }
 
-                // Timeout desde configuración o default
                 var timeoutSeconds = configuration.GetValue<int>("VelneoAPI:TimeoutSeconds", 30);
                 client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
 
-                // Headers adicionales
                 var apiKey = configuration["VelneoAPI:ApiKey"];
                 if (!string.IsNullOrEmpty(apiKey))
                 {

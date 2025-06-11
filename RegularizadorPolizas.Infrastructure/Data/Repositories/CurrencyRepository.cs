@@ -1,9 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Polly;
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Domain.Entities;
 using RegularizadorPolizas.Infrastructure.Data;
-using RegularizadorPolizas.Infrastructure.Data.Repositories;
 
 namespace RegularizadorPolizas.Infrastructure.Repositories
 {

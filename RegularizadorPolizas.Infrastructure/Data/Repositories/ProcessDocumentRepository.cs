@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Domain.Entities;
+using RegularizadorPolizas.Infrastructure.Repositories;
 
 namespace RegularizadorPolizas.Infrastructure.Data.Repositories
 {
