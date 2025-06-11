@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using RegularizadorPolizas.Domain.Entities;
+using RegularizadorPolizas.Infrastructure.Data;
 
 namespace RegularizadorPolizas.Infrastructure.Data
 {
@@ -9,6 +10,7 @@ namespace RegularizadorPolizas.Infrastructure.Data
         {
         }
 
+        // DbSets existentes
         public DbSet<User> Users { get; set; }
         public DbSet<Client> Clients { get; set; }
         public DbSet<Poliza> Polizas { get; set; }
@@ -19,10 +21,23 @@ namespace RegularizadorPolizas.Infrastructure.Data
         public DbSet<Currency> Currencies { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
 
+        // NUEVOS DbSets para autenticación
+        public DbSet<Role> Roles { get; set; }
+        public DbSet<Permission> Permissions { get; set; }
+        public DbSet<UserRole> UserRoles { get; set; }
+        public DbSet<RolePermission> RolePermissions { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            ConfigureExistingEntities(modelBuilder);
+            ConfigureAuthenticationEntities(modelBuilder);
+            //SeedData.ApplyAllSeedData(modelBuilder);
+            SeedAuthenticationData(modelBuilder);
+        }
 
+        private void ConfigureExistingEntities(ModelBuilder modelBuilder)
+        {
             modelBuilder.Entity<Poliza>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -168,8 +183,237 @@ namespace RegularizadorPolizas.Infrastructure.Data
                 entity.HasIndex(e => new { e.EntityName, e.EntityId });
                 entity.HasIndex(e => new { e.UserId, e.Timestamp });
             });
+        }
 
-            SeedData.ApplyAllSeedData(modelBuilder);
+        private void ConfigureAuthenticationEntities(ModelBuilder modelBuilder)
+        {
+            // Configuración de Role
+            modelBuilder.Entity<Role>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.Name).IsUnique().HasDatabaseName("IX_Roles_Name");
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Description).HasMaxLength(200);
+            });
+
+            // Configuración de Permission
+            modelBuilder.Entity<Permission>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.Resource, e.Action }).IsUnique().HasDatabaseName("IX_Permissions_Resource_Action");
+                entity.HasIndex(e => e.Name).IsUnique().HasDatabaseName("IX_Permissions_Name");
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.Resource).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Action).IsRequired().HasMaxLength(20);
+                entity.Property(e => e.Description).HasMaxLength(200);
+            });
+
+            // Configuración de UserRole
+            modelBuilder.Entity<UserRole>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.UserId, e.RoleId }).IsUnique().HasDatabaseName("IX_UserRoles_UserId_RoleId");
+                entity.HasIndex(e => e.UserId).HasDatabaseName("IX_UserRoles_UserId");
+                entity.HasIndex(e => e.RoleId).HasDatabaseName("IX_UserRoles_RoleId");
+
+                entity.HasOne(ur => ur.User)
+                    .WithMany(u => u.UserRoles)
+                    .HasForeignKey(ur => ur.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(ur => ur.Role)
+                    .WithMany(r => r.UserRoles)
+                    .HasForeignKey(ur => ur.RoleId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(ur => ur.AssignedByUser)
+                    .WithMany()
+                    .HasForeignKey(ur => ur.AssignedBy)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // Configuración de RolePermission
+            modelBuilder.Entity<RolePermission>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.RoleId, e.PermissionId }).IsUnique().HasDatabaseName("IX_RolePermissions_RoleId_PermissionId");
+                entity.HasIndex(e => e.RoleId).HasDatabaseName("IX_RolePermissions_RoleId");
+                entity.HasIndex(e => e.PermissionId).HasDatabaseName("IX_RolePermissions_PermissionId");
+
+                entity.HasOne(rp => rp.Role)
+                    .WithMany(r => r.RolePermissions)
+                    .HasForeignKey(rp => rp.RoleId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(rp => rp.Permission)
+                    .WithMany(p => p.RolePermissions)
+                    .HasForeignKey(rp => rp.PermissionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(rp => rp.GrantedByUser)
+                    .WithMany()
+                    .HasForeignKey(rp => rp.GrantedBy)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+        }
+
+        private void SeedAuthenticationData(ModelBuilder modelBuilder)
+        {
+            var now = DateTime.UtcNow;
+
+            // Seed Roles
+            modelBuilder.Entity<Role>().HasData(
+                new Role { Id = 1, Name = "SuperAdmin", Description = "Full system access", IsActive = true, CreatedAt = now, UpdatedAt = now },
+                new Role { Id = 2, Name = "Admin", Description = "Administrative access", IsActive = true, CreatedAt = now, UpdatedAt = now },
+                new Role { Id = 3, Name = "Manager", Description = "Management access", IsActive = true, CreatedAt = now, UpdatedAt = now },
+                new Role { Id = 4, Name = "Operator", Description = "Operational access", IsActive = true, CreatedAt = now, UpdatedAt = now },
+                new Role { Id = 5, Name = "Viewer", Description = "Read-only access", IsActive = true, CreatedAt = now, UpdatedAt = now },
+                new Role { Id = 6, Name = "Client", Description = "Client portal access", IsActive = true, CreatedAt = now, UpdatedAt = now }
+            );
+
+            // Seed Permissions
+            var permissions = new List<Permission>
+            {
+                // Clients
+                new Permission { Id = 1, Name = "clients.read", Resource = "Clients", Action = "Read", Description = "View clients", IsActive = true, CreatedAt = now },
+                new Permission { Id = 2, Name = "clients.create", Resource = "Clients", Action = "Create", Description = "Create clients", IsActive = true, CreatedAt = now },
+                new Permission { Id = 3, Name = "clients.update", Resource = "Clients", Action = "Update", Description = "Update clients", IsActive = true, CreatedAt = now },
+                new Permission { Id = 4, Name = "clients.delete", Resource = "Clients", Action = "Delete", Description = "Delete clients", IsActive = true, CreatedAt = now },
+                new Permission { Id = 5, Name = "clients.search", Resource = "Clients", Action = "Search", Description = "Search clients", IsActive = true, CreatedAt = now },
+
+                // Polizas
+                new Permission { Id = 6, Name = "polizas.read", Resource = "Polizas", Action = "Read", Description = "View policies", IsActive = true, CreatedAt = now },
+                new Permission { Id = 7, Name = "polizas.create", Resource = "Polizas", Action = "Create", Description = "Create policies", IsActive = true, CreatedAt = now },
+                new Permission { Id = 8, Name = "polizas.update", Resource = "Polizas", Action = "Update", Description = "Update policies", IsActive = true, CreatedAt = now },
+                new Permission { Id = 9, Name = "polizas.delete", Resource = "Polizas", Action = "Delete", Description = "Delete policies", IsActive = true, CreatedAt = now },
+                new Permission { Id = 10, Name = "polizas.renew", Resource = "Polizas", Action = "Renew", Description = "Renew policies", IsActive = true, CreatedAt = now },
+                new Permission { Id = 11, Name = "polizas.search", Resource = "Polizas", Action = "Search", Description = "Search policies", IsActive = true, CreatedAt = now },
+
+                // Documents
+                new Permission { Id = 12, Name = "documents.read", Resource = "Documents", Action = "Read", Description = "View documents", IsActive = true, CreatedAt = now },
+                new Permission { Id = 13, Name = "documents.upload", Resource = "Documents", Action = "Upload", Description = "Upload documents", IsActive = true, CreatedAt = now },
+                new Permission { Id = 14, Name = "documents.process", Resource = "Documents", Action = "Process", Description = "Process documents", IsActive = true, CreatedAt = now },
+                new Permission { Id = 15, Name = "documents.delete", Resource = "Documents", Action = "Delete", Description = "Delete documents", IsActive = true, CreatedAt = now },
+
+                // Brokers
+                new Permission { Id = 16, Name = "brokers.read", Resource = "Brokers", Action = "Read", Description = "View brokers", IsActive = true, CreatedAt = now },
+                new Permission { Id = 17, Name = "brokers.create", Resource = "Brokers", Action = "Create", Description = "Create brokers", IsActive = true, CreatedAt = now },
+                new Permission { Id = 18, Name = "brokers.update", Resource = "Brokers", Action = "Update", Description = "Update brokers", IsActive = true, CreatedAt = now },
+                new Permission { Id = 19, Name = "brokers.delete", Resource = "Brokers", Action = "Delete", Description = "Delete brokers", IsActive = true, CreatedAt = now },
+
+                // Companies
+                new Permission { Id = 20, Name = "companies.read", Resource = "Companies", Action = "Read", Description = "View companies", IsActive = true, CreatedAt = now },
+                new Permission { Id = 21, Name = "companies.create", Resource = "Companies", Action = "Create", Description = "Create companies", IsActive = true, CreatedAt = now },
+                new Permission { Id = 22, Name = "companies.update", Resource = "Companies", Action = "Update", Description = "Update companies", IsActive = true, CreatedAt = now },
+                new Permission { Id = 23, Name = "companies.delete", Resource = "Companies", Action = "Delete", Description = "Delete companies", IsActive = true, CreatedAt = now },
+
+                // Currencies
+                new Permission { Id = 24, Name = "currencies.read", Resource = "Currencies", Action = "Read", Description = "View currencies", IsActive = true, CreatedAt = now },
+                new Permission { Id = 25, Name = "currencies.create", Resource = "Currencies", Action = "Create", Description = "Create currencies", IsActive = true, CreatedAt = now },
+                new Permission { Id = 26, Name = "currencies.update", Resource = "Currencies", Action = "Update", Description = "Update currencies", IsActive = true, CreatedAt = now },
+                new Permission { Id = 27, Name = "currencies.delete", Resource = "Currencies", Action = "Delete", Description = "Delete currencies", IsActive = true, CreatedAt = now },
+
+                // Renovations
+                new Permission { Id = 28, Name = "renovations.read", Resource = "Renovations", Action = "Read", Description = "View renovations", IsActive = true, CreatedAt = now },
+                new Permission { Id = 29, Name = "renovations.create", Resource = "Renovations", Action = "Create", Description = "Create renovations", IsActive = true, CreatedAt = now },
+                new Permission { Id = 30, Name = "renovations.process", Resource = "Renovations", Action = "Process", Description = "Process renovations", IsActive = true, CreatedAt = now },
+                new Permission { Id = 31, Name = "renovations.cancel", Resource = "Renovations", Action = "Cancel", Description = "Cancel renovations", IsActive = true, CreatedAt = now },
+
+                // Administration
+                new Permission { Id = 32, Name = "admin.users.manage", Resource = "Admin", Action = "ManageUsers", Description = "Manage users", IsActive = true, CreatedAt = now },
+                new Permission { Id = 33, Name = "admin.roles.manage", Resource = "Admin", Action = "ManageRoles", Description = "Manage roles", IsActive = true, CreatedAt = now },
+                new Permission { Id = 34, Name = "admin.permissions.manage", Resource = "Admin", Action = "ManagePermissions", Description = "Manage permissions", IsActive = true, CreatedAt = now },
+                new Permission { Id = 35, Name = "admin.audit.read", Resource = "Admin", Action = "ReadAudit", Description = "View audit logs", IsActive = true, CreatedAt = now },
+                new Permission { Id = 36, Name = "admin.system.config", Resource = "Admin", Action = "SystemConfig", Description = "System configuration", IsActive = true, CreatedAt = now },
+
+                // Reports
+                new Permission { Id = 37, Name = "reports.read", Resource = "Reports", Action = "Read", Description = "View reports", IsActive = true, CreatedAt = now },
+                new Permission { Id = 38, Name = "reports.export", Resource = "Reports", Action = "Export", Description = "Export reports", IsActive = true, CreatedAt = now }
+            };
+
+            modelBuilder.Entity<Permission>().HasData(permissions);
+
+            // Seed UserRole - Asignar SuperAdmin al usuario admin existente (asumiendo que existe un usuario con ID = 1)
+            modelBuilder.Entity<UserRole>().HasData(
+                new UserRole { Id = 1, UserId = 1, RoleId = 1, AssignedAt = now, IsActive = true }
+            );
+
+            // Seed RolePermissions - SuperAdmin tiene todos los permisos
+            var superAdminPermissions = permissions.Select((p, index) => new RolePermission
+            {
+                Id = index + 1,
+                RoleId = 1, // SuperAdmin
+                PermissionId = p.Id,
+                GrantedAt = now,
+                IsActive = true
+            }).ToArray();
+
+            modelBuilder.Entity<RolePermission>().HasData(superAdminPermissions);
+
+            // Admin tiene la mayoría de permisos (excepto system config)
+            var adminPermissionIds = permissions.Where(p => p.Id != 36).Select(p => p.Id).ToList(); // Sin system config
+            var adminPermissions = adminPermissionIds.Select((permId, index) => new RolePermission
+            {
+                Id = superAdminPermissions.Length + index + 1,
+                RoleId = 2, // Admin
+                PermissionId = permId,
+                GrantedAt = now,
+                IsActive = true
+            }).ToArray();
+
+            modelBuilder.Entity<RolePermission>().HasData(adminPermissions);
+
+            // Manager - permisos operacionales (sin delete críticos)
+            var managerPermissionIds = new[] { 1, 2, 3, 5, 6, 7, 8, 10, 11, 12, 13, 14, 16, 17, 18, 20, 21, 22, 24, 25, 26, 28, 29, 30, 37 };
+            var managerPermissions = managerPermissionIds.Select((permId, index) => new RolePermission
+            {
+                Id = superAdminPermissions.Length + adminPermissions.Length + index + 1,
+                RoleId = 3, // Manager
+                PermissionId = permId,
+                GrantedAt = now,
+                IsActive = true
+            }).ToArray();
+
+            modelBuilder.Entity<RolePermission>().HasData(managerPermissions);
+
+            // Operator - permisos básicos operacionales
+            var operatorPermissionIds = new[] { 1, 5, 6, 7, 8, 11, 12, 13, 16, 17, 20, 24, 28, 29 };
+            var operatorPermissions = operatorPermissionIds.Select((permId, index) => new RolePermission
+            {
+                Id = superAdminPermissions.Length + adminPermissions.Length + managerPermissions.Length + index + 1,
+                RoleId = 4, // Operator
+                PermissionId = permId,
+                GrantedAt = now,
+                IsActive = true
+            }).ToArray();
+
+            modelBuilder.Entity<RolePermission>().HasData(operatorPermissions);
+
+            // Viewer - solo lectura
+            var viewerPermissionIds = new[] { 1, 5, 6, 11, 12, 16, 20, 24, 28, 37 };
+            var viewerPermissions = viewerPermissionIds.Select((permId, index) => new RolePermission
+            {
+                Id = superAdminPermissions.Length + adminPermissions.Length + managerPermissions.Length + operatorPermissions.Length + index + 1,
+                RoleId = 5, // Viewer
+                PermissionId = permId,
+                GrantedAt = now,
+                IsActive = true
+            }).ToArray();
+
+            modelBuilder.Entity<RolePermission>().HasData(viewerPermissions);
+
+            // Client - acceso muy limitado (solo sus propias pólizas y documentos)
+            var clientPermissionIds = new[] { 6, 12, 28, 29 };
+            var clientPermissions = clientPermissionIds.Select((permId, index) => new RolePermission
+            {
+                Id = superAdminPermissions.Length + adminPermissions.Length + managerPermissions.Length + operatorPermissions.Length + viewerPermissions.Length + index + 1,
+                RoleId = 6, // Client
+                PermissionId = permId,
+                GrantedAt = now,
+                IsActive = true
+            }).ToArray();
+
+            modelBuilder.Entity<RolePermission>().HasData(clientPermissions);
         }
     }
 }

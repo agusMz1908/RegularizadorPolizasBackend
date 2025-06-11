@@ -7,68 +7,101 @@ namespace RegularizadorPolizas.Infrastructure.Data
     {
         public static void SeedCompanies(ModelBuilder modelBuilder)
         {
+            var now = DateTime.Now;
+
             modelBuilder.Entity<Company>().HasData(
                 new Company
                 {
                     Id = 1,
-                    Nombre = "Banco de Seguros del Estado",
-                    Alias = "BSE",
-                    Codigo = "BSE",
-                    Activo = true
+                    Comnom = "Banco de Seguros del Estado",
+                    Nombre = "Banco de Seguros del Estado", // Campo de compatibilidad
+                    Comalias = "BSE",
+                    Alias = "BSE", // Campo de compatibilidad
+                    Cod_srvcompanias = "BSE",
+                    Codigo = "BSE", // Campo de compatibilidad
+                    Activo = true,
+                    FechaCreacion = now,
+                    FechaModificacion = now
                 },
                 new Company
                 {
                     Id = 2,
+                    Comnom = "SURA Uruguay",
                     Nombre = "SURA Uruguay",
+                    Comalias = "SURA",
                     Alias = "SURA",
+                    Cod_srvcompanias = "SURA",
                     Codigo = "SURA",
-                    Activo = true
+                    Activo = true,
+                    FechaCreacion = now,
+                    FechaModificacion = now
                 },
                 new Company
                 {
                     Id = 3,
+                    Comnom = "Mapfre Uruguay",
                     Nombre = "Mapfre Uruguay",
+                    Comalias = "MAPFRE",
                     Alias = "MAPFRE",
+                    Cod_srvcompanias = "MAPFRE",
                     Codigo = "MAPFRE",
-                    Activo = true
+                    Activo = true,
+                    FechaCreacion = now,
+                    FechaModificacion = now
                 },
                 new Company
                 {
                     Id = 4,
+                    Comnom = "San Cristóbal",
                     Nombre = "San Cristóbal",
+                    Comalias = "SAN CRISTOBAL",
                     Alias = "SAN CRISTOBAL",
+                    Cod_srvcompanias = "SC",
                     Codigo = "SC",
-                    Activo = true
+                    Activo = true,
+                    FechaCreacion = now,
+                    FechaModificacion = now
                 }
             );
         }
 
         public static void SeedCurrencies(ModelBuilder modelBuilder)
         {
+            var now = DateTime.Now;
+
             modelBuilder.Entity<Currency>().HasData(
                 new Currency
                 {
                     Id = 1,
                     Nombre = "Peso Uruguayo",
-                    Codigo = "UYU",
+                    Moneda = "UYU", 
+                    Codigo = "UYU", 
                     Simbolo = "$",
-                    Activo = true
+                    Activo = true,
+                    FechaCreacion = now, 
+                    FechaModificacion = now 
                 },
                 new Currency
                 {
                     Id = 2,
                     Nombre = "Dólar Americano",
+                    Moneda = "USD",
                     Codigo = "USD",
                     Simbolo = "US$",
-                    Activo = true
+                    Activo = true,
+                    FechaCreacion = now, 
+                    FechaModificacion = now 
                 },
                 new Currency
                 {
                     Id = 3,
                     Nombre = "Unidad Indexada",
+                    Moneda = "UI",
                     Codigo = "UI",
                     Simbolo = "UI",
-                    Activo = true
+                    Activo = true,
+                    FechaCreacion = now,
+                    FechaModificacion = now 
                 }
             );
         }
@@ -91,11 +124,34 @@ namespace RegularizadorPolizas.Infrastructure.Data
             );
         }
 
+        public static void SeedBrokers(ModelBuilder modelBuilder)
+        {
+            var now = DateTime.Now;
+
+            modelBuilder.Entity<Broker>().HasData(
+                new Broker
+                {
+                    Id = 1,
+                    Name = "Corredor Principal",
+                    Nombre = "Corredor Principal", // Campo de compatibilidad
+                    Codigo = "CORR001",
+                    Direccion = "18 de Julio 1234",
+                    Domicilio = "18 de Julio 1234", // Campo de compatibilidad
+                    Telefono = "099123456",
+                    Email = "corredor@principal.com",
+                    Activo = true,
+                    FechaCreacion = now,
+                    FechaModificacion = now
+                }
+            );
+        }
+
         public static void ApplyAllSeedData(ModelBuilder modelBuilder)
         {
             SeedCompanies(modelBuilder);
             SeedCurrencies(modelBuilder);
             SeedUsers(modelBuilder);
+            SeedBrokers(modelBuilder);
         }
     }
 }

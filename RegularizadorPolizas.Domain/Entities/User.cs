@@ -23,5 +23,6 @@ namespace RegularizadorPolizas.Domain.Entities
         // Relaciones
         public virtual ICollection<ProcessDocument> ProcessDocuments { get; set; }
         public virtual ICollection<Renovation> Renovations { get; set; }
+        public virtual ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
     }
 }
