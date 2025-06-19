@@ -12,7 +12,14 @@ namespace RegularizadorPolizas.Domain.Entities
         public required string Nombre { get; set; }
 
         [StringLength(100)]
-        public required string Email { get; set; }
+        public string Email { get; set; }
+
+        [Required]
+        [StringLength(50)]
+        public required string TenantId { get; set; }
+
+        [StringLength(100)]
+        public string Password { get; set; } = string.Empty;
 
         public bool Activo { get; set; } = true;
 

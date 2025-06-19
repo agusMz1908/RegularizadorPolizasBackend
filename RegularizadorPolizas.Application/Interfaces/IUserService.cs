@@ -9,7 +9,7 @@ namespace RegularizadorPolizas.Application.Interfaces
         Task<UserDto> GetUserByIdAsync(int id);
         Task<UserDto> GetUserByEmailAsync(string email);
         Task<UserDto> CreateUserAsync(UserCreateDto userCreateDto);
-        Task UpdateUserAsync(UserDto userDto);
+        Task UpdateUserAsync(UserUpdateDto userUpdateDto);
         Task DeleteUserAsync(int id);
         Task<IEnumerable<UserDto>> SearchUsersAsync(string searchTerm);
 
@@ -29,5 +29,7 @@ namespace RegularizadorPolizas.Application.Interfaces
         Task<IEnumerable<UserDto>> GetActiveUsersAsync();
         Task<IEnumerable<UserDto>> GetUsersByRoleAsync(string roleName);
         Task<UserSummaryDto> GetUserSummaryAsync(int userId);
+
+        Task PatchUserAsync(int id, UserPatchDto patchDto);
     }
 }

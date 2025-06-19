@@ -1,4 +1,6 @@
-﻿namespace RegularizadorPolizas.Application.DTOs
+﻿using System.Text.Json.Serialization;
+
+namespace RegularizadorPolizas.Application.DTOs
 {
     public class UserDto
     {
@@ -8,6 +10,10 @@
         public bool Activo { get; set; } = true;
         public DateTime FechaCreacion { get; set; }
         public DateTime FechaModificacion { get; set; }
+        public string TenantId { get; set; } = string.Empty;
+
+        [JsonIgnore]
+        public string Password { get; set; } = string.Empty;
 
         // Información de roles
         public List<RoleDto> Roles { get; set; } = new();
@@ -22,6 +28,8 @@
         public string Email { get; set; } = string.Empty;
         public List<int> RoleIds { get; set; } = new();
         public bool Activo { get; set; } = true;
+        public string TenantId { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
     }
 
     public class UserUpdateDto
@@ -30,6 +38,8 @@
         public string Nombre { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public bool Activo { get; set; } = true;
+        public string TenantId { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
     }
 
     public class UserSummaryDto
@@ -42,6 +52,9 @@
         public string PrimaryRole { get; set; } = string.Empty;
         public DateTime UltimaActividad { get; set; }
         public bool PuedeEliminar { get; set; }
+
+        [JsonIgnore]
+        public string Password { get; set; } = string.Empty;
     }
 
     public class UserLookupDto
@@ -50,6 +63,9 @@
         public string Nombre { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public bool Activo { get; set; }
+
+        [JsonIgnore]
+        public string Password { get; set; } = string.Empty;
     }
 
     public class RoleDto
@@ -88,5 +104,16 @@
         public DateTime AssignedAt { get; set; }
         public string AssignedByName { get; set; } = string.Empty;
         public bool IsActive { get; set; }
+    }
+
+    public class UserPatchDto
+    {
+        public int? Id { get; set; }
+        public string? Nombre { get; set; }
+        public string? Email { get; set; }
+        public bool? Activo { get; set; }
+        public string? TenantId { get; set; }
+        public string? Password { get; set; }
+        public List<int>? RoleIds { get; set; }
     }
 }

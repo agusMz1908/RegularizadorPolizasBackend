@@ -5,38 +5,45 @@ using RegularizadorPolizas.Application.Interfaces;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using RegularizadorPolizas.Application.Helpers;
 
 namespace RegularizadorPolizas.Application.Services
 {
     public class AuthService : IAuthService
     {
-        private readonly IClientRepository _clientRepository;
+        private readonly IUserRepository _userRepository;
         private readonly IConfiguration _configuration;
 
-        public AuthService(IClientRepository clientRepository, IConfiguration configuration)
+        public AuthService(IUserRepository userRepository, IConfiguration configuration)
         {
-            _clientRepository = clientRepository;
+            _userRepository = userRepository;
             _configuration = configuration;
         }
 
         public async Task<AuthResultDto> Login(LoginDto loginDto)
         {
-            var cliente = await _clientRepository.GetClientByEmailAsync(loginDto.Username);
+            var user = await _userRepository.GetByNombreAsync(loginDto.Nombre);
 
-            if (cliente == null || cliente.Password != loginDto.Password)
+            if (user == null || !PasswordHelper.VerifyPassword(loginDto.Password, user.Password))
             {
                 return null;
             }
 
-            // Generar token JWT
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
             var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.NameIdentifier, cliente.Id.ToString()),
-                new Claim(ClaimTypes.Name, cliente.Clinom)
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Name, user.Nombre),
+                new Claim("tenant", user.TenantId)
             };
+
+            foreach (var userRole in user.UserRoles.Where(ur => ur.IsActive))
+            {
+                if (userRole.Role != null)
+                    claims.Add(new Claim(ClaimTypes.Role, userRole.Role.Name));
+            }
 
             var token = new JwtSecurityToken(
                 issuer: _configuration["Jwt:Issuer"],
@@ -49,8 +56,9 @@ namespace RegularizadorPolizas.Application.Services
             return new AuthResultDto
             {
                 Token = new JwtSecurityTokenHandler().WriteToken(token),
-                ClienteId = cliente.Id,
-                Nombre = cliente.Clinom,
+                UserId = user.Id,
+                Nombre = user.Nombre,
+                TenantId = user.TenantId,
                 Expiration = token.ValidTo
             };
         }

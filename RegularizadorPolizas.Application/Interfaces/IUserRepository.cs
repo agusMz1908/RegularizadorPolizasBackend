@@ -9,5 +9,7 @@ namespace RegularizadorPolizas.Application.Interfaces
         Task<User?> GetUserWithRolesAsync(int id);
         Task<IEnumerable<User>> SearchByNameOrEmailAsync(string searchTerm);
         Task<bool> ExistsByEmailAsync(string email, int? excludeId = null);
+        Task<User?> GetByNombreAsync(string nombre);
+        Task SaveChangesAsync();
     }
 }

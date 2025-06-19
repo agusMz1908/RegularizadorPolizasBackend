@@ -119,7 +119,8 @@ namespace RegularizadorPolizas.Infrastructure.Data
                     Email = "admin@sistema.com",
                     Activo = true,
                     FechaCreacion = creationDate,
-                    FechaModificacion = modificationDate
+                    FechaModificacion = modificationDate,
+                    TenantId = "KEYDEMO"
                 }
             );
         }

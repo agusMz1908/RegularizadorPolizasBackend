@@ -4,15 +4,18 @@ using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Domain.Entities;
 using RegularizadorPolizas.Domain.Enums;
+using RegularizadorPolizas.Application.Helpers;
 
 namespace RegularizadorPolizas.Application.Services
 {
     public class UserService : IUserService
+
     {
         private readonly IGenericRepository<User> _userRepository;
         private readonly IGenericRepository<Role> _roleRepository;
         private readonly IGenericRepository<UserRole> _userRoleRepository;
         private readonly IGenericRepository<RolePermission> _rolePermissionRepository;
+        private readonly IGenericRepository<Permission> _permissionRepository;
         private readonly IAuditService _auditService;
         private readonly IMapper _mapper;
 
@@ -21,6 +24,7 @@ namespace RegularizadorPolizas.Application.Services
             IGenericRepository<Role> roleRepository,
             IGenericRepository<UserRole> userRoleRepository,
             IGenericRepository<RolePermission> rolePermissionRepository,
+            IGenericRepository<Permission> permissionRepository,
             IAuditService auditService,
             IMapper mapper)
         {
@@ -28,6 +32,7 @@ namespace RegularizadorPolizas.Application.Services
             _roleRepository = roleRepository ?? throw new ArgumentNullException(nameof(roleRepository));
             _userRoleRepository = userRoleRepository ?? throw new ArgumentNullException(nameof(userRoleRepository));
             _rolePermissionRepository = rolePermissionRepository ?? throw new ArgumentNullException(nameof(rolePermissionRepository));
+            _permissionRepository = permissionRepository ?? throw new ArgumentNullException(nameof(permissionRepository));
             _auditService = auditService ?? throw new ArgumentNullException(nameof(auditService));
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
         }
@@ -101,19 +106,15 @@ namespace RegularizadorPolizas.Application.Services
                 if (string.IsNullOrWhiteSpace(userCreateDto.Nombre))
                     throw new ArgumentException("User name is required");
 
-                if (string.IsNullOrWhiteSpace(userCreateDto.Email))
-                    throw new ArgumentException("Email is required");
-
-                if (await ExistsByEmailAsync(userCreateDto.Email))
-                    throw new ArgumentException($"User with email '{userCreateDto.Email}' already exists");
-
                 var user = new User
                 {
                     Nombre = userCreateDto.Nombre.Trim(),
-                    Email = userCreateDto.Email.Trim().ToLower(),
+                    Email = userCreateDto.Email?.Trim().ToLower() ?? string.Empty,
                     Activo = userCreateDto.Activo,
                     FechaCreacion = DateTime.Now,
-                    FechaModificacion = DateTime.Now
+                    FechaModificacion = DateTime.Now,
+                    TenantId = userCreateDto.TenantId,
+                    Password = PasswordHelper.HashPassword(userCreateDto.Password)
                 };
 
                 var createdUser = await _userRepository.AddAsync(user);
@@ -127,7 +128,7 @@ namespace RegularizadorPolizas.Application.Services
                 }
 
                 await _auditService.LogAsync(
-                    AuditEventType.ClientCreated, // Cambiar por UserCreated cuando esté disponible
+                    AuditEventType.UserCreated,
                     $"Usuario creado: {createdUser.Nombre} ({createdUser.Email})",
                     new { UserId = createdUser.Id, Email = createdUser.Email, Roles = userCreateDto.RoleIds });
 
@@ -139,30 +140,32 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        public async Task UpdateUserAsync(UserDto userDto)
+        public async Task UpdateUserAsync(UserUpdateDto userUpdateDto)
         {
             try
             {
-                var existingUser = await _userRepository.GetByIdAsync(userDto.Id);
+                var existingUser = await _userRepository.GetByIdAsync(userUpdateDto.Id);
                 if (existingUser == null)
-                    throw new ApplicationException($"User with ID {userDto.Id} not found");
-
-                if (await ExistsByEmailAsync(userDto.Email, userDto.Id))
-                    throw new ArgumentException($"Email '{userDto.Email}' is already in use by another user");
+                    throw new ApplicationException($"User with ID {userUpdateDto.Id} not found");
 
                 var oldData = _mapper.Map<UserDto>(existingUser);
 
-                existingUser.Nombre = userDto.Nombre.Trim();
-                existingUser.Email = userDto.Email.Trim().ToLower();
-                existingUser.Activo = userDto.Activo;
+                existingUser.Nombre = userUpdateDto.Nombre.Trim();
+                existingUser.Email = userUpdateDto.Email?.Trim().ToLower() ?? string.Empty;
+                existingUser.Activo = userUpdateDto.Activo;
                 existingUser.FechaModificacion = DateTime.Now;
+                existingUser.TenantId = userUpdateDto.TenantId;
+                if (!string.IsNullOrWhiteSpace(userUpdateDto.Password))
+                {
+                    existingUser.Password = PasswordHelper.HashPassword(userUpdateDto.Password);
+                }
 
                 await _userRepository.UpdateAsync(existingUser);
 
                 await _auditService.LogAsync(
-                    AuditEventType.ClientUpdated, // Cambiar por UserUpdated cuando esté disponible
+                    AuditEventType.UserUpdated, 
                     $"Usuario actualizado: {existingUser.Nombre}",
-                    new { UserId = existingUser.Id, OldData = oldData, NewData = userDto });
+                    new { UserId = existingUser.Id, OldData = oldData, NewData = userUpdateDto });
             }
             catch (Exception ex)
             {
@@ -197,7 +200,7 @@ namespace RegularizadorPolizas.Application.Services
                 }
 
                 await _auditService.LogAsync(
-                    AuditEventType.ClientDeleted, 
+                    AuditEventType.UserDeleted, 
                     $"Usuario eliminado: {user.Nombre}",
                     new { UserId = id, UserName = user.Nombre });
             }
@@ -283,7 +286,7 @@ namespace RegularizadorPolizas.Application.Services
                 }
 
                 await _auditService.LogAsync(
-                    AuditEventType.ClientUpdated, // Cambiar por UserRoleAssigned cuando esté disponible
+                    AuditEventType.UserRoleAssigned,
                     $"Rol '{role.Name}' asignado a usuario '{user.Nombre}'",
                     new { UserId = userId, RoleId = roleId, AssignedBy = assignedBy });
             }
@@ -317,7 +320,7 @@ namespace RegularizadorPolizas.Application.Services
 
                 var user = await _userRepository.GetByIdAsync(userId);
                 await _auditService.LogAsync(
-                    AuditEventType.ClientUpdated, // Cambiar por UserRoleRemoved cuando esté disponible
+                    AuditEventType.UserRoleRemoved, 
                     $"Rol '{role?.Name}' removido de usuario '{user?.Nombre}'",
                     new { UserId = userId, RoleId = roleId });
             }
@@ -353,22 +356,32 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
+                var permissions = await _permissionRepository.FindAsync(p =>
+                    p.Name == permissionName && p.IsActive);
+
+                var permission = permissions.FirstOrDefault();
+                if (permission == null)
+                    return false;
+
                 var userRoles = await _userRoleRepository.FindAsync(ur =>
                     ur.UserId == userId && ur.IsActive);
 
-                foreach (var userRole in userRoles)
-                {
-                    var rolePermissions = await _rolePermissionRepository.FindAsync(rp =>
-                        rp.RoleId == userRole.RoleId && rp.IsActive);
+                if (!userRoles.Any())
+                    return false;
 
-                    // Aquí necesitarías acceso al PermissionRepository para verificar el nombre
-                    // Por simplicidad, asumimos que tienes el repositorio disponible
-                }
+                var userRoleIds = userRoles.Select(ur => ur.RoleId).ToList();
 
-                return false;
+                var rolePermissions = await _rolePermissionRepository.FindAsync(rp =>
+                    userRoleIds.Contains(rp.RoleId) &&
+                    rp.PermissionId == permission.Id &&
+                    rp.IsActive);
+
+                return rolePermissions.Any();
             }
-            catch
+            catch (Exception ex)
             {
+                await _auditService.LogErrorAsync(ex,
+                    $"Error checking permission '{permissionName}' for user {userId}");
                 return false;
             }
         }
@@ -386,7 +399,7 @@ namespace RegularizadorPolizas.Application.Services
                 await _userRepository.UpdateAsync(user);
 
                 await _auditService.LogAsync(
-                    AuditEventType.ClientUpdated,
+                    AuditEventType.UserActivated,
                     $"Usuario activado: {user.Nombre}",
                     new { UserId = id });
             }
@@ -416,7 +429,7 @@ namespace RegularizadorPolizas.Application.Services
                 await _userRepository.UpdateAsync(user);
 
                 await _auditService.LogAsync(
-                    AuditEventType.ClientUpdated,
+                    AuditEventType.UserDeactivated,
                     $"Usuario desactivado: {user.Nombre}",
                     new { UserId = id });
             }
@@ -545,5 +558,74 @@ namespace RegularizadorPolizas.Application.Services
                 return new List<RoleDto>();
             }
         }
+
+        public async Task<IEnumerable<string>> GetUserPermissionsAsync(int userId)
+        {
+            try
+            {
+                var permissions = new List<string>();
+
+                var userRoles = await _userRoleRepository.FindAsync(ur =>
+                    ur.UserId == userId && ur.IsActive);
+
+                foreach (var userRole in userRoles)
+                {
+                    var rolePermissions = await _rolePermissionRepository.FindAsync(rp =>
+                        rp.RoleId == userRole.RoleId && rp.IsActive);
+
+                    foreach (var rolePermission in rolePermissions)
+                    {
+                        var permission = await _permissionRepository.GetByIdAsync(rolePermission.PermissionId);
+                        if (permission != null && permission.IsActive)
+                        {
+                            permissions.Add(permission.Name);
+                        }
+                    }
+                }
+
+                return permissions.Distinct().ToList();
+            }
+            catch (Exception ex)
+            {
+                await _auditService.LogErrorAsync(ex, $"Error getting permissions for user {userId}");
+                return new List<string>();
+            }
+        }
+
+        public async Task PatchUserAsync(int id, UserPatchDto patchDto)
+        {
+            var user = await _userRepository.GetByIdAsync(id);
+            if (user == null)
+                throw new ApplicationException($"User with ID {id} not found");
+
+            if (patchDto.Nombre != null && string.IsNullOrWhiteSpace(patchDto.Nombre))
+                throw new ArgumentException("El nombre no puede ser vacío.");
+            if (patchDto.Password != null && string.IsNullOrWhiteSpace(patchDto.Password))
+                throw new ArgumentException("La contraseña no puede ser vacía.");
+            if (patchDto.RoleIds != null && !patchDto.RoleIds.Any())
+                throw new ArgumentException("Debe asignar al menos un rol.");
+
+            if (patchDto.Nombre != null)
+                user.Nombre = patchDto.Nombre.Trim();
+            if (patchDto.Email != null)
+                user.Email = patchDto.Email.Trim().ToLower();
+            if (patchDto.Activo.HasValue)
+                user.Activo = patchDto.Activo.Value;
+            if (patchDto.TenantId != null)
+                user.TenantId = patchDto.TenantId;
+            if (patchDto.Password != null)
+                user.Password = PasswordHelper.HashPassword(patchDto.Password);
+
+            user.FechaModificacion = DateTime.Now;
+            await _userRepository.UpdateAsync(user);
+            await _userRepository.SaveChangesAsync();
+
+            await _auditService.LogAsync(
+                AuditEventType.UserUpdated,
+                $"Usuario actualizado parcialmente: {user.Nombre}",
+                new { UserId = user.Id, Patch = patchDto }
+            );
+        }
+
     }
 }

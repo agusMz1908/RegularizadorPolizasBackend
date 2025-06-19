@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
 
@@ -6,6 +7,7 @@ namespace RegularizadorPolizas.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class UsersController : ControllerBase
     {
         private readonly IUserService _userService;
@@ -172,17 +174,17 @@ namespace RegularizadorPolizas.API.Controllers
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
         [ProducesResponseType(500)]
-        public async Task<IActionResult> UpdateUser(int id, [FromBody] UserDto userDto)
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] UserUpdateDto userUpdateDto)
         {
             try
             {
-                if (userDto == null)
+                if (userUpdateDto == null)
                     return BadRequest("User data is null");
 
-                if (id != userDto.Id)
+                if (id != userUpdateDto.Id)
                     return BadRequest("User ID mismatch");
 
-                await _userService.UpdateUserAsync(userDto);
+                await _userService.UpdateUserAsync(userUpdateDto);
                 return NoContent();
             }
             catch (ArgumentException ex)
@@ -468,6 +470,36 @@ namespace RegularizadorPolizas.API.Controllers
                 };
 
                 return Ok(stats);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        [HttpPatch("{id}")]
+        [ProducesResponseType(204)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        public async Task<IActionResult> PatchUser(int id, [FromBody] UserPatchDto patchDto)
+        {
+            try
+            {
+                if (patchDto == null)
+                    return BadRequest("User data is null");
+                if (patchDto.Id.HasValue && patchDto.Id != id)
+                    return BadRequest("User ID mismatch");
+                await _userService.PatchUserAsync(id, patchDto);
+                return NoContent();
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (ApplicationException ex) when (ex.Message.Contains("not found"))
+            {
+                return NotFound(ex.Message);
             }
             catch (Exception ex)
             {

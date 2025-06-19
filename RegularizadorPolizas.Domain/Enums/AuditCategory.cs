@@ -5,6 +5,7 @@
         Technical = 1, 
         Business = 2,    
         Application = 3,
-        System = 4   
+        System = 4,
+        User = 5
     }
 }

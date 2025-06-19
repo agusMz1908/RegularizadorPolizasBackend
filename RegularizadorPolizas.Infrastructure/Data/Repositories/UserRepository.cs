@@ -54,5 +54,18 @@ namespace RegularizadorPolizas.Infrastructure.Data.Repositories
 
             return await query.AnyAsync();
         }
+
+        public async Task<User?> GetByNombreAsync(string nombre)
+        {
+            return await _context.Users
+                .Include(u => u.UserRoles.Where(ur => ur.IsActive))
+                    .ThenInclude(ur => ur.Role)
+                .FirstOrDefaultAsync(u => u.Nombre.ToLower() == nombre.ToLower());
+        }
+
+        public async Task SaveChangesAsync()
+        {
+            await _context.SaveChangesAsync();
+        }
     }
 }

@@ -22,6 +22,7 @@ namespace RegularizadorPolizas.Infrastructure.Data
         public DbSet<Permission> Permissions { get; set; }
         public DbSet<UserRole> UserRoles { get; set; }
         public DbSet<RolePermission> RolePermissions { get; set; }
+        public DbSet<ApiKey> ApiKeys { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -273,10 +274,10 @@ namespace RegularizadorPolizas.Infrastructure.Data
                     .HasDefaultValue(true);
 
                 entity.Property(e => e.FechaCreacion)
-                    .HasDefaultValueSql("GETDATE()");
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                 entity.Property(e => e.FechaModificacion)
-                    .HasDefaultValueSql("GETDATE()");
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
             });
 
             modelBuilder.Entity<Role>(entity =>
@@ -299,10 +300,10 @@ namespace RegularizadorPolizas.Infrastructure.Data
                     .HasDefaultValue(true);
 
                 entity.Property(e => e.CreatedAt)
-                    .HasDefaultValueSql("GETUTCDATE()");
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                 entity.Property(e => e.UpdatedAt)
-                    .HasDefaultValueSql("GETUTCDATE()");
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
             });
 
             modelBuilder.Entity<Permission>(entity =>
@@ -336,7 +337,7 @@ namespace RegularizadorPolizas.Infrastructure.Data
                     .HasDefaultValue(true);
 
                 entity.Property(e => e.CreatedAt)
-                    .HasDefaultValueSql("GETUTCDATE()");
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
             });
 
             modelBuilder.Entity<UserRole>(entity =>
@@ -348,7 +349,7 @@ namespace RegularizadorPolizas.Infrastructure.Data
                     .HasDatabaseName("IX_UserRoles_User_Role");
 
                 entity.Property(e => e.AssignedAt)
-                    .HasDefaultValueSql("GETUTCDATE()");
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                 entity.Property(e => e.IsActive)
                     .HasDefaultValue(true);
@@ -378,7 +379,7 @@ namespace RegularizadorPolizas.Infrastructure.Data
                     .HasDatabaseName("IX_RolePermissions_Role_Permission");
 
                 entity.Property(e => e.GrantedAt)
-                    .HasDefaultValueSql("GETUTCDATE()");
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                 entity.Property(e => e.IsActive)
                     .HasDefaultValue(true);

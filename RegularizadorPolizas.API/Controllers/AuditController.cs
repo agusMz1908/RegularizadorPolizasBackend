@@ -2,11 +2,13 @@
 using RegularizadorPolizas.Application.DTOs.Audit;
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Domain.Enums;
+using Microsoft.AspNetCore.Authorization;
 
 namespace RegularizadorPolizas.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class AuditController : ControllerBase
     {
         private readonly IAuditService _auditService;
