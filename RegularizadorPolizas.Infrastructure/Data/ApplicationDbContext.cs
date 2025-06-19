@@ -181,6 +181,81 @@ namespace RegularizadorPolizas.Infrastructure.Data
                 entity.HasIndex(e => new { e.EntityName, e.EntityId });
                 entity.HasIndex(e => new { e.UserId, e.Timestamp });
             });
+
+            modelBuilder.Entity<ApiKey>(entity =>
+            {
+                entity.ToTable("ApiKeys");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Key)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.TenantId)
+                    .IsRequired()
+                    .HasMaxLength(50);
+
+                entity.Property(e => e.BaseUrl)
+                    .IsRequired()
+                    .HasMaxLength(500);
+
+                entity.Property(e => e.Descripcion)
+                    .HasMaxLength(500);
+
+                entity.Property(e => e.Environment)
+                    .IsRequired()
+                    .HasMaxLength(50)
+                    .HasDefaultValue("Production");
+
+                entity.Property(e => e.ContactEmail)
+                    .HasMaxLength(200);
+
+                entity.Property(e => e.ApiVersion)
+                    .IsRequired()
+                    .HasMaxLength(10)
+                    .HasDefaultValue("v1");
+
+                entity.Property(e => e.Activo)
+                    .HasDefaultValue(true);
+
+                entity.Property(e => e.EnableLogging)
+                    .HasDefaultValue(true);
+
+                entity.Property(e => e.EnableRetries)
+                    .HasDefaultValue(true);
+
+                entity.Property(e => e.TimeoutSeconds)
+                    .HasDefaultValue(30);
+
+                entity.Property(e => e.FechaCreacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.Property(e => e.FechaModificacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.HasIndex(e => e.TenantId)
+                    .IsUnique()
+                    .HasDatabaseName("IX_ApiKeys_TenantId");
+
+                entity.HasIndex(e => e.Key)
+                    .IsUnique()
+                    .HasDatabaseName("IX_ApiKeys_Key");
+
+                entity.HasIndex(e => e.Environment)
+                    .HasDatabaseName("IX_ApiKeys_Environment");
+
+                entity.HasIndex(e => e.Activo)
+                    .HasDatabaseName("IX_ApiKeys_Activo");
+
+                entity.HasIndex(e => e.FechaExpiracion)
+                    .HasDatabaseName("IX_ApiKeys_FechaExpiracion");
+
+                entity.HasIndex(e => e.LastUsed)
+                    .HasDatabaseName("IX_ApiKeys_LastUsed");
+
+                entity.HasIndex(e => new { e.Activo, e.FechaExpiracion })
+                    .HasDatabaseName("IX_ApiKeys_Activo_FechaExpiracion");
+            });
         }
 
         private void ConfigureAuthenticationEntities(ModelBuilder modelBuilder)

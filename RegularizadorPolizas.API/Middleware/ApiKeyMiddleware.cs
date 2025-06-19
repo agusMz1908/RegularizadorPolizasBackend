@@ -18,18 +18,29 @@ namespace RegularizadorPolizas.API.Middleware
 
         public async Task Invoke(HttpContext context, IApiKeyService apiKeyService)
         {
-            string? extractedApiKey = null;
-
             var path = context.Request.Path.Value?.ToLower();
-            if (path != null && (
-                path.StartsWith("/api/auth/login") ||
-                path.StartsWith("/api/auth/validate-token") ||
-                path.StartsWith("/swagger")
-            ))
+
+            var excludedPaths = new[]
+            {
+                "/api/auth",           
+                "/swagger",            
+                "/api/apikeys",        
+                "/api/users",          
+                "/api/roles",          
+                "/api/permissions", 
+                "/error",              
+                "/debug-config",      
+                "/health"            
+            };
+
+            if (path != null && excludedPaths.Any(excluded => path.StartsWith(excluded)))
             {
                 await _next(context);
                 return;
             }
+
+
+            string? extractedApiKey = null;
 
             if (context.Request.Headers.TryGetValue(APIKEYNAME, out var headerApiKey))
             {
@@ -44,7 +55,8 @@ namespace RegularizadorPolizas.API.Middleware
             if (string.IsNullOrWhiteSpace(extractedApiKey))
             {
                 context.Response.StatusCode = 401;
-                await context.Response.WriteAsync("API Key is missing");
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsync("{\"error\": \"API Key is missing\", \"hint\": \"Use X-Api-Key header or api_key query parameter\"}");
                 return;
             }
 
@@ -52,12 +64,15 @@ namespace RegularizadorPolizas.API.Middleware
             if (apiKey == null)
             {
                 context.Response.StatusCode = 401;
-                await context.Response.WriteAsync("Invalid or expired API Key");
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsync("{\"error\": \"Invalid or expired API Key\"}");
                 return;
             }
 
             context.Items["TenantId"] = apiKey.TenantId;
+            context.Items["ApiKeyId"] = apiKey.Id;
+
             await _next(context);
         }
     }
-} 
+}
