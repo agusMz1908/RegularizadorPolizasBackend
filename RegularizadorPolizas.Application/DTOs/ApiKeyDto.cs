@@ -8,6 +8,7 @@ namespace RegularizadorPolizas.Application.DTOs
         public string Key { get; set; } = string.Empty;
         public string TenantId { get; set; } = string.Empty;
         public string BaseUrl { get; set; } = string.Empty;
+        public string Mode { get; set; } = string.Empty; // "VELNEO" | "LOCAL"
         public bool Activo { get; set; }
         public DateTime FechaCreacion { get; set; }
         public DateTime FechaModificacion { get; set; }
@@ -26,7 +27,7 @@ namespace RegularizadorPolizas.Application.DTOs
     public class ApiKeyCreateDto
     {
         [Required(ErrorMessage = "La clave de API es requerida")]
-        [MinLength(20, ErrorMessage = "La clave debe tener al menos 20 caracteres")]
+        [MinLength(8, ErrorMessage = "La clave debe tener al menos 8 caracteres")]
         public string Key { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "El TenantId es requerido")]
@@ -48,6 +49,10 @@ namespace RegularizadorPolizas.Application.DTOs
         [Required(ErrorMessage = "El ambiente es requerido")]
         public string Environment { get; set; } = "Production";
 
+        [Required(ErrorMessage = "El modo es requerido")]
+        [RegularExpression("^(VELNEO|LOCAL)$", ErrorMessage = "El modo debe ser 'VELNEO' o 'LOCAL'")]
+        public string Mode { get; set; } = "VELNEO";
+
         [Range(1, 10000, ErrorMessage = "El límite debe estar entre 1 y 10000 requests por minuto")]
         public int? MaxRequestsPerMinute { get; set; }
 
@@ -68,7 +73,7 @@ namespace RegularizadorPolizas.Application.DTOs
         [Required]
         public int Id { get; set; }
 
-        [MinLength(20, ErrorMessage = "La clave debe tener al menos 20 caracteres")]
+        [MinLength(8, ErrorMessage = "La clave debe tener al menos 8 caracteres")]
         public string? Key { get; set; }
 
         [Url(ErrorMessage = "Debe ser una URL válida")]
