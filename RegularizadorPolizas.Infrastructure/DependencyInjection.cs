@@ -2,12 +2,11 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RegularizadorPolizas.Application.Interfaces;
-using RegularizadorPolizas.Application.Configuration; 
+using RegularizadorPolizas.Application.Configuration;
 using RegularizadorPolizas.Infrastructure.Data;
 using RegularizadorPolizas.Infrastructure.Data.Repositories;
 using RegularizadorPolizas.Infrastructure.External.VelneoAPI;
 using RegularizadorPolizas.Infrastructure.Repositories;
-using RegularizadorPolizas.Domain.Entities;
 
 namespace RegularizadorPolizas.Infrastructure
 {
@@ -28,7 +27,6 @@ namespace RegularizadorPolizas.Infrastructure
                 ));
 
             services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
-
             services.AddScoped<IClientRepository, ClientRepository>();
             services.AddScoped<IPolizaRepository, PolizaRepository>();
             services.AddScoped<IProcessDocumentRepository, ProcessDocumentRepository>();
@@ -38,7 +36,6 @@ namespace RegularizadorPolizas.Infrastructure
             services.AddScoped<ICurrencyRepository, CurrencyRepository>();
             services.AddScoped<IAuditRepository, AuditRepository>();
             services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
-
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IRoleRepository, RoleRepository>();
             services.AddScoped<IUserRoleRepository, UserRoleRepository>();
@@ -46,31 +43,9 @@ namespace RegularizadorPolizas.Infrastructure
             services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
 
             services.AddScoped<IAzureDocumentIntelligenceService, AzureDocumentIntelligenceService>();
-            services.AddHttpClient<IVelneoApiService, VelneoApiService>((serviceProvider, client) =>
-            {
-                var baseUrl = configuration["VelneoAPI:BaseUrl"];
-                if (!string.IsNullOrEmpty(baseUrl))
-                {
-                    client.BaseAddress = new Uri(baseUrl);
-                }
 
-                var timeoutSeconds = configuration.GetValue<int>("VelneoAPI:TimeoutSeconds", 30);
-                client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
-
-                var apiKey = configuration["VelneoAPI:ApiKey"];
-                if (!string.IsNullOrEmpty(apiKey))
-                {
-                    client.DefaultRequestHeaders.Add("ApiKey", apiKey);
-                }
-
-                client.DefaultRequestHeaders.Add("User-Agent", "RegularizadorPolizas-API/1.0");
-
-                var apiVersion = configuration["VelneoAPI:ApiVersion"];
-                if (!string.IsNullOrEmpty(apiVersion))
-                {
-                    client.DefaultRequestHeaders.Add("Api-Version", apiVersion);
-                }
-            });
+            services.AddHttpClient(); // Para IHttpClientFactory
+            services.AddScoped<IVelneoApiService, TenantAwareVelneoApiService>();
 
             return services;
         }

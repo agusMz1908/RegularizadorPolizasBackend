@@ -47,34 +47,70 @@ namespace RegularizadorPolizas.Application.Services
             {
                 var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
 
+                _logger.LogInformation("🔍 Routing decision for {Entity}.{Operation}: TenantId={TenantId}, Mode={Mode}",
+                    entity, operation, tenantConfig.TenantId, tenantConfig.Mode);
+
                 // Azure IA siempre local
                 if (entity == "Document" && (operation == "PROCESS" || operation == "EXTRACT"))
                 {
+                    _logger.LogInformation("Document IA operations always go Local");
                     return false;
                 }
 
                 // Si el tenant está configurado como LOCAL, todo va local
                 if (tenantConfig.Mode.Equals("LOCAL", StringComparison.OrdinalIgnoreCase))
                 {
+                    _logger.LogInformation("Tenant configured as LOCAL, routing to Local");
                     return false;
                 }
 
                 // Si el tenant está configurado como VELNEO, todo va a Velneo (excepto Document IA)
                 if (tenantConfig.Mode.Equals("VELNEO", StringComparison.OrdinalIgnoreCase))
                 {
+                    _logger.LogInformation("Tenant configured as VELNEO, routing to Velneo");
                     return true;
                 }
 
                 // Fallback: Si no está claro, va local por seguridad
-                _logger.LogWarning("Tenant {TenantId} has unclear mode '{Mode}', defaulting to Local",
+                _logger.LogWarning("⚠Tenant {TenantId} has unclear mode '{Mode}', defaulting to Local",
                     tenantConfig.TenantId, tenantConfig.Mode);
                 return false;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error determining routing for {Entity}.{Operation}, defaulting to Local", entity, operation);
+                _logger.LogError(ex, "❌ Error determining routing for {Entity}.{Operation}, defaulting to Local",
+                    entity, operation);
                 return false;
             }
+        }
+
+        private async Task<HttpClient> GetConfiguredHttpClientAsync()
+        {
+            var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
+
+            var httpClient = _httpClientFactory.CreateClient(); 
+
+            httpClient.BaseAddress = new Uri(tenantConfig.BaseUrl);
+            httpClient.Timeout = TimeSpan.FromSeconds(tenantConfig.TimeoutSeconds);
+
+            httpClient.DefaultRequestHeaders.Clear();
+            httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "RegularizadorPolizas-API/1.0");
+
+            if (!string.IsNullOrEmpty(tenantConfig.Key))
+            {
+                httpClient.DefaultRequestHeaders.Add("ApiKey", tenantConfig.Key);
+            }
+
+            if (!string.IsNullOrEmpty(tenantConfig.ApiVersion))
+            {
+                httpClient.DefaultRequestHeaders.Add("Api-Version", tenantConfig.ApiVersion);
+            }
+
+            _logger.LogDebug("Configured HttpClient for tenant {TenantId}: BaseUrl={BaseUrl}, Timeout={Timeout}s",
+                tenantConfig.TenantId, tenantConfig.BaseUrl, tenantConfig.TimeoutSeconds);
+
+            return httpClient;
         }
 
         #endregion

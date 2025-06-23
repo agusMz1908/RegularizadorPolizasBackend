@@ -71,8 +71,12 @@ namespace RegularizadorPolizas.API.Controllers
 
                 var config = await _tenantService.GetCurrentTenantConfigurationAsync();
 
-                // Aquí necesitarías un método en TenantService para actualizar el modo
-                // await _tenantService.UpdateTenantModeAsync(tenantId, request.Mode);
+                var updateResult = await _tenantService.UpdateTenantModeAsync(tenantId, request.Mode, request.Reason);
+
+                if (!updateResult)
+                {
+                    return StatusCode(500, new { error = "Error actualizando modo del tenant" });
+                }
 
                 _logger.LogInformation("Tenant {TenantId} mode changed from {OldMode} to {NewMode} by user {UserId}",
                     tenantId, config.Mode, request.Mode, _tenantService.GetCurrentUserId());
@@ -171,10 +175,10 @@ namespace RegularizadorPolizas.API.Controllers
                     TenantId = tenantId,
                     Mode = config.Mode,
                     LastModeChange = DateTime.UtcNow.AddDays(-7), 
-                    TotalOperationsToday = 150, // Ejemplo
+                    TotalOperationsToday = 150, 
                     VelneoOperationsToday = config.Mode == "VELNEO" ? 120 : 0,
                     LocalOperationsToday = config.Mode == "VELNEO" ? 30 : 150,
-                    FailoverEventsToday = 2, // Ejemplo
+                    FailoverEventsToday = 2, 
                     AverageResponseTimeMs = config.Mode == "VELNEO" ? 450 : 120
                 };
 

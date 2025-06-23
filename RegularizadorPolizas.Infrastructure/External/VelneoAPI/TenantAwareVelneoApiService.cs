@@ -35,10 +35,30 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
         {
             var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
 
+            _logger.LogDebug("🔧 Creating HttpClient for tenant {TenantId} with BaseUrl: {BaseUrl}",
+                tenantConfig.TenantId, tenantConfig.BaseUrl);
+
             var httpClient = _httpClientFactory.CreateClient();
+
             httpClient.BaseAddress = new Uri(tenantConfig.BaseUrl);
             httpClient.Timeout = TimeSpan.FromSeconds(tenantConfig.TimeoutSeconds);
+
+            httpClient.DefaultRequestHeaders.Clear();
             httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "RegularizadorPolizas-API/1.0");
+
+            if (!string.IsNullOrEmpty(tenantConfig.Key))
+            {
+                httpClient.DefaultRequestHeaders.Add("ApiKey", tenantConfig.Key);
+            }
+
+            if (!string.IsNullOrEmpty(tenantConfig.ApiVersion))
+            {
+                httpClient.DefaultRequestHeaders.Add("Api-Version", tenantConfig.ApiVersion);
+            }
+
+            _logger.LogInformation("🌐 HttpClient configured for tenant {TenantId}: {BaseUrl} (Timeout: {Timeout}s)",
+                tenantConfig.TenantId, tenantConfig.BaseUrl, tenantConfig.TimeoutSeconds);
 
             return httpClient;
         }
