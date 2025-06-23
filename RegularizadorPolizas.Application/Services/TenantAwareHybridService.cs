@@ -83,36 +83,6 @@ namespace RegularizadorPolizas.Application.Services
                 return false;
             }
         }
-
-        private async Task<HttpClient> GetConfiguredHttpClientAsync()
-        {
-            var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
-
-            var httpClient = _httpClientFactory.CreateClient(); 
-
-            httpClient.BaseAddress = new Uri(tenantConfig.BaseUrl);
-            httpClient.Timeout = TimeSpan.FromSeconds(tenantConfig.TimeoutSeconds);
-
-            httpClient.DefaultRequestHeaders.Clear();
-            httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
-            httpClient.DefaultRequestHeaders.Add("User-Agent", "RegularizadorPolizas-API/1.0");
-
-            if (!string.IsNullOrEmpty(tenantConfig.Key))
-            {
-                httpClient.DefaultRequestHeaders.Add("ApiKey", tenantConfig.Key);
-            }
-
-            if (!string.IsNullOrEmpty(tenantConfig.ApiVersion))
-            {
-                httpClient.DefaultRequestHeaders.Add("Api-Version", tenantConfig.ApiVersion);
-            }
-
-            _logger.LogDebug("Configured HttpClient for tenant {TenantId}: BaseUrl={BaseUrl}, Timeout={Timeout}s",
-                tenantConfig.TenantId, tenantConfig.BaseUrl, tenantConfig.TimeoutSeconds);
-
-            return httpClient;
-        }
-
         #endregion
 
         #region Client Operations

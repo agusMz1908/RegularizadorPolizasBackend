@@ -5,7 +5,6 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 
-// Project References
 using RegularizadorPolizas.Application;
 using RegularizadorPolizas.Infrastructure;
 using RegularizadorPolizas.Infrastructure.Data;
@@ -37,23 +36,18 @@ builder.Services.AddHttpContextAccessor();
 #endregion
 
 #region Multi-Tenant & API Key Services
-// Servicios específicos para el sistema multi-tenant
 builder.Services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
 builder.Services.AddScoped<IApiKeyService, ApiKeyService>();
 builder.Services.AddScoped<ITenantService, TenantService>();
 
-// Servicios de autenticación y autorización
 builder.Services.AddScoped<IUserRoleService, UserRoleService>();
 
-// Reemplazar VelneoApiService con la versión tenant-aware
 builder.Services.AddScoped<IVelneoApiService, TenantAwareVelneoApiService>();
 
-// Registrar HttpClient factory
 builder.Services.AddHttpClient();
 #endregion
 
 #region AutoMapper
-// Configuración de AutoMapper con los perfiles de mapeo
 builder.Services.AddAutoMapper(typeof(ApiKeyMappingProfile), typeof(Program));
 #endregion
 
@@ -72,7 +66,6 @@ builder.Services.AddSwaggerGen(c =>
         Description = "API para gestión de pólizas de seguro con sistema multi-tenant"
     });
 
-    // Configuración de seguridad JWT
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme. Example: 'Bearer {token}'",
@@ -100,7 +93,6 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 
-    // Configuración adicional para API Keys
     c.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
     {
         Description = "API Key needed to access the endpoints. Example: X-Api-Key: {your-api-key}",
@@ -150,10 +142,9 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = builder.Configuration["Jwt:Issuer"],
         ValidAudience = builder.Configuration["Jwt:Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
-        ClockSkew = TimeSpan.Zero // Reducir la tolerancia de tiempo
+        ClockSkew = TimeSpan.Zero 
     };
 
-    // Configuración adicional para desarrollo
     if (builder.Environment.IsDevelopment())
     {
         options.RequireHttpsMetadata = false;
@@ -203,7 +194,7 @@ if (app.Environment.IsDevelopment())
 else
 {
     app.UseExceptionHandler("/error");
-    app.UseHsts(); // Add HSTS for production
+    app.UseHsts(); 
 }
 #endregion
 
@@ -232,19 +223,15 @@ app.Map("/error", (HttpContext context) =>
 #endregion
 
 #region Middleware Pipeline
-// IMPORTANTE: El orden de los middlewares es crucial
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 app.UseSession();
 
-// Middleware de auditoría (antes de autenticación)
 app.UseAuditMiddleware();
 
-// Autenticación y autorización JWT
 app.UseAuthentication();
 app.UseAuthorization();
 
-// API Key middleware (después de autenticación, solo para endpoints que lo requieran)
 app.UseMiddleware<ApiKeyMiddleware>();
 #endregion
 
