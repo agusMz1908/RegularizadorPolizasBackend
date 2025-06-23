@@ -147,6 +147,13 @@ namespace RegularizadorPolizas.Infrastructure.Data.Repositories
                 .ToListAsync();
         }
 
+        public async Task<ApiKey> CreateAsync(ApiKey apiKey)
+        {
+            _context.ApiKeys.Add(apiKey);
+            await _context.SaveChangesAsync();
+            return apiKey;
+        }
+
         public async Task SaveChangesAsync()
         {
             await _context.SaveChangesAsync();

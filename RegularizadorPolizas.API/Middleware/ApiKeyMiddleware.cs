@@ -22,15 +22,21 @@ namespace RegularizadorPolizas.API.Middleware
 
             var excludedPaths = new[]
             {
-                "/api/auth",           
-                "/swagger",            
-                "/api/apikeys",        
-                "/api/users",          
-                "/api/roles",          
-                "/api/permissions", 
-                "/error",              
-                "/debug-config",      
-                "/health"            
+                "/api/auth",
+                  "/swagger",
+                  "/api/apikeys",
+                  "/api/users",
+                  "/api/roles",
+                  "/api/permissions",
+                  "/api/tenantswitch",
+                  "/api/companies",     
+                  "/api/clients",      
+                  "/api/currencies",    
+                  "/api/brokers",       
+                  "/api/polizas",        
+                  "/error",
+                  "/debug-config",
+                  "/health"
             };
 
             if (path != null && excludedPaths.Any(excluded => path.StartsWith(excluded)))
@@ -39,14 +45,12 @@ namespace RegularizadorPolizas.API.Middleware
                 return;
             }
 
-
             string? extractedApiKey = null;
 
             if (context.Request.Headers.TryGetValue(APIKEYNAME, out var headerApiKey))
             {
                 extractedApiKey = headerApiKey.FirstOrDefault();
             }
-
             else if (context.Request.Query.TryGetValue(APIKEYQUERY, out var queryApiKey))
             {
                 extractedApiKey = queryApiKey.FirstOrDefault();

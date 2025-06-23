@@ -34,17 +34,19 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
         private async Task<HttpClient> GetConfiguredHttpClientAsync()
         {
             var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
+
             var httpClient = _httpClientFactory.CreateClient();
-
             httpClient.BaseAddress = new Uri(tenantConfig.BaseUrl);
-
-            httpClient.DefaultRequestHeaders.Clear();
-            httpClient.DefaultRequestHeaders.Add("ApiKey", tenantConfig.Key);
-            httpClient.DefaultRequestHeaders.Add("User-Agent", "RegularizadorPolizas-API/1.0");
-            httpClient.DefaultRequestHeaders.Add("Api-Version", tenantConfig.ApiVersion);
             httpClient.Timeout = TimeSpan.FromSeconds(tenantConfig.TimeoutSeconds);
+            httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
 
             return httpClient;
+        }
+
+        private async Task<string> BuildUrlWithApiKeyAsync(string endpoint)
+        {
+            var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
+            return $"{endpoint}?api_key={tenantConfig.Key}";
         }
 
         #region Client Operations
@@ -54,22 +56,16 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             try
             {
                 var tenantId = _tenantService.GetCurrentTenantId();
-                _logger.LogDebug("Getting client {ClientId} from Velneo API for tenant {TenantId}", id, tenantId);
-
                 using var httpClient = await GetConfiguredHttpClientAsync();
-                var response = await httpClient.GetAsync($"v1/clientes/{id}");
+
+                var url = await BuildUrlWithApiKeyAsync($"v1/clientes/{id}");
+                var response = await httpClient.GetAsync(url);
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                {
-                    _logger.LogInformation("Client {ClientId} not found in Velneo API for tenant {TenantId}", id, tenantId);
                     return null;
-                }
 
                 response.EnsureSuccessStatusCode();
-                var result = await response.Content.ReadFromJsonAsync<ClientDto>(_jsonOptions);
-
-                _logger.LogDebug("Successfully retrieved client {ClientId} from Velneo API for tenant {TenantId}", id, tenantId);
-                return result;
+                return await response.Content.ReadFromJsonAsync<ClientDto>(_jsonOptions);
             }
             catch (Exception ex)
             {
@@ -89,7 +85,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var json = JsonSerializer.Serialize(clientDto, _jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await httpClient.PostAsync("v1/clientes", content);
+                var url = await BuildUrlWithApiKeyAsync("v1/clientes");
+                var response = await httpClient.PostAsync(url, content);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<ClientDto>(_jsonOptions);
@@ -113,16 +110,17 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             try
             {
                 var tenantId = _tenantService.GetCurrentTenantId();
-                _logger.LogDebug("Updating client {ClientId} in Velneo API for tenant {TenantId}", clientDto.Id, tenantId);
-
                 using var httpClient = await GetConfiguredHttpClientAsync();
+
                 var json = JsonSerializer.Serialize(clientDto, _jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await httpClient.PutAsync($"v1/clientes/{clientDto.Id}", content);
+                var url = await BuildUrlWithApiKeyAsync($"v1/clientes/{clientDto.Id}");
+                var response = await httpClient.PostAsync(url, content);
                 response.EnsureSuccessStatusCode();
 
-                _logger.LogInformation("Successfully updated client {ClientId} in Velneo API for tenant {TenantId}", clientDto.Id, tenantId);
+                _logger.LogInformation("Successfully updated client {ClientId} in Velneo API for tenant {TenantId}",
+                    clientDto.Id, tenantId);
             }
             catch (Exception ex)
             {
@@ -139,7 +137,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 _logger.LogDebug("Deleting client {ClientId} in Velneo API for tenant {TenantId}", id, tenantId);
 
                 using var httpClient = await GetConfiguredHttpClientAsync();
-                var response = await httpClient.DeleteAsync($"v1/clientes/{id}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/clientes/{id}");
+                var response = await httpClient.DeleteAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 _logger.LogInformation("Successfully deleted client {ClientId} in Velneo API for tenant {TenantId}", id, tenantId);
@@ -158,7 +157,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync($"v1/clientes/email/{Uri.EscapeDataString(email)}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/clientes/email/{Uri.EscapeDataString(email)}");
+                var response = await httpClient.GetAsync(url);
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                     return null;
@@ -180,7 +180,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync($"v1/clientes/document/{Uri.EscapeDataString(document)}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/clientes/document/{Uri.EscapeDataString(document)}");
+                var response = await httpClient.GetAsync(url);
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                     return null;
@@ -202,7 +203,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync($"v1/clientes/search?term={Uri.EscapeDataString(searchTerm)}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/clientes/search?term={Uri.EscapeDataString(searchTerm)}");
+                var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<IEnumerable<ClientDto>>(_jsonOptions);
@@ -219,10 +221,9 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
         {
             try
             {
-                var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
-
-                var response = await httpClient.GetAsync("v1/clientes");
+                var url = await BuildUrlWithApiKeyAsync("v1/clientes");
+                var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<IEnumerable<ClientDto>>(_jsonOptions);
@@ -243,10 +244,9 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
         {
             try
             {
-                var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
-
-                var response = await httpClient.GetAsync($"v1/brokers/{id}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/corredores/{id}");
+                var response = await httpClient.GetAsync(url);
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                     return null;
@@ -271,7 +271,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var json = JsonSerializer.Serialize(brokerDto, _jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await httpClient.PostAsync("v1/brokers", content);
+                var url = await BuildUrlWithApiKeyAsync("v1/corredores");
+                var response = await httpClient.PostAsync(url, content);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<BrokerDto>(_jsonOptions);
@@ -299,8 +300,12 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var json = JsonSerializer.Serialize(brokerDto, _jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await httpClient.PutAsync($"v1/brokers/{brokerDto.Id}", content);
+                var url = await BuildUrlWithApiKeyAsync($"v1/corredores/{brokerDto.Id}");
+                var response = await httpClient.PostAsync(url, content);
                 response.EnsureSuccessStatusCode();
+
+                _logger.LogInformation("Successfully updated broker {BrokerId} in Velneo API for tenant {TenantId}",
+                    brokerDto.Id, tenantId);
             }
             catch (Exception ex)
             {
@@ -316,7 +321,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.DeleteAsync($"v1/brokers/{id}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/corredores/{id}");
+                var response = await httpClient.DeleteAsync(url);
                 response.EnsureSuccessStatusCode();
             }
             catch (Exception ex)
@@ -333,7 +339,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync($"v1/brokers/code/{Uri.EscapeDataString(code)}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/corredores/code/{Uri.EscapeDataString(code)}");
+                var response = await httpClient.GetAsync(url);
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                     return null;
@@ -355,7 +362,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync($"v1/brokers/email/{Uri.EscapeDataString(email)}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/corredores/email/{Uri.EscapeDataString(email)}");
+                var response = await httpClient.GetAsync(url);
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                     return null;
@@ -377,7 +385,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync($"v1/brokers/search?term={Uri.EscapeDataString(searchTerm)}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/corredores/search?term={Uri.EscapeDataString(searchTerm)}");
+                var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<IEnumerable<BrokerDto>>(_jsonOptions);
@@ -394,10 +403,9 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
         {
             try
             {
-                var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
-
-                var response = await httpClient.GetAsync("v1/brokers");
+                var url = await BuildUrlWithApiKeyAsync("v1/corredores");
+                var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<IEnumerable<BrokerDto>>(_jsonOptions);
@@ -417,7 +425,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync("v1/brokers/lookup");
+                var url = await BuildUrlWithApiKeyAsync("v1/corredores/lookup");
+                var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<IEnumerable<BrokerLookupDto>>(_jsonOptions);
@@ -441,7 +450,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync($"v1/currencies/{id}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/monedas/{id}");
+                var response = await httpClient.GetAsync(url);
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                     return null;
@@ -467,7 +477,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var json = JsonSerializer.Serialize(currencyDto, _jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await httpClient.PostAsync("v1/currencies", content);
+                var url = await BuildUrlWithApiKeyAsync("v1/monedas");
+                var response = await httpClient.PostAsync(url, content);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<CurrencyDto>(_jsonOptions);
@@ -491,16 +502,17 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             try
             {
                 var tenantId = _tenantService.GetCurrentTenantId();
-                _logger.LogDebug("Updating currency {CurrencyId} in Velneo API for tenant {TenantId}", currencyDto.Id, tenantId);
-
                 using var httpClient = await GetConfiguredHttpClientAsync();
+
                 var json = JsonSerializer.Serialize(currencyDto, _jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await httpClient.PutAsync($"v1/currencies/{currencyDto.Id}", content);
+                var url = await BuildUrlWithApiKeyAsync($"v1/monedas/{currencyDto.Id}");
+                var response = await httpClient.PostAsync(url, content);
                 response.EnsureSuccessStatusCode();
 
-                _logger.LogInformation("Successfully updated currency {CurrencyId} in Velneo API for tenant {TenantId}", currencyDto.Id, tenantId);
+                _logger.LogInformation("Successfully updated currency {CurrencyId} in Velneo API for tenant {TenantId}",
+                    currencyDto.Id, tenantId);
             }
             catch (Exception ex)
             {
@@ -517,7 +529,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 _logger.LogDebug("Deleting currency {CurrencyId} in Velneo API for tenant {TenantId}", id, tenantId);
 
                 using var httpClient = await GetConfiguredHttpClientAsync();
-                var response = await httpClient.DeleteAsync($"v1/currencies/{id}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/monedas/{id}");
+                var response = await httpClient.DeleteAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 _logger.LogInformation("Successfully deleted currency {CurrencyId} in Velneo API for tenant {TenantId}", id, tenantId);
@@ -536,7 +549,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync($"v1/currencies/code/{Uri.EscapeDataString(code)}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/monedas/code/{Uri.EscapeDataString(code)}");
+                var response = await httpClient.GetAsync(url);
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                     return null;
@@ -555,10 +569,9 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
         {
             try
             {
-                var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
-
-                var response = await httpClient.GetAsync("v1/currencies");
+                var url = await BuildUrlWithApiKeyAsync("v1/monedas");
+                var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<IEnumerable<CurrencyDto>>(_jsonOptions);
@@ -578,7 +591,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync("v1/currencies/lookup");
+                var url = await BuildUrlWithApiKeyAsync("v1/monedas/lookup");
+                var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<IEnumerable<CurrencyLookupDto>>(_jsonOptions);
@@ -598,7 +612,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync("v1/currencies/default");
+                var url = await BuildUrlWithApiKeyAsync("v1/monedas/default");
+                var response = await httpClient.GetAsync(url);
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                     return null;
@@ -620,7 +635,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync($"v1/currencies/search?term={Uri.EscapeDataString(searchTerm)}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/monedas/search?term={Uri.EscapeDataString(searchTerm)}");
+                var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<IEnumerable<CurrencyDto>>(_jsonOptions);
@@ -641,10 +657,9 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
         {
             try
             {
-                var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
-
-                var response = await httpClient.GetAsync($"v1/companies/{id}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/companias/{id}");
+                var response = await httpClient.GetAsync(url);
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                     return null;
@@ -670,7 +685,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var json = JsonSerializer.Serialize(companyDto, _jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await httpClient.PostAsync("v1/companies", content);
+                var url = await BuildUrlWithApiKeyAsync("v1/companias");
+                var response = await httpClient.PostAsync(url, content);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<CompanyDto>(_jsonOptions);
@@ -694,16 +710,17 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             try
             {
                 var tenantId = _tenantService.GetCurrentTenantId();
-                _logger.LogDebug("Updating company {CompanyId} in Velneo API for tenant {TenantId}", companyDto.Id, tenantId);
-
                 using var httpClient = await GetConfiguredHttpClientAsync();
+
                 var json = JsonSerializer.Serialize(companyDto, _jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await httpClient.PutAsync($"v1/companies/{companyDto.Id}", content);
+                var url = await BuildUrlWithApiKeyAsync($"v1/companias/{companyDto.Id}");
+                var response = await httpClient.PostAsync(url, content);
                 response.EnsureSuccessStatusCode();
 
-                _logger.LogInformation("Successfully updated company {CompanyId} in Velneo API for tenant {TenantId}", companyDto.Id, tenantId);
+                _logger.LogInformation("Successfully updated company {CompanyId} in Velneo API for tenant {TenantId}",
+                    companyDto.Id, tenantId);
             }
             catch (Exception ex)
             {
@@ -720,7 +737,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 _logger.LogDebug("Deleting company {CompanyId} in Velneo API for tenant {TenantId}", id, tenantId);
 
                 using var httpClient = await GetConfiguredHttpClientAsync();
-                var response = await httpClient.DeleteAsync($"v1/companies/{id}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/companias/{id}");
+                var response = await httpClient.DeleteAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 _logger.LogInformation("Successfully deleted company {CompanyId} in Velneo API for tenant {TenantId}", id, tenantId);
@@ -739,7 +757,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync($"v1/companies/code/{Uri.EscapeDataString(code)}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/companias/code/{Uri.EscapeDataString(code)}");
+                var response = await httpClient.GetAsync(url);
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                     return null;
@@ -761,7 +780,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync($"v1/companies/alias/{Uri.EscapeDataString(alias)}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/companias/alias/{Uri.EscapeDataString(alias)}");
+                var response = await httpClient.GetAsync(url);
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                     return null;
@@ -783,7 +803,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync("v1/companies");
+                var url = await BuildUrlWithApiKeyAsync("v1/companias");
+                var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<IEnumerable<CompanyDto>>(_jsonOptions);
@@ -803,7 +824,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync("v1/companies/lookup");
+                var url = await BuildUrlWithApiKeyAsync("v1/companias/lookup");
+                var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<IEnumerable<CompanyLookupDto>>(_jsonOptions);
@@ -828,7 +850,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 _logger.LogDebug("Getting poliza {PolizaId} from Velneo API for tenant {TenantId}", id, tenantId);
 
                 using var httpClient = await GetConfiguredHttpClientAsync();
-                var response = await httpClient.GetAsync($"v1/polizas/{id}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/polizas/{id}");
+                var response = await httpClient.GetAsync(url);
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                 {
@@ -860,7 +883,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var json = JsonSerializer.Serialize(polizaDto, _jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await httpClient.PostAsync("v1/polizas", content);
+                var url = await BuildUrlWithApiKeyAsync("v1/polizas");
+                var response = await httpClient.PostAsync(url, content);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<PolizaDto>(_jsonOptions);
@@ -890,7 +914,9 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var json = JsonSerializer.Serialize(polizaDto, _jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await httpClient.PutAsync($"v1/polizas/{polizaDto.Id}", content);
+                // Cambio: POST en lugar de PUT para updates
+                var url = await BuildUrlWithApiKeyAsync($"v1/polizas/{polizaDto.Id}");
+                var response = await httpClient.PostAsync(url, content);
                 response.EnsureSuccessStatusCode();
 
                 _logger.LogInformation("Successfully updated poliza {PolizaId} in Velneo API for tenant {TenantId}", polizaDto.Id, tenantId);
@@ -910,7 +936,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 _logger.LogDebug("Deleting poliza {PolizaId} in Velneo API for tenant {TenantId}", id, tenantId);
 
                 using var httpClient = await GetConfiguredHttpClientAsync();
-                var response = await httpClient.DeleteAsync($"v1/polizas/{id}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/polizas/{id}");
+                var response = await httpClient.DeleteAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 _logger.LogInformation("Successfully deleted poliza {PolizaId} in Velneo API for tenant {TenantId}", id, tenantId);
@@ -929,7 +956,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync($"v1/polizas/number/{Uri.EscapeDataString(policyNumber)}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/polizas/number/{Uri.EscapeDataString(policyNumber)}");
+                var response = await httpClient.GetAsync(url);
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                     return null;
@@ -951,7 +979,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync($"v1/polizas/client/{clientId}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/polizas/client/{clientId}");
+                var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<IEnumerable<PolizaDto>>(_jsonOptions);
@@ -971,7 +1000,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync($"v1/polizas/search?term={Uri.EscapeDataString(searchTerm)}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/polizas/search?term={Uri.EscapeDataString(searchTerm)}");
+                var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<IEnumerable<PolizaDto>>(_jsonOptions);
@@ -991,7 +1021,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync("v1/polizas");
+                var url = await BuildUrlWithApiKeyAsync("v1/polizas");
+                var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<IEnumerable<PolizaDto>>(_jsonOptions);
@@ -1015,7 +1046,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var json = JsonSerializer.Serialize(renovationData, _jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await httpClient.PostAsync($"v1/polizas/{polizaId}/renew", content);
+                var url = await BuildUrlWithApiKeyAsync($"v1/polizas/{polizaId}/renew");
+                var response = await httpClient.PostAsync(url, content);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<PolizaDto>(_jsonOptions);
@@ -1045,7 +1077,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync($"v1/users/{id}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/users/{id}");
+                var response = await httpClient.GetAsync(url);
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                     return null;
@@ -1067,7 +1100,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync("v1/users");
+                var url = await BuildUrlWithApiKeyAsync("v1/users");
+                var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<IEnumerable<UserDto>>(_jsonOptions);
@@ -1091,7 +1125,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync("v1/system/health");
+                var url = await BuildUrlWithApiKeyAsync("v1/system/health");
+                var response = await httpClient.GetAsync(url);
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -1108,7 +1143,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync("v1/system/info");
+                var url = await BuildUrlWithApiKeyAsync("v1/system/info");
+                var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<Dictionary<string, object>>(_jsonOptions);
@@ -1128,7 +1164,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync("v1/system/health");
+                var url = await BuildUrlWithApiKeyAsync("v1/system/health");
+                var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<Dictionary<string, object>>(_jsonOptions);
@@ -1153,7 +1190,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
                 var idsString = string.Join(",", ids);
-                var response = await httpClient.GetAsync($"v1/clients/batch?ids={idsString}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/clientes/batch?ids={idsString}");
+                var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<IEnumerable<ClientDto>>(_jsonOptions);
@@ -1174,7 +1212,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
                 var idsString = string.Join(",", ids);
-                var response = await httpClient.GetAsync($"v1/polizas/batch?ids={idsString}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/polizas/batch?ids={idsString}");
+                var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<IEnumerable<PolizaDto>>(_jsonOptions);
@@ -1197,7 +1236,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var json = JsonSerializer.Serialize(clients, _jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await httpClient.PostAsync("v1/clients/batch", content);
+                var url = await BuildUrlWithApiKeyAsync("v1/clientes/batch");
+                var response = await httpClient.PostAsync(url, content);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<BatchOperationResult<ClientDto>>(_jsonOptions);
@@ -1225,7 +1265,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var json = JsonSerializer.Serialize(polizas, _jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await httpClient.PostAsync("v1/polizas/batch", content);
+                var url = await BuildUrlWithApiKeyAsync("v1/polizas/batch");
+                var response = await httpClient.PostAsync(url, content);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<BatchOperationResult<PolizaDto>>(_jsonOptions);
@@ -1254,7 +1295,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync($"v1/clients/search/paged?term={Uri.EscapeDataString(searchTerm)}&page={page}&pageSize={pageSize}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/clientes/search/paged?term={Uri.EscapeDataString(searchTerm)}&page={page}&pageSize={pageSize}");
+                var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<PagedResult<ClientDto>>(_jsonOptions);
@@ -1274,7 +1316,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var response = await httpClient.GetAsync($"v1/polizas/search/paged?term={Uri.EscapeDataString(searchTerm)}&page={page}&pageSize={pageSize}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/polizas/search/paged?term={Uri.EscapeDataString(searchTerm)}&page={page}&pageSize={pageSize}");
+                var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<PagedResult<PolizaDto>>(_jsonOptions);
@@ -1295,7 +1338,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
                 var sinceString = since.ToString("yyyy-MM-ddTHH:mm:ss");
-                var response = await httpClient.GetAsync($"v1/clients/modified-since?since={Uri.EscapeDataString(sinceString)}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/clientes/modified-since?since={Uri.EscapeDataString(sinceString)}");
+                var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<IEnumerable<ClientDto>>(_jsonOptions);
@@ -1316,7 +1360,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
                 var sinceString = since.ToString("yyyy-MM-ddTHH:mm:ss");
-                var response = await httpClient.GetAsync($"v1/polizas/modified-since?since={Uri.EscapeDataString(sinceString)}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/polizas/modified-since?since={Uri.EscapeDataString(sinceString)}");
+                var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<IEnumerable<PolizaDto>>(_jsonOptions);
@@ -1338,7 +1383,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 
                 var fromString = fromDate.ToString("yyyy-MM-dd");
                 var toString = toDate.ToString("yyyy-MM-dd");
-                var response = await httpClient.GetAsync($"v1/polizas/expiring?from={fromString}&to={toString}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/polizas/expiring?from={fromString}&to={toString}");
+                var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<IEnumerable<PolizaDto>>(_jsonOptions);

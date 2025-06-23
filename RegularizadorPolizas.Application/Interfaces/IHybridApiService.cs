@@ -10,6 +10,7 @@ namespace RegularizadorPolizas.Application.Interfaces
         Task UpdateClientAsync(ClientDto clientDto);
         Task DeleteClientAsync(int id);
         Task<IEnumerable<ClientDto>> SearchClientsAsync(string searchTerm);
+        Task<IEnumerable<ClientDto>> GetAllClientsAsync();
 
         // Broker operations
         Task<BrokerDto?> GetBrokerAsync(int id);

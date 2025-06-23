@@ -174,11 +174,25 @@ namespace RegularizadorPolizas.Application.Services
         return await _localClientService.SearchClientsAsync(searchTerm);
     }
 
+    public async Task<IEnumerable<ClientDto>> GetAllClientsAsync()
+    {
+        if (_config.ShouldRouteToVelneo("Client", "GET"))
+        {
+            return await ExecuteWithFallback(
+                () => _velneoApiService.GetAllClientsAsync(),
+                () => _localClientService.GetAllClientsAsync(),
+                "Client.GETALL",
+                "all_clients");
+        }
+
+        return await _localClientService.GetAllClientsAsync();
+    }
+
     #endregion
 
     #region Broker Operations
 
-    public async Task<BrokerDto?> GetBrokerAsync(int id)
+        public async Task<BrokerDto?> GetBrokerAsync(int id)
     {
         if (_config.ShouldRouteToVelneo("Broker", "GET"))
         {

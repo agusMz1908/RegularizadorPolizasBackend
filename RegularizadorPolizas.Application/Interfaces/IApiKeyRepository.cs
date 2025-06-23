@@ -7,6 +7,7 @@ namespace RegularizadorPolizas.Application.Interfaces
         Task<ApiKey?> GetByKeyAsync(string key);
         Task<IEnumerable<ApiKey>> GetAllAsync();
         Task AddAsync(ApiKey apiKey);
+        Task<ApiKey> CreateAsync(ApiKey apiKey);
         Task UpdateAsync(ApiKey apiKey);
         Task DeleteAsync(int id);
 

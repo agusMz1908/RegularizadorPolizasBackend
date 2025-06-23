@@ -37,6 +37,7 @@ namespace RegularizadorPolizas.Infrastructure
             services.AddScoped<ICompanyRepository, CompanyRepository>();
             services.AddScoped<ICurrencyRepository, CurrencyRepository>();
             services.AddScoped<IAuditRepository, AuditRepository>();
+            services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
 
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IRoleRepository, RoleRepository>();
