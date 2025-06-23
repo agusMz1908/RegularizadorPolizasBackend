@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RegularizadorPolizas.Application.Interfaces;
-using RegularizadorPolizas.Application.Configuration;
+using RegularizadorPolizas.Application.Services.External;
 using RegularizadorPolizas.Infrastructure.Data;
 using RegularizadorPolizas.Infrastructure.Data.Repositories;
 using RegularizadorPolizas.Infrastructure.External.VelneoAPI;

@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
+using RegularizadorPolizas.Application.Services.External;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;

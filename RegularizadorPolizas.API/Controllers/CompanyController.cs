@@ -10,11 +10,11 @@ namespace RegularizadorPolizas.API.Controllers
     [Authorize]
     public class CompaniesController : ControllerBase
     {
-        private readonly ICompanyService _companyService;
+        private readonly IHybridApiService _hybridApiService;
 
-        public CompaniesController(ICompanyService companyService)
+        public CompaniesController(IHybridApiService hybridApiService) 
         {
-            _companyService = companyService ?? throw new ArgumentNullException(nameof(companyService));
+            _hybridApiService = hybridApiService ?? throw new ArgumentNullException(nameof(hybridApiService));
         }
 
         [HttpGet]
@@ -25,7 +25,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var companies = await _companyService.GetAllCompaniesAsync();
+                var companies = await _hybridApiService.GetActiveCompaniesAsync();
                 if (companies == null || !companies.Any())
                     return NotFound("No companies found");
 
@@ -45,7 +45,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var companies = await _companyService.GetActiveCompaniesAsync();
+                var companies = await _hybridApiService.GetActiveCompaniesAsync();
                 if (companies == null || !companies.Any())
                     return NotFound("No active companies found");
 
@@ -64,7 +64,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var companies = await _companyService.GetCompaniesForLookupAsync();
+                var companies = await _hybridApiService.GetCompaniesForLookupAsync();
                 return Ok(companies);
             }
             catch (Exception ex)
@@ -80,7 +80,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var companies = await _companyService.GetActiveCompaniesAsync();
+                var companies = await _hybridApiService.GetActiveCompaniesAsync();
                 var summary = companies.Select(c => new CompanySummaryDto
                 {
                     Id = c.Id,
@@ -108,7 +108,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var company = await _companyService.GetCompanyByIdAsync(id);
+                var company = await _hybridApiService.GetCompanyByIdAsync(id);
                 if (company == null)
                     return NotFound($"Company with ID {id} not found");
 
@@ -128,7 +128,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var company = await _companyService.GetCompanyByCodigoAsync(codigo);
+                var company = await _hybridApiService.GetCompanyByCodeAsync(codigo);
                 if (company == null)
                     return NotFound($"Company with code '{codigo}' not found");
 
@@ -148,7 +148,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var company = await _companyService.GetCompanyByAliasAsync(alias);
+                var company = await _hybridApiService.GetCompanyByAliasAsync(alias);
                 if (company == null)
                     return NotFound($"Company with alias '{alias}' not found");
 
@@ -167,7 +167,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var companies = await _companyService.SearchCompaniesAsync(searchTerm);
+                var companies = await _hybridApiService.SearchCompaniesAsync(searchTerm);
                 return Ok(companies);
             }
             catch (Exception ex)
@@ -203,7 +203,7 @@ namespace RegularizadorPolizas.API.Controllers
                     Activo = true
                 };
 
-                var createdCompany = await _companyService.CreateCompanyAsync(companyDto);
+                var createdCompany = await _hybridApiService.CreateCompanyAsync(companyDto);
                 return CreatedAtAction(nameof(GetCompanyById), new { id = createdCompany.Id }, createdCompany);
             }
             catch (ArgumentException ex)
@@ -227,7 +227,7 @@ namespace RegularizadorPolizas.API.Controllers
                 if (companyDto == null)
                     return BadRequest("Company data is null");
 
-                var createdCompany = await _companyService.CreateCompanyAsync(companyDto);
+                var createdCompany = await _hybridApiService.CreateCompanyAsync(companyDto);
                 return CreatedAtAction(nameof(GetCompanyById), new { id = createdCompany.Id }, createdCompany);
             }
             catch (ArgumentException ex)
@@ -255,7 +255,7 @@ namespace RegularizadorPolizas.API.Controllers
                 if (id != companyDto.Id)
                     return BadRequest("Company ID mismatch");
 
-                await _companyService.UpdateCompanyAsync(companyDto);
+                await _hybridApiService.UpdateCompanyAsync(companyDto);
                 return NoContent();
             }
             catch (ArgumentException ex)
@@ -281,7 +281,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                await _companyService.DeleteCompanyAsync(id);
+                await _hybridApiService.DeleteCompanyAsync(id);
                 return NoContent();
             }
             catch (ApplicationException ex) when (ex.Message.Contains("not found"))
@@ -305,7 +305,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var exists = await _companyService.ExistsByCodigoAsync(codigo, excludeId);
+                var exists = await _hybridApiService.ExistsByCodigoAsync(codigo, excludeId);
                 return Ok(exists);
             }
             catch (Exception ex)
@@ -321,7 +321,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var companies = await _companyService.GetActiveCompaniesAsync();
+                var companies = await _hybridApiService.GetActiveCompaniesAsync();
                 var legacyFormat = companies.Select(c => new
                 {
                     id = c.Id,
@@ -349,7 +349,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var company = await _companyService.GetCompanyByIdAsync(id);
+                var company = await _hybridApiService.GetCompanyByIdAsync(id);
                 if (company == null)
                     return NotFound($"Company with ID {id} not found");
 
@@ -382,7 +382,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var companies = await _companyService.GetActiveCompaniesAsync();
+                var companies = await _hybridApiService.GetActiveCompaniesAsync();
                 var brokers = companies.Where(c => c.Broker);
                 return Ok(brokers);
             }
@@ -399,7 +399,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var companies = await _companyService.GetActiveCompaniesAsync();
+                var companies = await _hybridApiService.GetActiveCompaniesAsync();
                 var insurers = companies.Where(c => !c.Broker);
                 return Ok(insurers);
             }

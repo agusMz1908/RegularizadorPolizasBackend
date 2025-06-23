@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
+using RegularizadorPolizas.Application.Services.External; 
 using RegularizadorPolizas.Domain.Enums;
 
 namespace RegularizadorPolizas.Application.Services
@@ -270,7 +271,7 @@ namespace RegularizadorPolizas.Application.Services
 
         #endregion
 
-        #region Broker Operations (Similar pattern)
+        #region Broker Operations
 
         public async Task<BrokerDto?> GetBrokerAsync(int id)
         {
@@ -303,6 +304,19 @@ namespace RegularizadorPolizas.Application.Services
         #endregion
 
         #region Company Operations
+        public async Task<CompanyDto?> GetCompanyByIdAsync(int id)
+        {
+            if (await ShouldRouteToVelneoAsync("Company", "GET"))
+            {
+                return await ExecuteWithFallback(
+                    () => _velneoApiService.GetCompanyAsync(id),
+                    () => _localCompanyService.GetCompanyByIdAsync(id),
+                    "Company.GETBYID",
+                    id);
+            }
+
+            return await _localCompanyService.GetCompanyByIdAsync(id);
+        }
 
         public async Task<CompanyDto?> GetCompanyAsync(int id)
         {
@@ -426,12 +440,12 @@ namespace RegularizadorPolizas.Application.Services
             {
                 return await ExecuteWithFallback(
                     () => _velneoApiService.GetCompanyByCodeAsync(code),
-                    () => _localCompanyService.GetCompanyByCodeAsync(code),
+                    () => _localCompanyService.GetCompanyByCodeAsync(code), 
                     "Company.GETBYCODE",
                     code);
             }
 
-            return await _localCompanyService.GetCompanyByCodeAsync(code);
+            return await _localCompanyService.GetCompanyByCodeAsync(code); 
         }
 
         public async Task<CompanyDto?> GetCompanyByAliasAsync(string alias)
@@ -446,6 +460,27 @@ namespace RegularizadorPolizas.Application.Services
             }
 
             return await _localCompanyService.GetCompanyByAliasAsync(alias);
+        }
+
+        public async Task<bool> ExistsByCodigoAsync(string codigo, int? excludeId = null)
+        {
+            if (await ShouldRouteToVelneoAsync("Company", "GET"))
+            {
+                try
+                {
+                    var company = await _velneoApiService.GetCompanyByCodeAsync(codigo);
+                    if (company == null)
+                        return false;
+
+                    return excludeId == null || company.Id != excludeId;
+                }
+                catch
+                {
+                    return await _localCompanyService.ExistsByCodigoAsync(codigo, excludeId);
+                }
+            }
+
+            return await _localCompanyService.ExistsByCodigoAsync(codigo, excludeId);
         }
 
         #endregion
@@ -893,65 +928,6 @@ namespace RegularizadorPolizas.Application.Services
                 return true;
             }
         }
-
-        // ✅ Agregar también esta sección al final de TenantAwareHybridService
-
-        #region System Operations
-
-        public async Task<Dictionary<string, object>> GetSystemHealthAsync()
-        {
-            var health = new Dictionary<string, object>
-            {
-                ["timestamp"] = DateTime.UtcNow,
-                ["tenant"] = _tenantService.GetCurrentTenantId(),
-                ["configuration"] = new
-                {
-                    enableTenantRouting = true,
-                    tenantMode = (await _tenantService.GetCurrentTenantConfigurationAsync()).Mode
-                }
-            };
-
-            // Test Velneo connectivity
-            try
-            {
-                var velneoHealthy = await TestVelneoConnectivityAsync();
-                health["velneo"] = new { status = velneoHealthy ? "healthy" : "unhealthy" };
-            }
-            catch (Exception ex)
-            {
-                health["velneo"] = new { status = "error", error = ex.Message };
-            }
-
-            // Test local database
-            try
-            {
-                var localCompanies = await _localCompanyService.GetAllCompaniesAsync();
-                health["local"] = new { status = "healthy", recordCount = localCompanies?.Count() ?? 0 };
-            }
-            catch (Exception ex)
-            {
-                health["local"] = new { status = "error", error = ex.Message };
-            }
-
-            return health;
-        }
-
-        public async Task<bool> TestVelneoConnectivityAsync()
-        {
-            try
-            {
-                // Intenta hacer una operación simple a Velneo
-                await _velneoApiService.GetAllCompaniesAsync();
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        #endregion
-
         #endregion
     }
 }

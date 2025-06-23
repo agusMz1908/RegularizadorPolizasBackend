@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Microsoft.Extensions.Logging;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Domain.Entities;
@@ -10,15 +11,18 @@ namespace RegularizadorPolizas.Application.Services
         private readonly ICompanyRepository _companyRepository;
         private readonly IPolizaRepository _polizaRepository;
         private readonly IMapper _mapper;
+        private readonly ILogger<CompanyService> _logger;
 
         public CompanyService(
             ICompanyRepository companyRepository,
             IPolizaRepository polizaRepository,
-            IMapper mapper)
+            IMapper mapper,
+            ILogger<CompanyService> logger)
         {
             _companyRepository = companyRepository ?? throw new ArgumentNullException(nameof(companyRepository));
             _polizaRepository = polizaRepository ?? throw new ArgumentNullException(nameof(polizaRepository));
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         public async Task<IEnumerable<CompanyDto>> GetAllCompaniesAsync()
@@ -61,7 +65,7 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        public async Task<CompanyDto> GetCompanyByCodigoAsync(string codigo)
+        public async Task<CompanyDto> GetCompanyByCodeAsync(string codigo)
         {
             try
             {
@@ -83,25 +87,17 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        public async Task<CompanyDto> GetCompanyByAliasAsync(string alias)
+        public async Task<CompanyDto?> GetCompanyByAliasAsync(string alias)
         {
             try
             {
-                var companies = await _companyRepository.FindAsync(c =>
-                    c.Comalias == alias || c.Alias == alias);
-
-                var company = companies.FirstOrDefault();
-                if (company == null)
-                    return null;
-
-                var companyDto = _mapper.Map<CompanyDto>(company);
-                companyDto.TotalPolizas = await GetPolizasCountAsync(company.Id);
-
-                return companyDto;
+                var company = await _companyRepository.GetByAliasAsync(alias);
+                return _mapper.Map<CompanyDto>(company);
             }
             catch (Exception ex)
             {
-                throw new ApplicationException($"Error retrieving company with alias {alias}: {ex.Message}", ex);
+                _logger.LogError(ex, "Error getting company by alias {Alias}", alias);
+                throw;
             }
         }
 
@@ -145,7 +141,7 @@ namespace RegularizadorPolizas.Application.Services
 
                 if (!string.IsNullOrEmpty(companyDto.Cod_srvcompanias))
                 {
-                    var existingCompany = await GetCompanyByCodigoAsync(companyDto.Cod_srvcompanias);
+                    var existingCompany = await GetCompanyByCodeAsync(companyDto.Cod_srvcompanias);
                     if (existingCompany != null)
                         throw new ArgumentException($"Company with code '{companyDto.Cod_srvcompanias}' already exists");
                 }
@@ -182,7 +178,7 @@ namespace RegularizadorPolizas.Application.Services
 
                 if (!string.IsNullOrEmpty(companyDto.Cod_srvcompanias))
                 {
-                    var existingByCode = await GetCompanyByCodigoAsync(companyDto.Cod_srvcompanias);
+                    var existingByCode = await GetCompanyByCodeAsync(companyDto.Cod_srvcompanias);
                     if (existingByCode != null && existingByCode.Id != companyDto.Id)
                         throw new ArgumentException($"Company with code '{companyDto.Cod_srvcompanias}' already exists");
                 }
@@ -312,6 +308,19 @@ namespace RegularizadorPolizas.Application.Services
 
             if (string.IsNullOrEmpty(company.Cod_srvcompanias) && !string.IsNullOrEmpty(company.Codigo))
                 company.Cod_srvcompanias = company.Codigo;
+        }
+        public async Task<CompanyDto?> GetCompanyByCodeAsync(string code)
+        {
+            try
+            {
+                var company = await _companyRepository.GetByCodigoAsync(code);
+                return _mapper.Map<CompanyDto>(company);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting company by code {Code}", code);
+                throw;
+            }
         }
     }
 }

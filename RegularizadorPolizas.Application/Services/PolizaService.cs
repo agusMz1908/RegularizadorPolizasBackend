@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
+using RegularizadorPolizas.Application.Services.External;
 using RegularizadorPolizas.Domain.Entities;
 
 namespace RegularizadorPolizas.Application.Services

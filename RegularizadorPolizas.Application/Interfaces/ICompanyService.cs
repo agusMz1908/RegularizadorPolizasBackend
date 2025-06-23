@@ -6,8 +6,8 @@ namespace RegularizadorPolizas.Application.Interfaces
     {
         Task<IEnumerable<CompanyDto>> GetAllCompaniesAsync();
         Task<CompanyDto> GetCompanyByIdAsync(int id);
-        Task<CompanyDto> GetCompanyByCodigoAsync(string codigo);
-        Task<CompanyDto> GetCompanyByAliasAsync(string alias);
+        Task<CompanyDto?> GetCompanyByCodeAsync(string code); 
+        Task<CompanyDto?> GetCompanyByAliasAsync(string alias);
         Task<IEnumerable<CompanyDto>> GetActiveCompaniesAsync();
         Task<IEnumerable<CompanyLookupDto>> GetCompaniesForLookupAsync();
         Task<CompanyDto> CreateCompanyAsync(CompanyDto companyDto);
