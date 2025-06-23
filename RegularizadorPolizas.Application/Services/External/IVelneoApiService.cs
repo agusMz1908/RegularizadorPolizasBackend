@@ -48,6 +48,10 @@ namespace RegularizadorPolizas.Application.Interfaces
         Task<CompanyDto?> GetCompanyByAliasAsync(string alias);
         Task<IEnumerable<CompanyDto>> GetAllCompaniesAsync();
         Task<IEnumerable<CompanyLookupDto>> GetCompaniesForLookupAsync();
+        Task<IEnumerable<CompanyDto>> GetActiveCompaniesAsync();
+        Task<IEnumerable<CompanyDto>> SearchCompaniesAsync(string searchTerm);
+        Task<IEnumerable<CompanyDto>> GetActiveCompaniesAsync();
+        Task<IEnumerable<CompanyDto>> SearchCompaniesAsync(string searchTerm);
         #endregion
 
         #region Poliza Operations

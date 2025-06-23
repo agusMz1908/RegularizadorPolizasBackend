@@ -364,6 +364,90 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
+        public async Task<IEnumerable<CompanyDto>> GetAllCompaniesAsync()
+        {
+            if (await ShouldRouteToVelneoAsync("Company", "GETALL"))
+            {
+                return await ExecuteWithFallback(
+                    () => _velneoApiService.GetAllCompaniesAsync(),
+                    () => _localCompanyService.GetAllCompaniesAsync(),
+                    "Company.GETALL",
+                    "all_companies");
+            }
+
+            return await _localCompanyService.GetAllCompaniesAsync();
+        }
+
+        public async Task<IEnumerable<CompanyDto>> GetActiveCompaniesAsync()
+        {
+            if (await ShouldRouteToVelneoAsync("Company", "GET"))
+            {
+                return await ExecuteWithFallback(
+                    () => _velneoApiService.GetActiveCompaniesAsync(),
+                    () => _localCompanyService.GetActiveCompaniesAsync(),
+                    "Company.GETACTIVE",
+                    "active_companies");
+            }
+
+            return await _localCompanyService.GetActiveCompaniesAsync();
+        }
+
+        public async Task<IEnumerable<CompanyLookupDto>> GetCompaniesForLookupAsync()
+        {
+            if (await ShouldRouteToVelneoAsync("Company", "GET"))
+            {
+                return await ExecuteWithFallback(
+                    () => _velneoApiService.GetCompaniesForLookupAsync(),
+                    () => _localCompanyService.GetCompaniesForLookupAsync(),
+                    "Company.LOOKUP",
+                    "companies_lookup");
+            }
+
+            return await _localCompanyService.GetCompaniesForLookupAsync();
+        }
+
+        public async Task<IEnumerable<CompanyDto>> SearchCompaniesAsync(string searchTerm)
+        {
+            if (await ShouldRouteToVelneoAsync("Company", "SEARCH"))
+            {
+                return await ExecuteWithFallback(
+                    () => _velneoApiService.SearchCompaniesAsync(searchTerm),
+                    () => _localCompanyService.SearchCompaniesAsync(searchTerm),
+                    "Company.SEARCH",
+                    searchTerm);
+            }
+
+            return await _localCompanyService.SearchCompaniesAsync(searchTerm);
+        }
+
+        public async Task<CompanyDto?> GetCompanyByCodeAsync(string code)
+        {
+            if (await ShouldRouteToVelneoAsync("Company", "GET"))
+            {
+                return await ExecuteWithFallback(
+                    () => _velneoApiService.GetCompanyByCodeAsync(code),
+                    () => _localCompanyService.GetCompanyByCodeAsync(code),
+                    "Company.GETBYCODE",
+                    code);
+            }
+
+            return await _localCompanyService.GetCompanyByCodeAsync(code);
+        }
+
+        public async Task<CompanyDto?> GetCompanyByAliasAsync(string alias)
+        {
+            if (await ShouldRouteToVelneoAsync("Company", "GET"))
+            {
+                return await ExecuteWithFallback(
+                    () => _velneoApiService.GetCompanyByAliasAsync(alias),
+                    () => _localCompanyService.GetCompanyByAliasAsync(alias),
+                    "Company.GETBYALIAS",
+                    alias);
+            }
+
+            return await _localCompanyService.GetCompanyByAliasAsync(alias);
+        }
+
         #endregion
 
         #region Currency Operations
@@ -809,6 +893,64 @@ namespace RegularizadorPolizas.Application.Services
                 return true;
             }
         }
+
+        // ✅ Agregar también esta sección al final de TenantAwareHybridService
+
+        #region System Operations
+
+        public async Task<Dictionary<string, object>> GetSystemHealthAsync()
+        {
+            var health = new Dictionary<string, object>
+            {
+                ["timestamp"] = DateTime.UtcNow,
+                ["tenant"] = _tenantService.GetCurrentTenantId(),
+                ["configuration"] = new
+                {
+                    enableTenantRouting = true,
+                    tenantMode = (await _tenantService.GetCurrentTenantConfigurationAsync()).Mode
+                }
+            };
+
+            // Test Velneo connectivity
+            try
+            {
+                var velneoHealthy = await TestVelneoConnectivityAsync();
+                health["velneo"] = new { status = velneoHealthy ? "healthy" : "unhealthy" };
+            }
+            catch (Exception ex)
+            {
+                health["velneo"] = new { status = "error", error = ex.Message };
+            }
+
+            // Test local database
+            try
+            {
+                var localCompanies = await _localCompanyService.GetAllCompaniesAsync();
+                health["local"] = new { status = "healthy", recordCount = localCompanies?.Count() ?? 0 };
+            }
+            catch (Exception ex)
+            {
+                health["local"] = new { status = "error", error = ex.Message };
+            }
+
+            return health;
+        }
+
+        public async Task<bool> TestVelneoConnectivityAsync()
+        {
+            try
+            {
+                // Intenta hacer una operación simple a Velneo
+                await _velneoApiService.GetAllCompaniesAsync();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        #endregion
 
         #endregion
     }

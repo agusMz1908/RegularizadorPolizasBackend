@@ -30,11 +30,17 @@ namespace RegularizadorPolizas.Application.Interfaces
         Task<CurrencyDto?> GetDefaultCurrencyAsync();
         Task<IEnumerable<CurrencyDto>> SearchCurrenciesAsync(string searchTerm);
 
-        // Company operations
+        // Company operations - ✅ COMPLETAR con todos los métodos que necesita el controlador
         Task<CompanyDto?> GetCompanyAsync(int id);
         Task<CompanyDto> CreateCompanyAsync(CompanyDto companyDto);
         Task UpdateCompanyAsync(CompanyDto companyDto);
         Task DeleteCompanyAsync(int id);
+        Task<CompanyDto?> GetCompanyByCodeAsync(string code);
+        Task<CompanyDto?> GetCompanyByAliasAsync(string alias);
+        Task<IEnumerable<CompanyDto>> GetAllCompaniesAsync();
+        Task<IEnumerable<CompanyDto>> GetActiveCompaniesAsync();
+        Task<IEnumerable<CompanyLookupDto>> GetCompaniesForLookupAsync();
+        Task<IEnumerable<CompanyDto>> SearchCompaniesAsync(string searchTerm);
 
         // Poliza operations
         Task<PolizaDto?> GetPolizaAsync(int id);

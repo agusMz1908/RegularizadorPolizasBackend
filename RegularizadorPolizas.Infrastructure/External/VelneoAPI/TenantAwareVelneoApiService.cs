@@ -857,6 +857,46 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 throw;
             }
         }
+        public async Task<IEnumerable<CompanyDto>> GetActiveCompaniesAsync()
+        {
+            try
+            {
+                var tenantId = _tenantService.GetCurrentTenantId();
+                using var httpClient = await GetConfiguredHttpClientAsync();
+
+                var url = await BuildUrlWithApiKeyAsync("v1/companias/active");
+                var response = await httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                var result = await response.Content.ReadFromJsonAsync<IEnumerable<CompanyDto>>(_jsonOptions);
+                return result ?? new List<CompanyDto>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting active companies from Velneo API");
+                throw;
+            }
+        }
+        public async Task<IEnumerable<CompanyDto>> SearchCompaniesAsync(string searchTerm)
+        {
+            try
+            {
+                var tenantId = _tenantService.GetCurrentTenantId();
+                using var httpClient = await GetConfiguredHttpClientAsync();
+
+                var url = await BuildUrlWithApiKeyAsync($"v1/companias/search?term={Uri.EscapeDataString(searchTerm)}");
+                var response = await httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                var result = await response.Content.ReadFromJsonAsync<IEnumerable<CompanyDto>>(_jsonOptions);
+                return result ?? new List<CompanyDto>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error searching companies in Velneo API");
+                throw;
+            }
+        }
 
         #endregion
 
