@@ -96,21 +96,6 @@ namespace RegularizadorPolizas.API.Controllers
             }
         }
 
-        [HttpGet("health")]
-        public async Task<ActionResult> GetTenantHealth()
-        {
-            try
-            {
-                var health = await _hybridApiService.GetSystemHealthAsync();
-                return Ok(health);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting tenant health");
-                return StatusCode(500, new { error = "Error obteniendo salud del sistema" });
-            }
-        }
-
         [HttpPost("simulate")]
         public async Task<ActionResult<SwitchSimulationDto>> SimulateSwitch([FromBody] SimulateSwitchDto request)
         {

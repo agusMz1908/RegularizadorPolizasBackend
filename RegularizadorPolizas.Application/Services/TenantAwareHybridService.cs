@@ -345,6 +345,19 @@ namespace RegularizadorPolizas.Application.Services
 
             return await _localCompanyService.CreateCompanyAsync(companyDto);
         }
+        public async Task<CompanyDto?> GetCompanyByCodigoAsync(string codigo)
+        {
+            if (await ShouldRouteToVelneoAsync("Company", "GET"))
+            {
+                return await ExecuteWithFallback(
+                    () => _velneoApiService.GetCompanyByCodeAsync(codigo),
+                    () => _localCompanyService.GetCompanyByCodigoAsync(codigo),
+                    "Company.GETBYCODIGO",
+                    codigo);
+            }
+
+            return await _localCompanyService.GetCompanyByCodigoAsync(codigo);
+        }
 
         public async Task UpdateCompanyAsync(CompanyDto companyDto)
         {
@@ -440,12 +453,12 @@ namespace RegularizadorPolizas.Application.Services
             {
                 return await ExecuteWithFallback(
                     () => _velneoApiService.GetCompanyByCodeAsync(code),
-                    () => _localCompanyService.GetCompanyByCodeAsync(code), 
+                    () => _localCompanyService.GetCompanyByCodigoAsync(code), 
                     "Company.GETBYCODE",
                     code);
             }
 
-            return await _localCompanyService.GetCompanyByCodeAsync(code); 
+            return await _localCompanyService.GetCompanyByCodigoAsync(code); 
         }
 
         public async Task<CompanyDto?> GetCompanyByAliasAsync(string alias)

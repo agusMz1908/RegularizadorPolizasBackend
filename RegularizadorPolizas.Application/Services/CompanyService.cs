@@ -65,28 +65,6 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        public async Task<CompanyDto> GetCompanyByCodeAsync(string codigo)
-        {
-            try
-            {
-                var companies = await _companyRepository.FindAsync(c =>
-                    c.Cod_srvcompanias == codigo || c.Codigo == codigo);
-
-                var company = companies.FirstOrDefault();
-                if (company == null)
-                    return null;
-
-                var companyDto = _mapper.Map<CompanyDto>(company);
-                companyDto.TotalPolizas = await GetPolizasCountAsync(company.Id);
-
-                return companyDto;
-            }
-            catch (Exception ex)
-            {
-                throw new ApplicationException($"Error retrieving company with codigo {codigo}: {ex.Message}", ex);
-            }
-        }
-
         public async Task<CompanyDto?> GetCompanyByAliasAsync(string alias)
         {
             try
@@ -141,7 +119,7 @@ namespace RegularizadorPolizas.Application.Services
 
                 if (!string.IsNullOrEmpty(companyDto.Cod_srvcompanias))
                 {
-                    var existingCompany = await GetCompanyByCodeAsync(companyDto.Cod_srvcompanias);
+                    var existingCompany = await GetCompanyByCodigoAsync(companyDto.Cod_srvcompanias);
                     if (existingCompany != null)
                         throw new ArgumentException($"Company with code '{companyDto.Cod_srvcompanias}' already exists");
                 }
@@ -178,7 +156,7 @@ namespace RegularizadorPolizas.Application.Services
 
                 if (!string.IsNullOrEmpty(companyDto.Cod_srvcompanias))
                 {
-                    var existingByCode = await GetCompanyByCodeAsync(companyDto.Cod_srvcompanias);
+                    var existingByCode = await GetCompanyByCodigoAsync(companyDto.Cod_srvcompanias);
                     if (existingByCode != null && existingByCode.Id != companyDto.Id)
                         throw new ArgumentException($"Company with code '{companyDto.Cod_srvcompanias}' already exists");
                 }
@@ -309,17 +287,26 @@ namespace RegularizadorPolizas.Application.Services
             if (string.IsNullOrEmpty(company.Cod_srvcompanias) && !string.IsNullOrEmpty(company.Codigo))
                 company.Cod_srvcompanias = company.Codigo;
         }
-        public async Task<CompanyDto?> GetCompanyByCodeAsync(string code)
+        public async Task<CompanyDto?> GetCompanyByCodigoAsync(string codigo)
         {
             try
             {
-                var company = await _companyRepository.GetByCodigoAsync(code);
-                return _mapper.Map<CompanyDto>(company);
+                var companies = await _companyRepository.FindAsync(c =>
+                    c.Cod_srvcompanias == codigo || c.Codigo == codigo);
+
+                var company = companies.FirstOrDefault();
+                if (company == null)
+                    return null;
+
+                var companyDto = _mapper.Map<CompanyDto>(company);
+                companyDto.TotalPolizas = await GetPolizasCountAsync(company.Id);
+
+                return companyDto;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting company by code {Code}", code);
-                throw;
+                _logger.LogError(ex, "Error retrieving company with codigo {codigo}", codigo);
+                throw new ApplicationException($"Error retrieving company with codigo {codigo}: {ex.Message}", ex);
             }
         }
     }

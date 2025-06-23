@@ -124,11 +124,11 @@ namespace RegularizadorPolizas.API.Controllers
         [ProducesResponseType(typeof(CompanyDto), 200)]
         [ProducesResponseType(404)]
         [ProducesResponseType(500)]
-        public async Task<ActionResult<CompanyDto>> GetCompanyByCode(string codigo)
+        public async Task<ActionResult<CompanyDto>> GetCompanyByCodigo(string codigo)
         {
             try
             {
-                var company = await _hybridApiService.GetCompanyByCodeAsync(codigo);
+                var company = await _hybridApiService.GetCompanyByCodigoAsync(codigo);
                 if (company == null)
                     return NotFound($"Company with code '{codigo}' not found");
 
