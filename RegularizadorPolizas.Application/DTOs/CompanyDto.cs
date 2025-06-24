@@ -1,4 +1,8 @@
-﻿namespace RegularizadorPolizas.Application.DTOs
+﻿using RegularizadorPolizas.Application.Converters;
+using System.Text.Json.Serialization;
+using System.ComponentModel.DataAnnotations;
+
+namespace RegularizadorPolizas.Application.DTOs
 {
     public class CompanyDto
     {
@@ -22,6 +26,7 @@
         public string Comlog { get; set; } = string.Empty;
         public bool Broker { get; set; }
         public string Cod_srvcompanias { get; set; } = string.Empty;
+        [JsonConverter(typeof(FlexibleIntConverter))]
         public int No_utiles { get; set; }
         public int Paq_dias { get; set; }
         public bool Activo { get; set; } = true;
@@ -38,8 +43,6 @@
         public string Comnom { get; set; } = string.Empty;
         public string Comalias { get; set; } = string.Empty;
         public string Cod_srvcompanias { get; set; } = string.Empty;
-
-        // Propiedades de compatibilidad
         public string Nombre => Comnom;
         public string Alias => Comalias;
         public string Codigo => Cod_srvcompanias;
@@ -56,6 +59,7 @@
         public string Comalias { get; set; } = string.Empty;
         public bool Broker { get; set; }
         public string Cod_srvcompanias { get; set; } = string.Empty;
+        [JsonConverter(typeof(FlexibleIntConverter))]
         public int No_utiles { get; set; }
         public int Paq_dias { get; set; }
     }
