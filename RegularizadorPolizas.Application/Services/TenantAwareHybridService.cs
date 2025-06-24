@@ -46,40 +46,42 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
+                _logger.LogWarning("🔍 ShouldRouteToVelneoAsync START: {Entity}.{Operation}", entity, operation);
+
                 var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
 
-                _logger.LogInformation("🔍 Routing decision for {Entity}.{Operation}: TenantId={TenantId}, Mode={Mode}",
-                    entity, operation, tenantConfig.TenantId, tenantConfig.Mode);
+                _logger.LogWarning("🔧 Tenant Config Retrieved: TenantId={TenantId}, Mode={Mode}, BaseUrl={BaseUrl}",
+                    tenantConfig.TenantId, tenantConfig.Mode, tenantConfig.BaseUrl);
 
                 // Azure IA siempre local
                 if (entity == "Document" && (operation == "PROCESS" || operation == "EXTRACT"))
                 {
-                    _logger.LogInformation("Document IA operations always go Local");
+                    _logger.LogWarning("📄 Document IA operations always go Local");
                     return false;
                 }
 
                 // Si el tenant está configurado como LOCAL, todo va local
                 if (tenantConfig.Mode.Equals("LOCAL", StringComparison.OrdinalIgnoreCase))
                 {
-                    _logger.LogInformation("Tenant configured as LOCAL, routing to Local");
+                    _logger.LogWarning("🏠 Tenant configured as LOCAL, routing to Local");
                     return false;
                 }
 
                 // Si el tenant está configurado como VELNEO, todo va a Velneo (excepto Document IA)
                 if (tenantConfig.Mode.Equals("VELNEO", StringComparison.OrdinalIgnoreCase))
                 {
-                    _logger.LogInformation("Tenant configured as VELNEO, routing to Velneo");
+                    _logger.LogWarning("📡 Tenant configured as VELNEO, routing to Velneo");
                     return true;
                 }
 
                 // Fallback: Si no está claro, va local por seguridad
-                _logger.LogWarning("⚠Tenant {TenantId} has unclear mode '{Mode}', defaulting to Local",
+                _logger.LogWarning("⚠️ Tenant {TenantId} has unclear mode '{Mode}', defaulting to Local",
                     tenantConfig.TenantId, tenantConfig.Mode);
                 return false;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Error determining routing for {Entity}.{Operation}, defaulting to Local",
+                _logger.LogError(ex, "❌ ERROR in ShouldRouteToVelneoAsync for {Entity}.{Operation}",
                     entity, operation);
                 return false;
             }
@@ -407,16 +409,31 @@ namespace RegularizadorPolizas.Application.Services
 
         public async Task<IEnumerable<CompanyDto>> GetActiveCompaniesAsync()
         {
-            if (await ShouldRouteToVelneoAsync("Company", "GET"))
-            {
-                return await ExecuteWithFallback(
-                    () => _velneoApiService.GetActiveCompaniesAsync(),
-                    () => _localCompanyService.GetActiveCompaniesAsync(),
-                    "Company.GETACTIVE",
-                    "active_companies");
-            }
+            _logger.LogWarning("🔥 GetActiveCompaniesAsync CALLED - Starting hybrid routing");
 
-            return await _localCompanyService.GetActiveCompaniesAsync();
+            try
+            {
+                bool shouldRoute = await ShouldRouteToVelneoAsync("Company", "GET");
+                _logger.LogWarning("🎯 ShouldRouteToVelneo result: {Result}", shouldRoute);
+
+                if (shouldRoute)
+                {
+                    _logger.LogWarning("📡 ROUTING TO VELNEO API");
+                    return await ExecuteWithFallback(
+                        () => _velneoApiService.GetActiveCompaniesAsync(),
+                        () => _localCompanyService.GetActiveCompaniesAsync(),
+                        "Company.GETACTIVE",
+                        "active_companies");
+                }
+
+                _logger.LogWarning("🏠 ROUTING TO LOCAL SERVICE");
+                return await _localCompanyService.GetActiveCompaniesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ ERROR in GetActiveCompaniesAsync");
+                throw;
+            }
         }
 
         public async Task<IEnumerable<CompanyLookupDto>> GetCompaniesForLookupAsync()

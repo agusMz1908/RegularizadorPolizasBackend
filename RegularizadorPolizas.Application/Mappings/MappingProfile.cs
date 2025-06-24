@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.DTOs.Audit;
+using RegularizadorPolizas.Application.DTOs.External.Velneo;
 using RegularizadorPolizas.Domain.Entities;
 using RegularizadorPolizas.Domain.Enums;
 using System.ComponentModel;

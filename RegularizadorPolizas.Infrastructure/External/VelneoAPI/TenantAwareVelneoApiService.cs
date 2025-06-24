@@ -2,6 +2,8 @@
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Application.Services.External;
+using RegularizadorPolizas.Application.DTOs.External.Velneo;
+using RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers; 
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
@@ -40,8 +42,9 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 tenantConfig.TenantId, tenantConfig.BaseUrl);
 
             var httpClient = _httpClientFactory.CreateClient();
+            var baseUrl = tenantConfig.BaseUrl.TrimEnd('/') + "/";
+            httpClient.BaseAddress = new Uri(baseUrl);
 
-            httpClient.BaseAddress = new Uri(tenantConfig.BaseUrl);
             httpClient.Timeout = TimeSpan.FromSeconds(tenantConfig.TimeoutSeconds);
 
             httpClient.DefaultRequestHeaders.Clear();
@@ -59,7 +62,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             }
 
             _logger.LogInformation("🌐 HttpClient configured for tenant {TenantId}: {BaseUrl} (Timeout: {Timeout}s)",
-                tenantConfig.TenantId, tenantConfig.BaseUrl, tenantConfig.TimeoutSeconds);
+                tenantConfig.TenantId, baseUrl, tenantConfig.TimeoutSeconds);
 
             return httpClient;
         }
@@ -828,8 +831,17 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
-                var result = await response.Content.ReadFromJsonAsync<IEnumerable<CompanyDto>>(_jsonOptions);
-                return result ?? new List<CompanyDto>();
+                var velneoResponse = await response.Content.ReadFromJsonAsync<VelneoCompaniesResponse>(_jsonOptions);
+
+                if (velneoResponse?.Companias == null)
+                {
+                    return new List<CompanyDto>();
+                }
+
+                var companies = velneoResponse.Companias.ToCompanyDtos().ToList();
+
+                _logger.LogInformation("Successfully retrieved {Count} total companies from Velneo API", companies.Count);
+                return companies;
             }
             catch (Exception ex)
             {
@@ -865,12 +877,26 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var url = await BuildUrlWithApiKeyAsync("v1/companias/active");
+                var url = await BuildUrlWithApiKeyAsync("v1/companias");
                 var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
-                var result = await response.Content.ReadFromJsonAsync<IEnumerable<CompanyDto>>(_jsonOptions);
-                return result ?? new List<CompanyDto>();
+                // Deserializar usando el DTO específico de Velneo
+                var velneoResponse = await response.Content.ReadFromJsonAsync<VelneoCompaniesResponse>(_jsonOptions);
+
+                if (velneoResponse?.Companias == null || !velneoResponse.Companias.Any())
+                {
+                    _logger.LogWarning("No companies received from Velneo API");
+                    return new List<CompanyDto>();
+                }
+
+                // Mapear usando el mapper específico
+                var companies = velneoResponse.Companias.ToCompanyDtos().ToList();
+
+                _logger.LogInformation("Successfully retrieved {Count} companies from Velneo API for tenant {TenantId}",
+                    companies.Count, tenantId);
+
+                return companies;
             }
             catch (Exception ex)
             {
@@ -878,6 +904,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 throw;
             }
         }
+
         public async Task<IEnumerable<CompanyDto>> SearchCompaniesAsync(string searchTerm)
         {
             try
