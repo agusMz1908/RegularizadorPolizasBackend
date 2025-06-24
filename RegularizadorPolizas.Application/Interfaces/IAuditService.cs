@@ -6,8 +6,9 @@ namespace RegularizadorPolizas.Application.Interfaces
     public interface IAuditService
     {
         Task LogAsync(AuditEventType eventType, string description, object? additionalData = null);
+        Task LogWithUserAsync(AuditEventType eventType, string description, object? oldData, object? newData, int userId);
         Task LogEntityChangeAsync<T>(AuditEventType eventType, T? oldEntity, T? newEntity, int? entityId = null);
-        Task LogErrorAsync(Exception exception, string description, object? additionalData = null);
+        Task LogErrorAsync(Exception ex, string description, object? additionalData = null);
         Task LogLoginAsync(string userName, bool success, string? reason = null);
         Task LogLogoutAsync(string userName);
         Task LogClientActivityAsync(AuditEventType eventType, int clientId, object? oldData = null, object? newData = null);

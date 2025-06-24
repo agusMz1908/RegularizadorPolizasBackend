@@ -31,6 +31,71 @@ namespace RegularizadorPolizas.Application.Services
             _mapper = mapper;
         }
 
+        public async Task LogAsync(AuditEventType eventType, string description, object? oldData, object? newData, int userId)
+        {
+            try
+            {
+                var auditLog = new AuditLog
+                {
+                    EventType = eventType,
+                    Category = GetCategoryFromEventType(eventType),
+                    EntityName = ExtractEntityNameFromDescription(description),
+                    Description = description,
+                    AdditionalData = JsonConvert.SerializeObject(new
+                    {
+                        OldData = oldData,
+                        NewData = newData,
+                        UserId = userId
+                    }),
+                    UserId = userId,
+                    Timestamp = DateTime.UtcNow
+                };
+
+                PopulateUserAndRequestInfo(auditLog);
+                await _auditRepository.AddAsync(auditLog);
+
+                _logger.LogInformation("Audit logged: {EventType} - {Description} by User {UserId}",
+                    eventType, description, userId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error logging audit event: {EventType} for user {UserId}", eventType, userId);
+            }
+        }
+
+        public async Task LogWithUserAsync(AuditEventType eventType, string description, object? oldData, object? newData, int userId)
+        {
+            try
+            {
+                var auditLog = new AuditLog
+                {
+                    EventType = eventType,
+                    Category = GetCategoryFromEventType(eventType),
+                    EntityName = ExtractEntityNameFromDescription(description),
+                    Description = description,
+                    AdditionalData = JsonConvert.SerializeObject(new
+                    {
+                        OldData = oldData,
+                        NewData = newData,
+                        UserId = userId,
+                        Timestamp = DateTime.UtcNow
+                    }),
+                    UserId = userId,
+                    Timestamp = DateTime.UtcNow
+                };
+
+                PopulateUserAndRequestInfo(auditLog);
+                await _auditRepository.AddAsync(auditLog);
+
+                _logger.LogInformation("Audit logged: {EventType} - {Description} by User {UserId}",
+                    eventType, description, userId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error logging audit event: {EventType} for user {UserId}", eventType, userId);
+            }
+        }
+
         public async Task LogAsync(AuditEventType eventType, string description, object? additionalData = null)
         {
             try
@@ -39,7 +104,7 @@ namespace RegularizadorPolizas.Application.Services
                 {
                     EventType = eventType,
                     Category = GetCategoryFromEventType(eventType),
-                    EntityName = "System",
+                    EntityName = ExtractEntityNameFromDescription(description),
                     Description = description,
                     AdditionalData = additionalData != null ? JsonConvert.SerializeObject(additionalData) : null,
                     Timestamp = DateTime.UtcNow
@@ -47,11 +112,21 @@ namespace RegularizadorPolizas.Application.Services
 
                 PopulateUserAndRequestInfo(auditLog);
                 await _auditRepository.AddAsync(auditLog);
+
+                _logger.LogInformation("Audit logged: {EventType} - {Description}", eventType, description);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error logging audit event: {EventType}", eventType);
             }
+        }
+
+        private string ExtractEntityNameFromDescription(string description)
+        {
+            if (string.IsNullOrEmpty(description)) return "Unknown";
+
+            var parts = description.Split('.');
+            return parts.Length > 0 ? parts[0] : "Unknown";
         }
 
         public async Task LogEntityChangeAsync<T>(AuditEventType eventType, T? oldEntity, T? newEntity, int? entityId = null)
@@ -92,30 +167,41 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        public async Task LogErrorAsync(Exception exception, string description, object? additionalData = null)
+        public async Task LogErrorAsync(Exception ex, string description, object? additionalData = null)
         {
             try
             {
                 var auditLog = new AuditLog
                 {
                     EventType = AuditEventType.SystemError,
-                    Category = AuditCategory.System,
+                    Category = GetCategoryFromEventType(AuditEventType.SystemError),
                     EntityName = "System",
                     Description = description,
-                    ErrorMessage = exception.Message,
-                    StackTrace = exception.StackTrace?.Length > 2000 ? exception.StackTrace.Substring(0, 2000) : exception.StackTrace,
-                    AdditionalData = additionalData != null ? JsonConvert.SerializeObject(additionalData) : null,
-                    Success = false,
-                    Severity = "Error",
+                    AdditionalData = additionalData != null ? JsonConvert.SerializeObject(new
+                    {
+                        Error = ex.Message,
+                        StackTrace = ex.StackTrace,
+                        InnerException = ex.InnerException?.Message,
+                        Data = additionalData,
+                        Timestamp = DateTime.UtcNow
+                    }) : JsonConvert.SerializeObject(new
+                    {
+                        Error = ex.Message,
+                        StackTrace = ex.StackTrace,
+                        InnerException = ex.InnerException?.Message,
+                        Timestamp = DateTime.UtcNow
+                    }),
                     Timestamp = DateTime.UtcNow
                 };
 
                 PopulateUserAndRequestInfo(auditLog);
                 await _auditRepository.AddAsync(auditLog);
+
+                _logger.LogError(ex, "Audit error logged: {Description}", description);
             }
-            catch (Exception ex)
+            catch (Exception logEx)
             {
-                _logger.LogError(ex, "Error logging error audit: {OriginalError}", exception.Message);
+                _logger.LogError(logEx, "Failed to log audit error for: {Description}", description);
             }
         }
 
@@ -312,6 +398,7 @@ namespace RegularizadorPolizas.Application.Services
                 _logger.LogError(ex, "Error logging {EntityName} activity: {EventType}", entityName, eventType);
             }
         }
+
 
         private void PopulateUserAndRequestInfo(AuditLog auditLog)
         {

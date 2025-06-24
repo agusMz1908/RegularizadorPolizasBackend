@@ -6,7 +6,6 @@ using RegularizadorPolizas.Domain.Entities;
 using RegularizadorPolizas.Domain.Enums;
 using System.ComponentModel;
 using System.Reflection;
-using static BrokerSummaryDto;
 
 namespace RegularizadorPolizas.Application.Mappings
 {

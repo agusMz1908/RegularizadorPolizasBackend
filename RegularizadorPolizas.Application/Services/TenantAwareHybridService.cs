@@ -336,17 +336,40 @@ namespace RegularizadorPolizas.Application.Services
 
         public async Task<CompanyDto> CreateCompanyAsync(CompanyDto companyDto)
         {
-            if (await ShouldRouteToVelneoAsync("Company", "CREATE"))
+            try
             {
-                return await ExecuteWithAudit(
-                    () => _velneoApiService.CreateCompanyAsync(companyDto),
-                    AuditEventType.CompanyCreated,
-                    "Company.CREATE",
-                    newData: companyDto);
-            }
+                if (await ShouldRouteToVelneoAsync("Company", "CREATE"))
+                {
+                    _logger.LogInformation("Routing Company creation to Velneo for tenant {TenantId}",
+                        _tenantService.GetCurrentTenantId());
 
-            return await _localCompanyService.CreateCompanyAsync(companyDto);
+                    var velneoCompany = await ExecuteWithAudit(
+                        () => _velneoApiService.CreateCompanyAsync(companyDto),
+                        AuditEventType.CompanyCreated,
+                        "Company.CREATE",
+                        newData: companyDto);
+
+                    return velneoCompany;
+                }
+
+                _logger.LogInformation("Routing Company creation to Local for tenant {TenantId}",
+                    _tenantService.GetCurrentTenantId());
+
+                var localCompany = await _localCompanyService.CreateCompanyAsync(companyDto);
+
+                await _auditService.LogWithUserAsync(AuditEventType.CompanyCreated, "Company.CREATE",
+                    null, localCompany, _tenantService.GetCurrentUserId());
+
+                return localCompany;
+                return localCompany;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error creating company {CompanyName}", companyDto.Comnom);
+                throw;
+            }
         }
+
         public async Task<CompanyDto?> GetCompanyByCodigoAsync(string codigo)
         {
             if (await ShouldRouteToVelneoAsync("Company", "GET"))
@@ -707,7 +730,6 @@ namespace RegularizadorPolizas.Application.Services
             object? identifier = null)
         {
             var startTime = DateTime.UtcNow;
-
             try
             {
                 var tenantId = _tenantService.GetCurrentTenantId();
@@ -734,20 +756,45 @@ namespace RegularizadorPolizas.Application.Services
                 {
                     var fallbackResult = await fallbackAction();
 
+                    // Usar LogAsync (3 parámetros) para el fallback
                     await _auditService.LogAsync(
                         AuditEventType.SystemWarning,
                         $"Fallback executed for {operation} (tenant: {tenantId})",
-                        new { tenantId, identifier, error = ex.Message, durationMs = duration.TotalMilliseconds });
+                        new
+                        {
+                            tenantId,
+                            identifier,
+                            error = ex.Message,
+                            durationMs = duration.TotalMilliseconds,
+                            operation,
+                            timestamp = DateTime.UtcNow
+                        });
 
+                    _logger.LogInformation("Fallback successful for {Operation} (tenant {TenantId})", operation, tenantId);
                     return fallbackResult;
                 }
                 catch (Exception fallbackEx)
                 {
                     _logger.LogError(fallbackEx, "Fallback also failed for {Operation} (tenant {TenantId})", operation, tenantId);
+
+                    // Log the complete failure
+                    await _auditService.LogErrorAsync(
+                        fallbackEx,
+                        $"Complete failure for {operation} (tenant: {tenantId})",
+                        new
+                        {
+                            tenantId,
+                            identifier,
+                            primaryError = ex.Message,
+                            fallbackError = fallbackEx.Message,
+                            durationMs = duration.TotalMilliseconds
+                        });
+
                     throw new ApplicationException($"Both primary and fallback actions failed for {operation} (tenant: {tenantId})", ex);
                 }
             }
         }
+
 
         private async Task ExecuteWithAudit(
             Func<Task> action,
@@ -758,27 +805,23 @@ namespace RegularizadorPolizas.Application.Services
             object? additionalData = null)
         {
             var startTime = DateTime.UtcNow;
-
             try
             {
                 var tenantId = _tenantService.GetCurrentTenantId();
+                var userId = _tenantService.GetCurrentUserId();
+
                 _logger.LogDebug("Executing audited {Operation} for tenant {TenantId}", operation, tenantId);
 
                 await action();
 
                 var duration = DateTime.UtcNow - startTime;
 
-                await _auditService.LogAsync(
+                await _auditService.LogWithUserAsync(
                     eventType,
                     $"{operation} executed successfully for tenant {tenantId}",
-                    new
-                    {
-                        tenantId,
-                        oldData,
-                        newData,
-                        additionalData,
-                        durationMs = duration.TotalMilliseconds
-                    });
+                    oldData,
+                    newData,
+                    userId);
             }
             catch (Exception ex)
             {
@@ -796,7 +839,6 @@ namespace RegularizadorPolizas.Application.Services
                         additionalData,
                         durationMs = duration.TotalMilliseconds
                     });
-
                 throw;
             }
         }

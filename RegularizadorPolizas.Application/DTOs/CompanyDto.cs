@@ -22,7 +22,7 @@
         public string Comlog { get; set; } = string.Empty;
         public bool Broker { get; set; }
         public string Cod_srvcompanias { get; set; } = string.Empty;
-        public string No_utiles { get; set; } = string.Empty;
+        public int No_utiles { get; set; }
         public int Paq_dias { get; set; }
         public bool Activo { get; set; } = true;
         public int TotalPolizas { get; set; }
@@ -56,7 +56,7 @@
         public string Comalias { get; set; } = string.Empty;
         public bool Broker { get; set; }
         public string Cod_srvcompanias { get; set; } = string.Empty;
-        public string No_utiles { get; set; } = string.Empty;
+        public int No_utiles { get; set; }
         public int Paq_dias { get; set; }
     }
 
