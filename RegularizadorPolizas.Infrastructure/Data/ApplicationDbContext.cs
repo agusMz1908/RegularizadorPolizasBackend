@@ -1,6 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using RegularizadorPolizas.Domain.Entities;
-using RegularizadorPolizas.Infrastructure.Data;
 
 namespace RegularizadorPolizas.Infrastructure.Data
 {
@@ -23,6 +22,34 @@ namespace RegularizadorPolizas.Infrastructure.Data
         public DbSet<UserRole> UserRoles { get; set; }
         public DbSet<RolePermission> RolePermissions { get; set; }
         public DbSet<ApiKey> ApiKeys { get; set; }
+        public DbSet<AutorizacionDatos> AutorizacionesDatos { get; set; }
+        public DbSet<Seccion> Secciones { get; set; }
+        public DbSet<Departamento> Departamentos { get; set; }
+        public DbSet<Destino> Destinos { get; set; }
+        public DbSet<TipoSiniestro> TiposSiniestro { get; set; }
+        public DbSet<TipoContrato> TiposContrato { get; set; }
+        public DbSet<TipoRiesgo> TiposRiesgo { get; set; }
+        public DbSet<TipoAlarma> TiposAlarma { get; set; }
+        public DbSet<CoberturaBicicleta> CoberturasBicicleta { get; set; }
+        public DbSet<MotivoNoRenovacion> MotivosNoRenovacion { get; set; }
+        public DbSet<EdoGestion> EdosGestion { get; set; }
+        public DbSet<Taller> Talleres { get; set; }
+        public DbSet<Combustible> Combustibles { get; set; }
+        public DbSet<Categoria> Categorias { get; set; }
+        public DbSet<Calidad> Calidades { get; set; }
+        public DbSet<FormaPago> FormasPago { get; set; }
+        public DbSet<AutorizaCliente> AutorizacionesCliente { get; set; }
+        public DbSet<CuentaBancaria> CuentasBancarias { get; set; }
+        public DbSet<Tarjeta> Tarjetas { get; set; }
+        public DbSet<Contacto> Contactos { get; set; }
+        public DbSet<CategoriaCliente> CategoriasCliente { get; set; }
+        public DbSet<GrupoEconomico> GruposEconomicos { get; set; }
+        public DbSet<Cobertura> Coberturas { get; set; }
+        public DbSet<ContactoCompania> ContactosCompania { get; set; }
+        public DbSet<ComisionPorSeccion> ComisionesPorSeccion { get; set; }
+        public DbSet<ImpuestoPorSeccion> ImpuestosPorSeccion { get; set; }
+        public DbSet<NumeroUtil> NumerosUtiles { get; set; }
+        public DbSet<Vehiculo> Vehiculos { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -32,6 +59,11 @@ namespace RegularizadorPolizas.Infrastructure.Data
             //SeedData.ApplyAllSeedData(modelBuilder);
             SeedAuthenticationData(modelBuilder);
             ConfigureUserEntities(modelBuilder);
+            ConfigureFase1Entities(modelBuilder);
+            ConfigureClientEntities(modelBuilder);
+            ConfigureCompanyAuxiliaryEntities(modelBuilder);
+            ConfigureVehiculoEntity(modelBuilder);
+            ConfigureVehiculoEntity(modelBuilder);
         }
 
         private void ConfigureExistingEntities(ModelBuilder modelBuilder)
@@ -473,6 +505,769 @@ namespace RegularizadorPolizas.Infrastructure.Data
                     .WithMany()
                     .HasForeignKey(e => e.GrantedBy)
                     .OnDelete(DeleteBehavior.SetNull);
+            });
+        }
+
+        private void ConfigureFase1Entities(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<AutorizacionDatos>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(50);
+                entity.HasIndex(e => e.Name).IsUnique().HasDatabaseName("IX_AutorizacionesDatos_Name");
+                entity.HasIndex(e => e.Activo).HasDatabaseName("IX_AutorizacionesDatos_Activo");
+            });
+
+            modelBuilder.Entity<Seccion>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Icono).HasMaxLength(50);
+                entity.HasIndex(e => e.Name).IsUnique().HasDatabaseName("IX_Secciones_Name");
+                entity.HasIndex(e => e.Activo).HasDatabaseName("IX_Secciones_Activo");
+            });
+
+            modelBuilder.Entity<Departamento>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Dptnom).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Dptbonint).HasMaxLength(10);
+                entity.Property(e => e.ScCod).HasMaxLength(20);
+                entity.HasIndex(e => e.Dptnom).IsUnique().HasDatabaseName("IX_Departamentos_Dptnom");
+                entity.HasIndex(e => e.ScCod).HasDatabaseName("IX_Departamentos_ScCod");
+                entity.HasIndex(e => e.Activo).HasDatabaseName("IX_Departamentos_Activo");
+            });
+
+            modelBuilder.Entity<Destino>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Desnom).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Descod).HasMaxLength(20);
+                entity.HasIndex(e => e.Desnom).IsUnique().HasDatabaseName("IX_Destinos_Desnom");
+                entity.HasIndex(e => e.Descod).HasDatabaseName("IX_Destinos_Descod");
+                entity.HasIndex(e => e.Activo).HasDatabaseName("IX_Destinos_Activo");
+            });
+
+            modelBuilder.Entity<TipoSiniestro>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(50);
+                entity.HasIndex(e => e.Name).IsUnique().HasDatabaseName("IX_TiposSiniestro_Name");
+                entity.HasIndex(e => e.Activo).HasDatabaseName("IX_TiposSiniestro_Activo");
+            });
+
+            modelBuilder.Entity<TipoContrato>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.TpoConDssc).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.TpoDet).HasMaxLength(500);
+                entity.HasIndex(e => e.TpoConDssc).IsUnique().HasDatabaseName("IX_TiposContrato_TpoConDssc");
+                entity.HasIndex(e => e.Activo).HasDatabaseName("IX_TiposContrato_Activo");
+            });
+
+            modelBuilder.Entity<TipoRiesgo>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.TpoRieDssc).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.RieDesc).HasMaxLength(500);
+                entity.HasIndex(e => e.TpoRieDssc).IsUnique().HasDatabaseName("IX_TiposRiesgo_TpoRieDssc");
+                entity.HasIndex(e => e.Activo).HasDatabaseName("IX_TiposRiesgo_Activo");
+            });
+
+            modelBuilder.Entity<TipoAlarma>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(50);
+                entity.HasIndex(e => e.Name).IsUnique().HasDatabaseName("IX_TiposAlarma_Name");
+                entity.HasIndex(e => e.Activo).HasDatabaseName("IX_TiposAlarma_Activo");
+            });
+
+            modelBuilder.Entity<CoberturaBicicleta>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+                entity.HasIndex(e => e.Name).IsUnique().HasDatabaseName("IX_CoberturasBicicleta_Name");
+                entity.HasIndex(e => e.Activo).HasDatabaseName("IX_CoberturasBicicleta_Activo");
+            });
+
+            modelBuilder.Entity<MotivoNoRenovacion>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+                entity.HasIndex(e => e.Name).IsUnique().HasDatabaseName("IX_MotivosNoRenovacion_Name");
+                entity.HasIndex(e => e.Activo).HasDatabaseName("IX_MotivosNoRenovacion_Activo");
+            });
+
+            modelBuilder.Entity<EdoGestion>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(50);
+                entity.HasIndex(e => e.Name).IsUnique().HasDatabaseName("IX_EdosGestion_Name");
+                entity.HasIndex(e => e.Activo).HasDatabaseName("IX_EdosGestion_Activo");
+            });
+
+            modelBuilder.Entity<Taller>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.Telefono).HasMaxLength(30);
+                entity.Property(e => e.Direccion).HasMaxLength(200);
+                entity.Property(e => e.Contacto).HasMaxLength(100);
+                entity.Property(e => e.Cel).HasMaxLength(30);
+                entity.Property(e => e.Email).HasMaxLength(100);
+                entity.Property(e => e.Web).HasMaxLength(100);
+                entity.Property(e => e.Observaciones).HasColumnType("TEXT");
+                
+                entity.HasIndex(e => e.Name).HasDatabaseName("IX_Talleres_Name");
+                entity.HasIndex(e => e.Email).HasDatabaseName("IX_Talleres_Email");
+                entity.HasIndex(e => e.Telefono).HasDatabaseName("IX_Talleres_Telefono");
+            });
+
+            modelBuilder.Entity<Combustible>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Descripcion).HasMaxLength(200);
+                entity.HasIndex(e => e.Name).IsUnique().HasDatabaseName("IX_Combustibles_Name");
+                entity.HasIndex(e => e.Activo).HasDatabaseName("IX_Combustibles_Activo");
+            });
+
+            modelBuilder.Entity<Categoria>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Descripcion).HasMaxLength(200);
+                entity.HasIndex(e => e.Name).IsUnique().HasDatabaseName("IX_Categorias_Name");
+                entity.HasIndex(e => e.Activo).HasDatabaseName("IX_Categorias_Activo");
+            });
+
+            modelBuilder.Entity<Calidad>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Descripcion).HasMaxLength(200);
+                entity.HasIndex(e => e.Name).IsUnique().HasDatabaseName("IX_Calidades_Name");
+                entity.HasIndex(e => e.Activo).HasDatabaseName("IX_Calidades_Activo");
+            });
+
+            modelBuilder.Entity<FormaPago>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Descripcion).HasMaxLength(200);
+                entity.HasIndex(e => e.Name).IsUnique().HasDatabaseName("IX_FormasPago_Name");
+                entity.HasIndex(e => e.Activo).HasDatabaseName("IX_FormasPago_Activo");
+                entity.HasIndex(e => e.EsContado).HasDatabaseName("IX_FormasPago_EsContado");
+            });
+        }
+
+        private void ConfigureClientEntities(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Client>(entity =>
+            {
+                entity.HasIndex(e => new { e.Corrcod, e.Subcorr })
+                    .HasDatabaseName("IX_Clients_Corredor");
+
+                entity.HasIndex(e => e.Clinom)
+                    .HasDatabaseName("IX_Clients_Nombre");
+
+                entity.HasIndex(e => e.Activo)
+                    .HasDatabaseName("IX_Clients_Activo");
+
+                entity.HasIndex(e => new { e.Activo, e.FechaCreacion })
+                    .HasDatabaseName("IX_Clients_Activo_FechaCreacion");
+
+                entity.Property(e => e.Password)
+                    .HasMaxLength(255);
+
+                entity.Property(e => e.FechaCreacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.Property(e => e.FechaModificacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                entity.Property(e => e.Activo)
+                    .HasDefaultValue(true);
+
+                entity.HasOne(c => c.CategoriaCliente)
+                    .WithMany(cc => cc.Clientes)
+                    .HasForeignKey(c => c.Categorias_de_cliente)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(c => c.GrupoEconomico)
+                    .WithMany(ge => ge.Clientes)
+                    .HasForeignKey(c => c.Grupos_economicos)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<AutorizaCliente>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.ToTable("AutorizacionesCliente");
+
+                entity.Property(e => e.Observaciones)
+                    .HasMaxLength(500);
+
+                entity.Property(e => e.Fecha)
+                    .IsRequired();
+
+                entity.Property(e => e.Autorizado)
+                    .HasDefaultValue(false);
+
+                entity.Property(e => e.FechaCreacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.Property(e => e.FechaModificacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                entity.HasOne(a => a.Cliente)
+                    .WithMany(c => c.AutorizacionesCliente)
+                    .HasForeignKey(a => a.Clientes)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(a => a.AutorizacionDatos)
+                    .WithMany()
+                    .HasForeignKey(a => a.AutorizacionesDeDatos)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(e => e.Clientes)
+                    .HasDatabaseName("IX_AutorizacionesCliente_Clientes");
+
+                entity.HasIndex(e => e.AutorizacionesDeDatos)
+                    .HasDatabaseName("IX_AutorizacionesCliente_AutorizacionesDeDatos");
+
+                entity.HasIndex(e => e.Autorizado)
+                    .HasDatabaseName("IX_AutorizacionesCliente_Autorizado");
+
+                entity.HasIndex(e => e.Fecha)
+                    .HasDatabaseName("IX_AutorizacionesCliente_Fecha");
+            });
+
+            modelBuilder.Entity<CuentaBancaria>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.ToTable("CuentasBancarias");
+
+                entity.Property(e => e.Titular)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.Name) 
+                    .IsRequired()
+                    .HasMaxLength(50);
+
+                entity.Property(e => e.Numero)
+                    .IsRequired()
+                    .HasMaxLength(50);
+
+                entity.Property(e => e.Tipo)
+                    .HasMaxLength(10);
+
+                entity.Property(e => e.MonedaCuenta)
+                    .HasMaxLength(5);
+
+                entity.Property(e => e.Sucursal)
+                    .HasMaxLength(10);
+
+                entity.Property(e => e.Subcuenta)
+                    .HasMaxLength(20);
+
+                entity.Property(e => e.FechaCreacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.Property(e => e.FechaModificacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                entity.HasOne(cb => cb.Cliente)
+                    .WithMany(c => c.CuentasBancarias)
+                    .HasForeignKey(cb => cb.Clientes)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.Clientes)
+                    .HasDatabaseName("IX_CuentasBancarias_Clientes");
+
+                entity.HasIndex(e => e.Numero)
+                    .HasDatabaseName("IX_CuentasBancarias_Numero");
+
+                entity.HasIndex(e => e.Name)
+                    .HasDatabaseName("IX_CuentasBancarias_Name");
+            });
+
+            modelBuilder.Entity<Tarjeta>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.ToTable("Tarjetas");
+
+                entity.Property(e => e.Emisor)
+                    .IsRequired()
+                    .HasMaxLength(50);
+
+                entity.Property(e => e.Titular)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.Name)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.Numero)
+                    .IsRequired()
+                    .HasMaxLength(50);
+
+                entity.Property(e => e.Vencimiento)
+                    .IsRequired();
+
+                entity.Property(e => e.Control)
+                    .HasMaxLength(10);
+
+                entity.Property(e => e.FechaCreacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.Property(e => e.FechaModificacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                entity.HasOne(t => t.Cliente)
+                    .WithMany(c => c.Tarjetas)
+                    .HasForeignKey(t => t.Clientes)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.Clientes)
+                    .HasDatabaseName("IX_Tarjetas_Clientes");
+
+                entity.HasIndex(e => e.Emisor)
+                    .HasDatabaseName("IX_Tarjetas_Emisor");
+
+                entity.HasIndex(e => e.Vencimiento)
+                    .HasDatabaseName("IX_Tarjetas_Vencimiento");
+            });
+
+            modelBuilder.Entity<Contacto>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.ToTable("Contactos");
+
+                entity.Property(e => e.Nombre)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.CargoRelacion)
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.Cel) 
+                    .HasMaxLength(30);
+
+                entity.Property(e => e.Domicilio)
+                    .HasMaxLength(200);
+
+                entity.Property(e => e.Mail) 
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.Obs) 
+                    .HasMaxLength(500);
+
+                entity.Property(e => e.FechaCreacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.Property(e => e.FechaModificacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                entity.HasOne(c => c.Cliente)
+                    .WithMany(cl => cl.Contactos)
+                    .HasForeignKey(c => c.Clientes)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.Clientes)
+                    .HasDatabaseName("IX_Contactos_Clientes");
+
+                entity.HasIndex(e => e.Nombre)
+                    .HasDatabaseName("IX_Contactos_Nombre");
+
+                entity.HasIndex(e => e.Mail)
+                    .HasDatabaseName("IX_Contactos_Mail");
+
+                entity.HasIndex(e => e.Cel)
+                    .HasDatabaseName("IX_Contactos_Cel");
+            });
+
+            modelBuilder.Entity<CategoriaCliente>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.ToTable("CategoriasCliente");
+
+                entity.Property(e => e.Name) 
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.ValMin) 
+                    .HasColumnType("decimal(15,2)");
+
+                entity.Property(e => e.ValMax)
+                    .HasColumnType("decimal(15,2)");
+
+                entity.Property(e => e.Color)
+                    .HasMaxLength(20);
+
+                entity.Property(e => e.Activo)
+                    .HasDefaultValue(true);
+
+                entity.Property(e => e.FechaCreacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.Property(e => e.FechaModificacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                entity.HasIndex(e => e.Name)
+                    .IsUnique()
+                    .HasDatabaseName("IX_CategoriasCliente_Name");
+
+                entity.HasIndex(e => e.Activo)
+                    .HasDatabaseName("IX_CategoriasCliente_Activo");
+            });
+
+            modelBuilder.Entity<GrupoEconomico>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.ToTable("GruposEconomicos");
+
+                entity.Property(e => e.Name) 
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.Activo)
+                    .HasDefaultValue(true);
+
+                entity.Property(e => e.FechaCreacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.Property(e => e.FechaModificacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                entity.HasIndex(e => e.Name)
+                    .IsUnique()
+                    .HasDatabaseName("IX_GruposEconomicos_Name");
+
+                entity.HasIndex(e => e.Activo)
+                    .HasDatabaseName("IX_GruposEconomicos_Activo");
+            });
+        }
+
+        private void ConfigureCompanyAuxiliaryEntities(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Cobertura>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.ToTable("Coberturas");
+
+                entity.Property(e => e.Cobdsc)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.Activo)
+                    .HasDefaultValue(true);
+
+                entity.Property(e => e.FechaCreacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.Property(e => e.FechaModificacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                entity.HasIndex(e => e.Cobdsc)
+                    .IsUnique()
+                    .HasDatabaseName("IX_Coberturas_Cobdsc");
+
+                entity.HasIndex(e => e.Activo)
+                    .HasDatabaseName("IX_Coberturas_Activo");
+            });
+
+            modelBuilder.Entity<ContactoCompania>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.ToTable("ContactosCompania");
+
+                entity.Property(e => e.Name)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.Telefono)
+                    .HasMaxLength(30);
+
+                entity.Property(e => e.Mail)
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.FechaCreacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.Property(e => e.FechaModificacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                entity.HasOne(cc => cc.Company)
+                    .WithMany() 
+                    .HasForeignKey(cc => cc.Companias)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.Companias)
+                    .HasDatabaseName("IX_ContactosCompania_Companias");
+
+                entity.HasIndex(e => e.Name)
+                    .HasDatabaseName("IX_ContactosCompania_Name");
+
+                entity.HasIndex(e => e.Mail)
+                    .HasDatabaseName("IX_ContactosCompania_Mail");
+            });
+
+            modelBuilder.Entity<ComisionPorSeccion>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.ToTable("ComisionesPorSeccion");
+
+                entity.Property(e => e.Comipor)
+                    .IsRequired()
+                    .HasColumnType("decimal(5,2)");
+
+                entity.Property(e => e.Comi_bo)
+                    .HasColumnType("decimal(5,2)")
+                    .HasDefaultValue(0);
+
+                entity.Property(e => e.Opera_comi)
+                    .HasMaxLength(10)
+                    .HasDefaultValue("N");
+
+                entity.Property(e => e.Detalle)
+                    .HasMaxLength(200);
+
+                entity.Property(e => e.Tipos_de_contrato)
+                    .HasDefaultValue(0);
+
+                entity.Property(e => e.Productos_de_vida)
+                    .HasDefaultValue(0);
+
+                entity.Property(e => e.Anios_d)
+                    .HasDefaultValue(0);
+
+                entity.Property(e => e.Anios_h)
+                    .HasDefaultValue(0);
+
+                entity.Property(e => e.FechaCreacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.Property(e => e.FechaModificacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                entity.HasOne(cps => cps.Company)
+                    .WithMany() 
+                    .HasForeignKey(cps => cps.Compania)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(cps => cps.SeccionEntity)
+                    .WithMany() 
+                    .HasForeignKey(cps => cps.Seccion)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(e => e.Compania)
+                    .HasDatabaseName("IX_ComisionesPorSeccion_Compania");
+
+                entity.HasIndex(e => e.Seccion)
+                    .HasDatabaseName("IX_ComisionesPorSeccion_Seccion");
+
+                entity.HasIndex(e => new { e.Compania, e.Seccion })
+                    .HasDatabaseName("IX_ComisionesPorSeccion_Compania_Seccion");
+            });
+
+            modelBuilder.Entity<ImpuestoPorSeccion>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.ToTable("ImpuestosPorSeccion");
+
+                entity.Property(e => e.FechaCreacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.Property(e => e.FechaModificacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                entity.HasOne(ips => ips.Company)
+                    .WithMany() 
+                    .HasForeignKey(ips => ips.Companias)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(ips => ips.Seccion)
+                    .WithMany() 
+                    .HasForeignKey(ips => ips.Secciones)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // NOTA: La relación con Impuesto se agregará cuando se habilite en Velneo
+                // entity.HasOne(ips => ips.Impuesto)
+                //     .WithMany()
+                //     .HasForeignKey(ips => ips.Impuestos)
+                //     .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(e => e.Companias)
+                    .HasDatabaseName("IX_ImpuestosPorSeccion_Companias");
+
+                entity.HasIndex(e => e.Secciones)
+                    .HasDatabaseName("IX_ImpuestosPorSeccion_Secciones");
+
+                entity.HasIndex(e => e.Impuestos)
+                    .HasDatabaseName("IX_ImpuestosPorSeccion_Impuestos");
+
+                entity.HasIndex(e => new { e.Companias, e.Secciones, e.Impuestos })
+                    .HasDatabaseName("IX_ImpuestosPorSeccion_Companias_Secciones_Impuestos");
+            });
+
+            modelBuilder.Entity<NumeroUtil>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.ToTable("NumerosUtiles");
+
+                entity.Property(e => e.Name)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.Telefono)
+                    .IsRequired()
+                    .HasMaxLength(30);
+
+                entity.Property(e => e.FechaCreacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.Property(e => e.FechaModificacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                entity.HasOne(nu => nu.Company)
+                    .WithMany() 
+                    .HasForeignKey(nu => nu.Companias)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.Companias)
+                    .HasDatabaseName("IX_NumerosUtiles_Companias");
+
+                entity.HasIndex(e => e.Name)
+                    .HasDatabaseName("IX_NumerosUtiles_Name");
+
+                entity.HasIndex(e => e.Telefono)
+                    .HasDatabaseName("IX_NumerosUtiles_Telefono");
+            });
+        }
+
+        private void ConfigureVehiculoEntity(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Vehiculo>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.ToTable("Vehiculos");
+
+                // Configuración de campos de texto
+                entity.Property(e => e.Conmaraut)
+                    .HasMaxLength(20);
+
+                entity.Property(e => e.Conmataut)
+                    .HasMaxLength(30);
+
+                entity.Property(e => e.Conmotor)
+                    .HasMaxLength(30);
+
+                entity.Property(e => e.Conpadaut)
+                    .HasMaxLength(30);
+
+                entity.Property(e => e.Conchasis)
+                    .HasMaxLength(30);
+
+                entity.Property(e => e.Condetail)
+                    .HasMaxLength(500);
+
+                entity.Property(e => e.Contpocob)
+                    .HasMaxLength(80);
+
+                entity.Property(e => e.Contipoemp)
+                    .HasMaxLength(80);
+
+                entity.Property(e => e.Conmatpar)
+                    .HasMaxLength(80);
+
+                entity.Property(e => e.Conmatte)
+                    .HasMaxLength(80);
+
+                entity.Property(e => e.Combustibles)
+                    .HasMaxLength(50);
+
+                // Valores por defecto
+                entity.Property(e => e.Activo)
+                    .HasDefaultValue(true);
+
+                entity.Property(e => e.TieneAlarma)
+                    .HasDefaultValue(false);
+
+                entity.Property(e => e.Granizo)
+                    .HasDefaultValue(false);
+
+                entity.Property(e => e.FechaCreacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.Property(e => e.FechaModificacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                // Relaciones con catálogos
+                entity.HasOne(v => v.Categoria)
+                    .WithMany()
+                    .HasForeignKey(v => v.CategoriaId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(v => v.Calidad)
+                    .WithMany()
+                    .HasForeignKey(v => v.CalidadId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(v => v.Destino)
+                    .WithMany()
+                    .HasForeignKey(v => v.DestinoId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(v => v.Combustible)
+                    .WithMany()
+                    .HasForeignKey(v => v.CombustibleId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                // Índices para mejorar performance
+                entity.HasIndex(e => e.Conmataut)
+                    .HasDatabaseName("IX_Vehiculos_Conmataut")
+                    .IsUnique();
+
+                entity.HasIndex(e => e.Conmaraut)
+                    .HasDatabaseName("IX_Vehiculos_Conmaraut");
+
+                entity.HasIndex(e => e.Conanioaut)
+                    .HasDatabaseName("IX_Vehiculos_Conanioaut");
+
+                entity.HasIndex(e => e.Conmotor)
+                    .HasDatabaseName("IX_Vehiculos_Conmotor");
+
+                entity.HasIndex(e => e.Conpadaut)
+                    .HasDatabaseName("IX_Vehiculos_Conpadaut");
+
+                entity.HasIndex(e => e.Conchasis)
+                    .HasDatabaseName("IX_Vehiculos_Conchasis");
+
+                entity.HasIndex(e => e.Activo)
+                    .HasDatabaseName("IX_Vehiculos_Activo");
+
+                entity.HasIndex(e => new { e.Activo, e.FechaCreacion })
+                    .HasDatabaseName("IX_Vehiculos_Activo_FechaCreacion");
+
+                // Índices para las relaciones FK
+                entity.HasIndex(e => e.CategoriaId)
+                    .HasDatabaseName("IX_Vehiculos_CategoriaId");
+
+                entity.HasIndex(e => e.CalidadId)
+                    .HasDatabaseName("IX_Vehiculos_CalidadId");
+
+                entity.HasIndex(e => e.DestinoId)
+                    .HasDatabaseName("IX_Vehiculos_DestinoId");
+
+                entity.HasIndex(e => e.CombustibleId)
+                    .HasDatabaseName("IX_Vehiculos_CombustibleId");
+
+                // Índice compuesto para búsquedas complejas
+                entity.HasIndex(e => new { e.Conmaraut, e.Conanioaut, e.Conmataut })
+                    .HasDatabaseName("IX_Vehiculos_Marca_Anio_Matricula");
             });
         }
 

@@ -192,7 +192,7 @@ namespace RegularizadorPolizas.Application.Services
                     Concomcorr = polizaOriginal.Concomcorr,
                     Conpadre = polizaOriginal.Id,
                     Ramo = polizaOriginal.Ramo,
-                    Com_alias = polizaOriginal.Com_alias,
+                    ComAlias = polizaOriginal.ComAlias,
                     Convig = "1",
                     Confchdes = DateTime.Now,
                     Confchhas = DateTime.Now.AddYears(1),

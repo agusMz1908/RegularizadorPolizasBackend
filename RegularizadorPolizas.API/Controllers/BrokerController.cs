@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
+using RegularizadorPolizas.Application.Services;
 
 namespace RegularizadorPolizas.API.Controllers
 {
@@ -10,11 +11,11 @@ namespace RegularizadorPolizas.API.Controllers
     [Authorize]
     public class BrokersController : ControllerBase
     {
-        private readonly IBrokerService _brokerService;
+        private readonly IHybridApiService _hybridApiService;
 
-        public BrokersController(IBrokerService brokerService)
+        public BrokersController(IHybridApiService hybridApiService)
         {
-            _brokerService = brokerService ?? throw new ArgumentNullException(nameof(brokerService));
+            _hybridApiService = hybridApiService ?? throw new ArgumentNullException(nameof(hybridApiService));
         }
 
         [HttpGet]
@@ -25,7 +26,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var brokers = await _brokerService.GetAllBrokersAsync();
+                var brokers = await _hybridApiService.GetAllBrokersAsync();
                 if (brokers == null || !brokers.Any())
                     return NotFound("No brokers found");
 
@@ -45,7 +46,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var brokers = await _brokerService.GetActiveBrokersAsync();
+                var brokers = await _hybridApiService.GetActiveBrokersAsync();
                 if (brokers == null || !brokers.Any())
                     return NotFound("No active brokers found");
 
@@ -64,7 +65,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var brokers = await _brokerService.GetBrokersForLookupAsync();
+                var brokers = await _hybridApiService.GetBrokersForLookupAsync();
                 return Ok(brokers);
             }
             catch (Exception ex)
@@ -80,7 +81,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var brokers = await _brokerService.GetActiveBrokersAsync();
+                var brokers = await _hybridApiService.GetActiveBrokersAsync();
                 var summary = brokers.Select(b => new BrokerSummaryDto
                 {
                     Id = b.Id,
@@ -107,7 +108,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var broker = await _brokerService.GetBrokerByIdAsync(id);
+                var broker = await _hybridApiService.GetBrokerAsync(id);
                 if (broker == null)
                     return NotFound($"Broker with ID {id} not found");
 
@@ -123,11 +124,11 @@ namespace RegularizadorPolizas.API.Controllers
         [ProducesResponseType(typeof(BrokerDto), 200)]
         [ProducesResponseType(404)]
         [ProducesResponseType(500)]
-        public async Task<ActionResult<BrokerDto>> GetBrokerByCode(string codigo)
+        public async Task<ActionResult<BrokerDto>> GetBrokerByCodigo(string codigo)
         {
             try
             {
-                var broker = await _brokerService.GetBrokerByCodigoAsync(codigo);
+                var broker = await _hybridApiService.GetBrokerByCodigoAsync(codigo);
                 if (broker == null)
                     return NotFound($"Broker with code '{codigo}' not found");
 
@@ -147,7 +148,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var broker = await _brokerService.GetBrokerByEmailAsync(email);
+                var broker = await _hybridApiService.GetBrokerByEmailAsync(email);
                 if (broker == null)
                     return NotFound($"Broker with email '{email}' not found");
 
@@ -159,6 +160,7 @@ namespace RegularizadorPolizas.API.Controllers
             }
         }
 
+
         [HttpGet("search")]
         [ProducesResponseType(typeof(IEnumerable<BrokerDto>), 200)]
         [ProducesResponseType(500)]
@@ -166,7 +168,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var brokers = await _brokerService.SearchBrokersAsync(searchTerm);
+                var brokers = await _hybridApiService.SearchBrokersAsync(searchTerm);
                 return Ok(brokers);
             }
             catch (Exception ex)
@@ -198,7 +200,7 @@ namespace RegularizadorPolizas.API.Controllers
                     Activo = true
                 };
 
-                var createdBroker = await _brokerService.CreateBrokerAsync(brokerDto);
+                var createdBroker = await _hybridApiService.CreateBrokerAsync(brokerDto);
                 return CreatedAtAction(nameof(GetBrokerById), new { id = createdBroker.Id }, createdBroker);
             }
             catch (ArgumentException ex)
@@ -222,7 +224,7 @@ namespace RegularizadorPolizas.API.Controllers
                 if (brokerDto == null)
                     return BadRequest("Broker data is null");
 
-                var createdBroker = await _brokerService.CreateBrokerAsync(brokerDto);
+                var createdBroker = await _hybridApiService.CreateBrokerAsync(brokerDto);
                 return CreatedAtAction(nameof(GetBrokerById), new { id = createdBroker.Id }, createdBroker);
             }
             catch (ArgumentException ex)
@@ -240,7 +242,7 @@ namespace RegularizadorPolizas.API.Controllers
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
         [ProducesResponseType(500)]
-        public async Task<IActionResult> UpdateBroker(int id, [FromBody] BrokerDto brokerDto)
+        public async Task<ActionResult> UpdateBroker(int id, [FromBody] BrokerDto brokerDto)
         {
             try
             {
@@ -248,18 +250,14 @@ namespace RegularizadorPolizas.API.Controllers
                     return BadRequest("Broker data is null");
 
                 if (id != brokerDto.Id)
-                    return BadRequest("Broker ID mismatch");
+                    return BadRequest("ID mismatch");
 
-                await _brokerService.UpdateBrokerAsync(brokerDto);
+                await _hybridApiService.UpdateBrokerAsync(brokerDto);
                 return NoContent();
             }
             catch (ArgumentException ex)
             {
                 return BadRequest(ex.Message);
-            }
-            catch (ApplicationException ex) when (ex.Message.Contains("not found"))
-            {
-                return NotFound(ex.Message);
             }
             catch (Exception ex)
             {
@@ -272,18 +270,14 @@ namespace RegularizadorPolizas.API.Controllers
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
         [ProducesResponseType(500)]
-        public async Task<IActionResult> DeleteBroker(int id)
+        public async Task<ActionResult> DeleteBroker(int id)
         {
             try
             {
-                await _brokerService.DeleteBrokerAsync(id);
+                await _hybridApiService.DeleteBrokerAsync(id);
                 return NoContent();
             }
-            catch (ApplicationException ex) when (ex.Message.Contains("not found"))
-            {
-                return NotFound(ex.Message);
-            }
-            catch (ApplicationException ex) when (ex.Message.Contains("Cannot delete"))
+            catch (ArgumentException ex)
             {
                 return BadRequest(ex.Message);
             }
@@ -300,7 +294,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var exists = await _brokerService.ExistsByCodigoAsync(codigo, excludeId);
+                var exists = await _hybridApiService.ExistsBrokerByCodigoAsync(codigo, excludeId);
                 return Ok(exists);
             }
             catch (Exception ex)
@@ -316,7 +310,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var exists = await _brokerService.ExistsByEmailAsync(email, excludeId);
+                var exists = await _hybridApiService.ExistsBrokerByEmailAsync(email, excludeId);
                 return Ok(exists);
             }
             catch (Exception ex)
@@ -332,7 +326,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var brokers = await _brokerService.GetActiveBrokersAsync();
+                var brokers = await _hybridApiService.GetActiveBrokersAsync();
                 var legacyFormat = brokers.Select(b => new
                 {
                     id = b.Id,
@@ -362,7 +356,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var broker = await _brokerService.GetBrokerByIdAsync(id);
+                var broker = await _hybridApiService.GetBrokerByIdAsync(id);
                 if (broker == null)
                     return NotFound($"Broker with ID {id} not found");
 
@@ -393,7 +387,7 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var brokers = await _brokerService.GetActiveBrokersAsync();
+                var brokers = await _hybridApiService.GetActiveBrokersAsync();
                 var brokersWithPhotos = brokers.Where(b => !string.IsNullOrEmpty(b.Foto));
                 return Ok(brokersWithPhotos);
             }
@@ -412,12 +406,12 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var broker = await _brokerService.GetBrokerByIdAsync(id);
+                var broker = await _hybridApiService.GetBrokerByIdAsync(id);
                 if (broker == null)
                     return NotFound($"Broker with ID {id} not found");
 
                 broker.Foto = photoUrl ?? string.Empty;
-                await _brokerService.UpdateBrokerAsync(broker);
+                await _hybridApiService.UpdateBrokerAsync(broker);
 
                 return NoContent();
             }

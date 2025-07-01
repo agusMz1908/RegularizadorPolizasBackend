@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using RegularizadorPolizas.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using RegularizadorPolizas.Infrastructure.Data;
 namespace RegularizadorPolizas.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250630185554_AddFase1VelneoEntidades16")]
+    partial class AddFase1VelneoEntidades16
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -298,60 +301,6 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     b.ToTable("AuditLogs");
                 });
 
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.AutorizaCliente", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("AutorizacionesDeDatos")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("Autorizado")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(false);
-
-                    b.Property<int>("Clientes")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("Fecha")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime>("FechaCreacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<DateTime>("FechaModificacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
-
-                    b.Property<string>("Observaciones")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AutorizacionesDeDatos")
-                        .HasDatabaseName("IX_AutorizacionesCliente_AutorizacionesDeDatos");
-
-                    b.HasIndex("Autorizado")
-                        .HasDatabaseName("IX_AutorizacionesCliente_Autorizado");
-
-                    b.HasIndex("Clientes")
-                        .HasDatabaseName("IX_AutorizacionesCliente_Clientes");
-
-                    b.HasIndex("Fecha")
-                        .HasDatabaseName("IX_AutorizacionesCliente_Fecha");
-
-                    b.ToTable("AutorizacionesCliente", (string)null);
-                });
-
             modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.AutorizacionDatos", b =>
                 {
                     b.Property<int>("Id")
@@ -534,57 +483,6 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     b.ToTable("Categorias");
                 });
 
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.CategoriaCliente", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("Activo")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true);
-
-                    b.Property<string>("Color")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
-
-                    b.Property<DateTime>("FechaCreacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<DateTime>("FechaModificacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<decimal>("ValMax")
-                        .HasColumnType("decimal(15,2)");
-
-                    b.Property<decimal>("ValMin")
-                        .HasColumnType("decimal(15,2)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Activo")
-                        .HasDatabaseName("IX_CategoriasCliente_Activo");
-
-                    b.HasIndex("Name")
-                        .IsUnique()
-                        .HasDatabaseName("IX_CategoriasCliente_Name");
-
-                    b.ToTable("CategoriasCliente", (string)null);
-                });
-
             modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.Client", b =>
                 {
                     b.Property<int>("Id")
@@ -594,9 +492,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<bool>("Activo")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true);
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<int?>("Altura")
                         .HasColumnType("int");
@@ -845,14 +741,10 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.Property<DateTime>("FechaCreacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<DateTime>("FechaModificacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int?>("Grupos_economicos")
                         .HasColumnType("int");
@@ -928,72 +820,16 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Activo")
-                        .HasDatabaseName("IX_Clients_Activo");
-
-                    b.HasIndex("Categorias_de_cliente");
-
                     b.HasIndex("Cliced")
                         .HasDatabaseName("IX_Clients_Cliced");
 
                     b.HasIndex("Cliemail")
                         .HasDatabaseName("IX_Clients_Cliemail");
 
-                    b.HasIndex("Clinom")
-                        .HasDatabaseName("IX_Clients_Nombre");
-
                     b.HasIndex("Cliruc")
                         .HasDatabaseName("IX_Clients_Cliruc");
 
-                    b.HasIndex("Grupos_economicos");
-
-                    b.HasIndex("Activo", "FechaCreacion")
-                        .HasDatabaseName("IX_Clients_Activo_FechaCreacion");
-
-                    b.HasIndex("Corrcod", "Subcorr")
-                        .HasDatabaseName("IX_Clients_Corredor");
-
                     b.ToTable("Clients");
-                });
-
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.Cobertura", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("Activo")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true);
-
-                    b.Property<string>("Cobdsc")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<DateTime>("FechaCreacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<DateTime>("FechaModificacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Activo")
-                        .HasDatabaseName("IX_Coberturas_Activo");
-
-                    b.HasIndex("Cobdsc")
-                        .IsUnique()
-                        .HasDatabaseName("IX_Coberturas_Cobdsc");
-
-                    b.ToTable("Coberturas", (string)null);
                 });
 
             modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.CoberturaBicicleta", b =>
@@ -1067,84 +903,6 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         .HasDatabaseName("IX_Combustibles_Name");
 
                     b.ToTable("Combustibles");
-                });
-
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.ComisionPorSeccion", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("Anios_d")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<int>("Anios_h")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<decimal>("Comi_bo")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(5,2)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<decimal>("Comipor")
-                        .HasColumnType("decimal(5,2)");
-
-                    b.Property<int>("Compania")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Detalle")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
-                    b.Property<DateTime>("FechaCreacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<DateTime>("FechaModificacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
-
-                    b.Property<string>("Opera_comi")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(10)
-                        .HasColumnType("varchar(10)")
-                        .HasDefaultValue("N");
-
-                    b.Property<int>("Productos_de_vida")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<int>("Seccion")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Tipos_de_contrato")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Compania")
-                        .HasDatabaseName("IX_ComisionesPorSeccion_Compania");
-
-                    b.HasIndex("Seccion")
-                        .HasDatabaseName("IX_ComisionesPorSeccion_Seccion");
-
-                    b.HasIndex("Compania", "Seccion")
-                        .HasDatabaseName("IX_ComisionesPorSeccion_Compania_Seccion");
-
-                    b.ToTable("ComisionesPorSeccion", (string)null);
                 });
 
             modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.Company", b =>
@@ -1271,194 +1029,6 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         .HasDatabaseName("IX_Companies_Codigo");
 
                     b.ToTable("Companies");
-                });
-
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.Contacto", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("CargoRelacion")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<string>("Cel")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("varchar(30)");
-
-                    b.Property<int>("Clientes")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Domicilio")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
-                    b.Property<DateTime>("FechaCreacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<DateTime>("FechaModificacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
-
-                    b.Property<string>("Mail")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<string>("Nombre")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<string>("Obs")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Cel")
-                        .HasDatabaseName("IX_Contactos_Cel");
-
-                    b.HasIndex("Clientes")
-                        .HasDatabaseName("IX_Contactos_Clientes");
-
-                    b.HasIndex("Mail")
-                        .HasDatabaseName("IX_Contactos_Mail");
-
-                    b.HasIndex("Nombre")
-                        .HasDatabaseName("IX_Contactos_Nombre");
-
-                    b.ToTable("Contactos", (string)null);
-                });
-
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.ContactoCompania", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("Companias")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("FechaCreacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<DateTime>("FechaModificacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
-
-                    b.Property<string>("Mail")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<string>("Telefono")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("varchar(30)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Companias")
-                        .HasDatabaseName("IX_ContactosCompania_Companias");
-
-                    b.HasIndex("Mail")
-                        .HasDatabaseName("IX_ContactosCompania_Mail");
-
-                    b.HasIndex("Name")
-                        .HasDatabaseName("IX_ContactosCompania_Name");
-
-                    b.ToTable("ContactosCompania", (string)null);
-                });
-
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.CuentaBancaria", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("Clientes")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("FechaCreacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<DateTime>("FechaModificacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
-
-                    b.Property<string>("MonedaCuenta")
-                        .IsRequired()
-                        .HasMaxLength(5)
-                        .HasColumnType("varchar(5)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<string>("Numero")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<string>("Subcuenta")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
-
-                    b.Property<string>("Sucursal")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("varchar(10)");
-
-                    b.Property<string>("Tipo")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("varchar(10)");
-
-                    b.Property<string>("Titular")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Clientes")
-                        .HasDatabaseName("IX_CuentasBancarias_Clientes");
-
-                    b.HasIndex("Name")
-                        .HasDatabaseName("IX_CuentasBancarias_Name");
-
-                    b.HasIndex("Numero")
-                        .HasDatabaseName("IX_CuentasBancarias_Numero");
-
-                    b.ToTable("CuentasBancarias", (string)null);
                 });
 
             modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.Departamento", b =>
@@ -1635,90 +1205,6 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     b.ToTable("FormasPago");
                 });
 
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.GrupoEconomico", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("Activo")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true);
-
-                    b.Property<DateTime>("FechaCreacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<DateTime>("FechaModificacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Activo")
-                        .HasDatabaseName("IX_GruposEconomicos_Activo");
-
-                    b.HasIndex("Name")
-                        .IsUnique()
-                        .HasDatabaseName("IX_GruposEconomicos_Name");
-
-                    b.ToTable("GruposEconomicos", (string)null);
-                });
-
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.ImpuestoPorSeccion", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("Companias")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("FechaCreacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<DateTime>("FechaModificacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
-
-                    b.Property<int>("Impuestos")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Secciones")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Companias")
-                        .HasDatabaseName("IX_ImpuestosPorSeccion_Companias");
-
-                    b.HasIndex("Impuestos")
-                        .HasDatabaseName("IX_ImpuestosPorSeccion_Impuestos");
-
-                    b.HasIndex("Secciones")
-                        .HasDatabaseName("IX_ImpuestosPorSeccion_Secciones");
-
-                    b.HasIndex("Companias", "Secciones", "Impuestos")
-                        .HasDatabaseName("IX_ImpuestosPorSeccion_Companias_Secciones_Impuestos");
-
-                    b.ToTable("ImpuestosPorSeccion", (string)null);
-                });
-
             modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.MotivoNoRenovacion", b =>
                 {
                     b.Property<int>("Id")
@@ -1751,51 +1237,6 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         .HasDatabaseName("IX_MotivosNoRenovacion_Name");
 
                     b.ToTable("MotivosNoRenovacion");
-                });
-
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.NumeroUtil", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("Companias")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("FechaCreacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<DateTime>("FechaModificacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<string>("Telefono")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("varchar(30)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Companias")
-                        .HasDatabaseName("IX_NumerosUtiles_Companias");
-
-                    b.HasIndex("Name")
-                        .HasDatabaseName("IX_NumerosUtiles_Name");
-
-                    b.HasIndex("Telefono")
-                        .HasDatabaseName("IX_NumerosUtiles_Telefono");
-
-                    b.ToTable("NumerosUtiles", (string)null);
                 });
 
             modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.Permission", b =>
@@ -1853,7 +1294,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 1,
                             Action = "Read",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "View clients",
                             IsActive = true,
                             Name = "clients.read",
@@ -1863,7 +1304,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 2,
                             Action = "Create",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Create clients",
                             IsActive = true,
                             Name = "clients.create",
@@ -1873,7 +1314,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 3,
                             Action = "Update",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Update clients",
                             IsActive = true,
                             Name = "clients.update",
@@ -1883,7 +1324,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 4,
                             Action = "Delete",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Delete clients",
                             IsActive = true,
                             Name = "clients.delete",
@@ -1893,7 +1334,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 5,
                             Action = "Search",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Search clients",
                             IsActive = true,
                             Name = "clients.search",
@@ -1903,7 +1344,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 6,
                             Action = "Read",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "View policies",
                             IsActive = true,
                             Name = "polizas.read",
@@ -1913,7 +1354,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 7,
                             Action = "Create",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Create policies",
                             IsActive = true,
                             Name = "polizas.create",
@@ -1923,7 +1364,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 8,
                             Action = "Update",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Update policies",
                             IsActive = true,
                             Name = "polizas.update",
@@ -1933,7 +1374,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 9,
                             Action = "Delete",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Delete policies",
                             IsActive = true,
                             Name = "polizas.delete",
@@ -1943,7 +1384,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 10,
                             Action = "Renew",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Renew policies",
                             IsActive = true,
                             Name = "polizas.renew",
@@ -1953,7 +1394,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 11,
                             Action = "Search",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Search policies",
                             IsActive = true,
                             Name = "polizas.search",
@@ -1963,7 +1404,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 12,
                             Action = "Read",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "View documents",
                             IsActive = true,
                             Name = "documents.read",
@@ -1973,7 +1414,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 13,
                             Action = "Upload",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Upload documents",
                             IsActive = true,
                             Name = "documents.upload",
@@ -1983,7 +1424,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 14,
                             Action = "Process",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Process documents",
                             IsActive = true,
                             Name = "documents.process",
@@ -1993,7 +1434,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 15,
                             Action = "Delete",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Delete documents",
                             IsActive = true,
                             Name = "documents.delete",
@@ -2003,7 +1444,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 16,
                             Action = "Read",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "View brokers",
                             IsActive = true,
                             Name = "brokers.read",
@@ -2013,7 +1454,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 17,
                             Action = "Create",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Create brokers",
                             IsActive = true,
                             Name = "brokers.create",
@@ -2023,7 +1464,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 18,
                             Action = "Update",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Update brokers",
                             IsActive = true,
                             Name = "brokers.update",
@@ -2033,7 +1474,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 19,
                             Action = "Delete",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Delete brokers",
                             IsActive = true,
                             Name = "brokers.delete",
@@ -2043,7 +1484,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 20,
                             Action = "Read",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "View companies",
                             IsActive = true,
                             Name = "companies.read",
@@ -2053,7 +1494,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 21,
                             Action = "Create",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Create companies",
                             IsActive = true,
                             Name = "companies.create",
@@ -2063,7 +1504,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 22,
                             Action = "Update",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Update companies",
                             IsActive = true,
                             Name = "companies.update",
@@ -2073,7 +1514,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 23,
                             Action = "Delete",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Delete companies",
                             IsActive = true,
                             Name = "companies.delete",
@@ -2083,7 +1524,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 24,
                             Action = "Read",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "View currencies",
                             IsActive = true,
                             Name = "currencies.read",
@@ -2093,7 +1534,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 25,
                             Action = "Create",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Create currencies",
                             IsActive = true,
                             Name = "currencies.create",
@@ -2103,7 +1544,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 26,
                             Action = "Update",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Update currencies",
                             IsActive = true,
                             Name = "currencies.update",
@@ -2113,7 +1554,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 27,
                             Action = "Delete",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Delete currencies",
                             IsActive = true,
                             Name = "currencies.delete",
@@ -2123,7 +1564,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 28,
                             Action = "Read",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "View renovations",
                             IsActive = true,
                             Name = "renovations.read",
@@ -2133,7 +1574,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 29,
                             Action = "Create",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Create renovations",
                             IsActive = true,
                             Name = "renovations.create",
@@ -2143,7 +1584,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 30,
                             Action = "Process",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Process renovations",
                             IsActive = true,
                             Name = "renovations.process",
@@ -2153,7 +1594,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 31,
                             Action = "Cancel",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Cancel renovations",
                             IsActive = true,
                             Name = "renovations.cancel",
@@ -2163,7 +1604,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 32,
                             Action = "ManageUsers",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Manage users",
                             IsActive = true,
                             Name = "admin.users.manage",
@@ -2173,7 +1614,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 33,
                             Action = "ManageRoles",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Manage roles",
                             IsActive = true,
                             Name = "admin.roles.manage",
@@ -2183,7 +1624,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 34,
                             Action = "ManagePermissions",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Manage permissions",
                             IsActive = true,
                             Name = "admin.permissions.manage",
@@ -2193,7 +1634,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 35,
                             Action = "ReadAudit",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "View audit logs",
                             IsActive = true,
                             Name = "admin.audit.read",
@@ -2203,7 +1644,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 36,
                             Action = "SystemConfig",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "System configuration",
                             IsActive = true,
                             Name = "admin.system.config",
@@ -2213,7 +1654,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 37,
                             Action = "Read",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "View reports",
                             IsActive = true,
                             Name = "reports.read",
@@ -2223,7 +1664,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         {
                             Id = 38,
                             Action = "Export",
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Export reports",
                             IsActive = true,
                             Name = "reports.export",
@@ -2245,7 +1686,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     b.Property<bool>("Aereo")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<int?>("AppId")
+                    b.Property<int?>("App_id")
                         .HasColumnType("int");
 
                     b.Property<int?>("Asignado")
@@ -2257,7 +1698,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     b.Property<int?>("Cancecod")
                         .HasColumnType("int");
 
-                    b.Property<int?>("CatCli")
+                    b.Property<int?>("Cat_cli")
                         .HasColumnType("int");
 
                     b.Property<int?>("Catdsc")
@@ -2282,21 +1723,21 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     b.Property<decimal?>("Clipcupfia")
                         .HasColumnType("decimal(15,2)");
 
-                    b.Property<int?>("CoberturasBicicleta")
+                    b.Property<int?>("Coberturas_bicicleta")
                         .HasColumnType("int");
 
-                    b.Property<string>("ComAlias")
+                    b.Property<string>("Com_alias")
                         .IsRequired()
                         .HasMaxLength(40)
                         .HasColumnType("varchar(40)");
 
-                    b.Property<int?>("ComBo")
+                    b.Property<int?>("Com_bo")
                         .HasColumnType("int");
 
-                    b.Property<int?>("ComBro")
+                    b.Property<int?>("Com_bro")
                         .HasColumnType("int");
 
-                    b.Property<int?>("ComSubCorr")
+                    b.Property<int?>("Com_sub_corr")
                         .HasColumnType("int");
 
                     b.Property<string>("Combustibles")
@@ -2485,8 +1926,8 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
 
                     b.Property<string>("Condetail")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
 
                     b.Property<string>("Condetemb")
                         .IsRequired()
@@ -2533,9 +1974,6 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
 
                     b.Property<DateTime?>("Confchhas")
                         .HasColumnType("datetime(6)");
-
-                    b.Property<decimal?>("ConfianzaIA")
-                        .HasColumnType("decimal(5,2)");
 
                     b.Property<int?>("Conficto")
                         .HasColumnType("int");
@@ -2894,7 +2332,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     b.Property<bool>("Granizo")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<string>("IdOrden")
+                    b.Property<string>("Idorden")
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("varchar(30)");
@@ -2905,13 +2343,13 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     b.Property<DateTime?>("Ingresado")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<DateTime?>("LastUpdate")
+                    b.Property<DateTime?>("Last_update")
                         .HasColumnType("datetime(6)");
 
                     b.Property<bool>("Leer")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<bool>("LeerObs")
+                    b.Property<bool>("Leer_obs")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<int?>("Lincarta")
@@ -2932,16 +2370,16 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     b.Property<bool>("Maritimo")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<int?>("MaxAereo")
+                    b.Property<int?>("Max_aereo")
                         .HasColumnType("int");
 
-                    b.Property<int?>("MaxMar")
+                    b.Property<int?>("Max_mar")
                         .HasColumnType("int");
 
-                    b.Property<int?>("MaxTerrestre")
+                    b.Property<int?>("Max_terrestre")
                         .HasColumnType("int");
 
-                    b.Property<bool>("MisRie")
+                    b.Property<bool>("Mis_rie")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<int?>("Modcod")
@@ -2950,12 +2388,12 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     b.Property<int?>("Moncod")
                         .HasColumnType("int");
 
-                    b.Property<string>("MotNoRen")
+                    b.Property<string>("Mot_no_ren")
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("varchar(30)");
 
-                    b.Property<int?>("MotivosNoRenovacion")
+                    b.Property<int?>("Motivos_no_renovacion")
                         .HasColumnType("int");
 
                     b.Property<string>("Observaciones")
@@ -2965,24 +2403,19 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     b.Property<bool>("Offshore")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<string>("OrigenDocumento")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
                     b.Property<int?>("Otrcorrcod")
                         .HasColumnType("int");
 
                     b.Property<int?>("Padreaux")
                         .HasColumnType("int");
 
-                    b.Property<int?>("PagosEfectivo")
+                    b.Property<int?>("Pagos_efectivo")
                         .HasColumnType("int");
 
                     b.Property<bool>("Procesado")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<int?>("ProductosDeVida")
+                    b.Property<int?>("Productos_de_vida")
                         .HasColumnType("int");
 
                     b.Property<string>("Ramo")
@@ -2998,7 +2431,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     b.Property<int?>("Seccod")
                         .HasColumnType("int");
 
-                    b.Property<bool>("SobRecib")
+                    b.Property<bool>("Sob_recib")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Sublistas")
@@ -3014,15 +2447,10 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     b.Property<bool>("Terrestre")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<bool>("TieneAlarma")
+                    b.Property<bool>("Tiene_alarma")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<string>("TipoOperacion")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
-
-                    b.Property<int?>("TiposDeAlarma")
+                    b.Property<int?>("Tipos_de_alarma")
                         .HasColumnType("int");
 
                     b.Property<int?>("Tpoconcod")
@@ -3039,17 +2467,14 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     b.Property<int?>("Tpovivcod")
                         .HasColumnType("int");
 
-                    b.Property<bool>("TransitoInterno")
+                    b.Property<bool>("Transito_interno")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<DateTime?>("UpdateDate")
+                    b.Property<DateTime?>("Update_date")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<bool>("VarUbi")
+                    b.Property<bool>("Var_ubi")
                         .HasColumnType("tinyint(1)");
-
-                    b.Property<int?>("VehiculoId")
-                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -3072,8 +2497,6 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     b.HasIndex("Corrnom");
 
                     b.HasIndex("Moncod");
-
-                    b.HasIndex("VehiculoId");
 
                     b.ToTable("Polizas");
                 });
@@ -3225,56 +2648,56 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Full system access",
                             IsActive = true,
                             Name = "SuperAdmin",
-                            UpdatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229)
+                            UpdatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945)
                         },
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Administrative access",
                             IsActive = true,
                             Name = "Admin",
-                            UpdatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229)
+                            UpdatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945)
                         },
                         new
                         {
                             Id = 3,
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Management access",
                             IsActive = true,
                             Name = "Manager",
-                            UpdatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229)
+                            UpdatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945)
                         },
                         new
                         {
                             Id = 4,
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Operational access",
                             IsActive = true,
                             Name = "Operator",
-                            UpdatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229)
+                            UpdatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945)
                         },
                         new
                         {
                             Id = 5,
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Read-only access",
                             IsActive = true,
                             Name = "Viewer",
-                            UpdatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229)
+                            UpdatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945)
                         },
                         new
                         {
                             Id = 6,
-                            CreatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            CreatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             Description = "Client portal access",
                             IsActive = true,
                             Name = "Client",
-                            UpdatedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229)
+                            UpdatedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945)
                         });
                 });
 
@@ -3325,7 +2748,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 1,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 1,
                             RoleId = 1
@@ -3333,7 +2756,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 2,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 2,
                             RoleId = 1
@@ -3341,7 +2764,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 3,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 3,
                             RoleId = 1
@@ -3349,7 +2772,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 4,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 4,
                             RoleId = 1
@@ -3357,7 +2780,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 5,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 5,
                             RoleId = 1
@@ -3365,7 +2788,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 6,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 6,
                             RoleId = 1
@@ -3373,7 +2796,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 7,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 7,
                             RoleId = 1
@@ -3381,7 +2804,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 8,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 8,
                             RoleId = 1
@@ -3389,7 +2812,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 9,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 9,
                             RoleId = 1
@@ -3397,7 +2820,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 10,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 10,
                             RoleId = 1
@@ -3405,7 +2828,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 11,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 11,
                             RoleId = 1
@@ -3413,7 +2836,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 12,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 12,
                             RoleId = 1
@@ -3421,7 +2844,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 13,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 13,
                             RoleId = 1
@@ -3429,7 +2852,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 14,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 14,
                             RoleId = 1
@@ -3437,7 +2860,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 15,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 15,
                             RoleId = 1
@@ -3445,7 +2868,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 16,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 16,
                             RoleId = 1
@@ -3453,7 +2876,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 17,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 17,
                             RoleId = 1
@@ -3461,7 +2884,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 18,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 18,
                             RoleId = 1
@@ -3469,7 +2892,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 19,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 19,
                             RoleId = 1
@@ -3477,7 +2900,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 20,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 20,
                             RoleId = 1
@@ -3485,7 +2908,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 21,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 21,
                             RoleId = 1
@@ -3493,7 +2916,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 22,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 22,
                             RoleId = 1
@@ -3501,7 +2924,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 23,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 23,
                             RoleId = 1
@@ -3509,7 +2932,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 24,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 24,
                             RoleId = 1
@@ -3517,7 +2940,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 25,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 25,
                             RoleId = 1
@@ -3525,7 +2948,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 26,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 26,
                             RoleId = 1
@@ -3533,7 +2956,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 27,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 27,
                             RoleId = 1
@@ -3541,7 +2964,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 28,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 28,
                             RoleId = 1
@@ -3549,7 +2972,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 29,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 29,
                             RoleId = 1
@@ -3557,7 +2980,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 30,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 30,
                             RoleId = 1
@@ -3565,7 +2988,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 31,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 31,
                             RoleId = 1
@@ -3573,7 +2996,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 32,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 32,
                             RoleId = 1
@@ -3581,7 +3004,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 33,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 33,
                             RoleId = 1
@@ -3589,7 +3012,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 34,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 34,
                             RoleId = 1
@@ -3597,7 +3020,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 35,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 35,
                             RoleId = 1
@@ -3605,7 +3028,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 36,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 36,
                             RoleId = 1
@@ -3613,7 +3036,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 37,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 37,
                             RoleId = 1
@@ -3621,7 +3044,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 38,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 38,
                             RoleId = 1
@@ -3629,7 +3052,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 39,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 1,
                             RoleId = 2
@@ -3637,7 +3060,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 40,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 2,
                             RoleId = 2
@@ -3645,7 +3068,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 41,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 3,
                             RoleId = 2
@@ -3653,7 +3076,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 42,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 4,
                             RoleId = 2
@@ -3661,7 +3084,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 43,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 5,
                             RoleId = 2
@@ -3669,7 +3092,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 44,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 6,
                             RoleId = 2
@@ -3677,7 +3100,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 45,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 7,
                             RoleId = 2
@@ -3685,7 +3108,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 46,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 8,
                             RoleId = 2
@@ -3693,7 +3116,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 47,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 9,
                             RoleId = 2
@@ -3701,7 +3124,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 48,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 10,
                             RoleId = 2
@@ -3709,7 +3132,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 49,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 11,
                             RoleId = 2
@@ -3717,7 +3140,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 50,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 12,
                             RoleId = 2
@@ -3725,7 +3148,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 51,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 13,
                             RoleId = 2
@@ -3733,7 +3156,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 52,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 14,
                             RoleId = 2
@@ -3741,7 +3164,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 53,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 15,
                             RoleId = 2
@@ -3749,7 +3172,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 54,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 16,
                             RoleId = 2
@@ -3757,7 +3180,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 55,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 17,
                             RoleId = 2
@@ -3765,7 +3188,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 56,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 18,
                             RoleId = 2
@@ -3773,7 +3196,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 57,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 19,
                             RoleId = 2
@@ -3781,7 +3204,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 58,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 20,
                             RoleId = 2
@@ -3789,7 +3212,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 59,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 21,
                             RoleId = 2
@@ -3797,7 +3220,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 60,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 22,
                             RoleId = 2
@@ -3805,7 +3228,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 61,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 23,
                             RoleId = 2
@@ -3813,7 +3236,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 62,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 24,
                             RoleId = 2
@@ -3821,7 +3244,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 63,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 25,
                             RoleId = 2
@@ -3829,7 +3252,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 64,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 26,
                             RoleId = 2
@@ -3837,7 +3260,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 65,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 27,
                             RoleId = 2
@@ -3845,7 +3268,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 66,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 28,
                             RoleId = 2
@@ -3853,7 +3276,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 67,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 29,
                             RoleId = 2
@@ -3861,7 +3284,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 68,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 30,
                             RoleId = 2
@@ -3869,7 +3292,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 69,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 31,
                             RoleId = 2
@@ -3877,7 +3300,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 70,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 32,
                             RoleId = 2
@@ -3885,7 +3308,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 71,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 33,
                             RoleId = 2
@@ -3893,7 +3316,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 72,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 34,
                             RoleId = 2
@@ -3901,7 +3324,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 73,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 35,
                             RoleId = 2
@@ -3909,7 +3332,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 74,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 37,
                             RoleId = 2
@@ -3917,7 +3340,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 75,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 38,
                             RoleId = 2
@@ -3925,7 +3348,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 76,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 1,
                             RoleId = 3
@@ -3933,7 +3356,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 77,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 2,
                             RoleId = 3
@@ -3941,7 +3364,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 78,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 3,
                             RoleId = 3
@@ -3949,7 +3372,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 79,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 5,
                             RoleId = 3
@@ -3957,7 +3380,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 80,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 6,
                             RoleId = 3
@@ -3965,7 +3388,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 81,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 7,
                             RoleId = 3
@@ -3973,7 +3396,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 82,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 8,
                             RoleId = 3
@@ -3981,7 +3404,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 83,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 10,
                             RoleId = 3
@@ -3989,7 +3412,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 84,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 11,
                             RoleId = 3
@@ -3997,7 +3420,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 85,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 12,
                             RoleId = 3
@@ -4005,7 +3428,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 86,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 13,
                             RoleId = 3
@@ -4013,7 +3436,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 87,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 14,
                             RoleId = 3
@@ -4021,7 +3444,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 88,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 16,
                             RoleId = 3
@@ -4029,7 +3452,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 89,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 17,
                             RoleId = 3
@@ -4037,7 +3460,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 90,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 18,
                             RoleId = 3
@@ -4045,7 +3468,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 91,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 20,
                             RoleId = 3
@@ -4053,7 +3476,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 92,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 21,
                             RoleId = 3
@@ -4061,7 +3484,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 93,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 22,
                             RoleId = 3
@@ -4069,7 +3492,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 94,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 24,
                             RoleId = 3
@@ -4077,7 +3500,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 95,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 25,
                             RoleId = 3
@@ -4085,7 +3508,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 96,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 26,
                             RoleId = 3
@@ -4093,7 +3516,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 97,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 28,
                             RoleId = 3
@@ -4101,7 +3524,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 98,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 29,
                             RoleId = 3
@@ -4109,7 +3532,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 99,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 30,
                             RoleId = 3
@@ -4117,7 +3540,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 100,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 37,
                             RoleId = 3
@@ -4125,7 +3548,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 101,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 1,
                             RoleId = 4
@@ -4133,7 +3556,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 102,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 5,
                             RoleId = 4
@@ -4141,7 +3564,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 103,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 6,
                             RoleId = 4
@@ -4149,7 +3572,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 104,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 7,
                             RoleId = 4
@@ -4157,7 +3580,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 105,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 8,
                             RoleId = 4
@@ -4165,7 +3588,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 106,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 11,
                             RoleId = 4
@@ -4173,7 +3596,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 107,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 12,
                             RoleId = 4
@@ -4181,7 +3604,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 108,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 13,
                             RoleId = 4
@@ -4189,7 +3612,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 109,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 16,
                             RoleId = 4
@@ -4197,7 +3620,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 110,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 17,
                             RoleId = 4
@@ -4205,7 +3628,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 111,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 20,
                             RoleId = 4
@@ -4213,7 +3636,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 112,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 24,
                             RoleId = 4
@@ -4221,7 +3644,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 113,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 28,
                             RoleId = 4
@@ -4229,7 +3652,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 114,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 29,
                             RoleId = 4
@@ -4237,7 +3660,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 115,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 1,
                             RoleId = 5
@@ -4245,7 +3668,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 116,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 5,
                             RoleId = 5
@@ -4253,7 +3676,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 117,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 6,
                             RoleId = 5
@@ -4261,7 +3684,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 118,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 11,
                             RoleId = 5
@@ -4269,7 +3692,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 119,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 12,
                             RoleId = 5
@@ -4277,7 +3700,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 120,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 16,
                             RoleId = 5
@@ -4285,7 +3708,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 121,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 20,
                             RoleId = 5
@@ -4293,7 +3716,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 122,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 24,
                             RoleId = 5
@@ -4301,7 +3724,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 123,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 28,
                             RoleId = 5
@@ -4309,7 +3732,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 124,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 37,
                             RoleId = 5
@@ -4317,7 +3740,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 125,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 6,
                             RoleId = 6
@@ -4325,7 +3748,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 126,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 12,
                             RoleId = 6
@@ -4333,7 +3756,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 127,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 28,
                             RoleId = 6
@@ -4341,7 +3764,7 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 128,
-                            GrantedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            GrantedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             PermissionId = 29,
                             RoleId = 6
@@ -4462,75 +3885,6 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         .HasDatabaseName("IX_Talleres_Telefono");
 
                     b.ToTable("Talleres");
-                });
-
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.Tarjeta", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("Clientes")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Con")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Control")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("varchar(10)");
-
-                    b.Property<int>("Dato")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Emisor")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<DateTime>("FechaCreacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<DateTime>("FechaModificacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<string>("Numero")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<string>("Titular")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<DateTime>("Vencimiento")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Clientes")
-                        .HasDatabaseName("IX_Tarjetas_Clientes");
-
-                    b.HasIndex("Emisor")
-                        .HasDatabaseName("IX_Tarjetas_Emisor");
-
-                    b.HasIndex("Vencimiento")
-                        .HasDatabaseName("IX_Tarjetas_Vencimiento");
-
-                    b.ToTable("Tarjetas", (string)null);
                 });
 
             modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.TipoAlarma", b =>
@@ -4781,204 +4135,11 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         new
                         {
                             Id = 1,
-                            AssignedAt = new DateTime(2025, 7, 1, 13, 7, 21, 636, DateTimeKind.Utc).AddTicks(5229),
+                            AssignedAt = new DateTime(2025, 6, 30, 18, 55, 53, 773, DateTimeKind.Utc).AddTicks(2945),
                             IsActive = true,
                             RoleId = 1,
                             UserId = 1
                         });
-                });
-
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.Vehiculo", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("Activo")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true);
-
-                    b.Property<int?>("Caldsc")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("CalidadId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("Catdsc")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("CategoriaId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("CombustibleId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Combustibles")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<int?>("Conanioaut")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("Conbonant")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("Conbonnsin")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("Concapaut")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("Concaraut")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Conchasis")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("varchar(30)");
-
-                    b.Property<int?>("Conclaaut")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("Concodrev")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("Condedaut")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Condetail")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<int?>("Conficto")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Conmaraut")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
-
-                    b.Property<string>("Conmataut")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("varchar(30)");
-
-                    b.Property<string>("Conmatpar")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("varchar(80)");
-
-                    b.Property<string>("Conmatte")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("varchar(80)");
-
-                    b.Property<string>("Conmotor")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("varchar(30)");
-
-                    b.Property<string>("Conpadaut")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("varchar(30)");
-
-                    b.Property<int?>("Conresciv")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Contipoemp")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("varchar(80)");
-
-                    b.Property<string>("Contpocob")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("varchar(80)");
-
-                    b.Property<int?>("CreadoPor")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("Desdsc")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("DestinoId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("FechaCreacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<DateTime>("FechaModificacion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
-
-                    b.Property<bool>("Granizo")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(false);
-
-                    b.Property<int?>("ModificadoPor")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("TieneAlarma")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(false);
-
-                    b.Property<int?>("TiposDeAlarma")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Activo")
-                        .HasDatabaseName("IX_Vehiculos_Activo");
-
-                    b.HasIndex("CalidadId")
-                        .HasDatabaseName("IX_Vehiculos_CalidadId");
-
-                    b.HasIndex("CategoriaId")
-                        .HasDatabaseName("IX_Vehiculos_CategoriaId");
-
-                    b.HasIndex("CombustibleId")
-                        .HasDatabaseName("IX_Vehiculos_CombustibleId");
-
-                    b.HasIndex("Conanioaut")
-                        .HasDatabaseName("IX_Vehiculos_Conanioaut");
-
-                    b.HasIndex("Conchasis")
-                        .HasDatabaseName("IX_Vehiculos_Conchasis");
-
-                    b.HasIndex("Conmaraut")
-                        .HasDatabaseName("IX_Vehiculos_Conmaraut");
-
-                    b.HasIndex("Conmataut")
-                        .IsUnique()
-                        .HasDatabaseName("IX_Vehiculos_Conmataut");
-
-                    b.HasIndex("Conmotor")
-                        .HasDatabaseName("IX_Vehiculos_Conmotor");
-
-                    b.HasIndex("Conpadaut")
-                        .HasDatabaseName("IX_Vehiculos_Conpadaut");
-
-                    b.HasIndex("DestinoId")
-                        .HasDatabaseName("IX_Vehiculos_DestinoId");
-
-                    b.HasIndex("Activo", "FechaCreacion")
-                        .HasDatabaseName("IX_Vehiculos_Activo_FechaCreacion");
-
-                    b.HasIndex("Conmaraut", "Conanioaut", "Conmataut")
-                        .HasDatabaseName("IX_Vehiculos_Marca_Anio_Matricula");
-
-                    b.ToTable("Vehiculos", (string)null);
                 });
 
             modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.AuditLog", b =>
@@ -4989,124 +4150,6 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.AutorizaCliente", b =>
-                {
-                    b.HasOne("RegularizadorPolizas.Domain.Entities.AutorizacionDatos", "AutorizacionDatos")
-                        .WithMany()
-                        .HasForeignKey("AutorizacionesDeDatos")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("RegularizadorPolizas.Domain.Entities.Client", "Cliente")
-                        .WithMany("AutorizacionesCliente")
-                        .HasForeignKey("Clientes")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("AutorizacionDatos");
-
-                    b.Navigation("Cliente");
-                });
-
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.Client", b =>
-                {
-                    b.HasOne("RegularizadorPolizas.Domain.Entities.CategoriaCliente", "CategoriaCliente")
-                        .WithMany("Clientes")
-                        .HasForeignKey("Categorias_de_cliente")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("RegularizadorPolizas.Domain.Entities.GrupoEconomico", "GrupoEconomico")
-                        .WithMany("Clientes")
-                        .HasForeignKey("Grupos_economicos")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("CategoriaCliente");
-
-                    b.Navigation("GrupoEconomico");
-                });
-
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.ComisionPorSeccion", b =>
-                {
-                    b.HasOne("RegularizadorPolizas.Domain.Entities.Company", "Company")
-                        .WithMany()
-                        .HasForeignKey("Compania")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("RegularizadorPolizas.Domain.Entities.Seccion", "SeccionEntity")
-                        .WithMany()
-                        .HasForeignKey("Seccion")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Company");
-
-                    b.Navigation("SeccionEntity");
-                });
-
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.Contacto", b =>
-                {
-                    b.HasOne("RegularizadorPolizas.Domain.Entities.Client", "Cliente")
-                        .WithMany("Contactos")
-                        .HasForeignKey("Clientes")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Cliente");
-                });
-
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.ContactoCompania", b =>
-                {
-                    b.HasOne("RegularizadorPolizas.Domain.Entities.Company", "Company")
-                        .WithMany()
-                        .HasForeignKey("Companias")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Company");
-                });
-
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.CuentaBancaria", b =>
-                {
-                    b.HasOne("RegularizadorPolizas.Domain.Entities.Client", "Cliente")
-                        .WithMany("CuentasBancarias")
-                        .HasForeignKey("Clientes")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Cliente");
-                });
-
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.ImpuestoPorSeccion", b =>
-                {
-                    b.HasOne("RegularizadorPolizas.Domain.Entities.Company", "Company")
-                        .WithMany()
-                        .HasForeignKey("Companias")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("RegularizadorPolizas.Domain.Entities.Seccion", "Seccion")
-                        .WithMany()
-                        .HasForeignKey("Secciones")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Company");
-
-                    b.Navigation("Seccion");
-                });
-
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.NumeroUtil", b =>
-                {
-                    b.HasOne("RegularizadorPolizas.Domain.Entities.Company", "Company")
-                        .WithMany()
-                        .HasForeignKey("Companias")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Company");
                 });
 
             modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.Poliza", b =>
@@ -5135,10 +4178,6 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                         .WithMany("Polizas")
                         .HasForeignKey("Moncod")
                         .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("RegularizadorPolizas.Domain.Entities.Vehiculo", null)
-                        .WithMany("Contratos")
-                        .HasForeignKey("VehiculoId");
 
                     b.Navigation("Broker");
 
@@ -5219,17 +4258,6 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     b.Navigation("Role");
                 });
 
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.Tarjeta", b =>
-                {
-                    b.HasOne("RegularizadorPolizas.Domain.Entities.Client", "Cliente")
-                        .WithMany("Tarjetas")
-                        .HasForeignKey("Clientes")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Cliente");
-                });
-
             modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.UserRole", b =>
                 {
                     b.HasOne("RegularizadorPolizas.Domain.Entities.User", "AssignedByUser")
@@ -5256,37 +4284,6 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.Vehiculo", b =>
-                {
-                    b.HasOne("RegularizadorPolizas.Domain.Entities.Calidad", "Calidad")
-                        .WithMany()
-                        .HasForeignKey("CalidadId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("RegularizadorPolizas.Domain.Entities.Categoria", "Categoria")
-                        .WithMany()
-                        .HasForeignKey("CategoriaId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("RegularizadorPolizas.Domain.Entities.Combustible", "Combustible")
-                        .WithMany()
-                        .HasForeignKey("CombustibleId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("RegularizadorPolizas.Domain.Entities.Destino", "Destino")
-                        .WithMany()
-                        .HasForeignKey("DestinoId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Calidad");
-
-                    b.Navigation("Categoria");
-
-                    b.Navigation("Combustible");
-
-                    b.Navigation("Destino");
-                });
-
             modelBuilder.Entity("Currency", b =>
                 {
                     b.Navigation("Polizas");
@@ -5297,32 +4294,14 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     b.Navigation("Polizas");
                 });
 
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.CategoriaCliente", b =>
-                {
-                    b.Navigation("Clientes");
-                });
-
             modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.Client", b =>
                 {
-                    b.Navigation("AutorizacionesCliente");
-
-                    b.Navigation("Contactos");
-
-                    b.Navigation("CuentasBancarias");
-
                     b.Navigation("Polizas");
-
-                    b.Navigation("Tarjetas");
                 });
 
             modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.Company", b =>
                 {
                     b.Navigation("Polizas");
-                });
-
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.GrupoEconomico", b =>
-                {
-                    b.Navigation("Clientes");
                 });
 
             modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.Permission", b =>
@@ -5355,11 +4334,6 @@ namespace RegularizadorPolizas.Infrastructure.Migrations
                     b.Navigation("Renovations");
 
                     b.Navigation("UserRoles");
-                });
-
-            modelBuilder.Entity("RegularizadorPolizas.Domain.Entities.Vehiculo", b =>
-                {
-                    b.Navigation("Contratos");
                 });
 #pragma warning restore 612, 618
         }

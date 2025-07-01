@@ -39,24 +39,24 @@ namespace RegularizadorPolizas.Domain.Entities
         public int? Concaraut { get; set; }
 
         [StringLength(40)]
-        public string Concesnom { get; set; } // Nombre cesionario
+        public string Concesnom { get; set; } 
 
         [StringLength(20)]
-        public string Concestel { get; set; } // Teléfono cesionario
+        public string Concestel { get; set; } 
 
         public int? Concapaut { get; set; }
 
         [Column(TypeName = "decimal(15,2)")]
-        public decimal? Conpremio { get; set; } // Premio
+        public decimal? Conpremio { get; set; } 
 
         [Column(TypeName = "decimal(15,2)")]
-        public decimal? Contot { get; set; } // Total
+        public decimal? Contot { get; set; }
 
-        public int? Moncod { get; set; } // Moneda
-        public int? Concuo { get; set; } // Cuotas
+        public int? Moncod { get; set; } 
+        public int? Concuo { get; set; }
 
         [Column(TypeName = "decimal(5,2)")]
-        public decimal? Concomcorr { get; set; } // Comisión corredor
+        public decimal? Concomcorr { get; set; } 
         public int? Catdsc { get; set; }
         public int? Desdsc { get; set; }
         public int? Caldsc { get; set; }
@@ -65,16 +65,16 @@ namespace RegularizadorPolizas.Domain.Entities
         public string Concar { get; set; }
 
         [StringLength(40)]
-        public string Conpol { get; set; } // Número de póliza
+        public string Conpol { get; set; } 
 
         [StringLength(3)]
-        public string Conend { get; set; } // Endoso
+        public string Conend { get; set; } 
 
-        public DateTime? Confchdes { get; set; } // Fecha desde
-        public DateTime? Confchhas { get; set; } // Fecha hasta
+        public DateTime? Confchdes { get; set; }
+        public DateTime? Confchhas { get; set; } 
 
         [Column(TypeName = "decimal(15,2)")]
-        public decimal? Conimp { get; set; } // Impuesto
+        public decimal? Conimp { get; set; } 
 
         public int? Connroser { get; set; }
 
@@ -93,7 +93,7 @@ namespace RegularizadorPolizas.Domain.Entities
         public string Congeses { get; set; }
 
         [StringLength(15)]
-        public string Convig { get; set; } // Vigencia
+        public string Convig { get; set; }
 
         [Column(TypeName = "decimal(15,2)")]
         public decimal? Concan { get; set; }
@@ -101,12 +101,12 @@ namespace RegularizadorPolizas.Domain.Entities
         [StringLength(30)]
         public string Congrucon { get; set; }
 
-        public int? Conpadre { get; set; } // Póliza padre
+        public int? Conpadre { get; set; }
         public int? Conidpad { get; set; }
-        public DateTime? Confchcan { get; set; } // Fecha cancelación
+        public DateTime? Confchcan { get; set; }
 
         [StringLength(80)]
-        public string Concaucan { get; set; } // Causa cancelación
+        public string Concaucan { get; set; } 
 
         [StringLength(80)]
         public string Contipoemp { get; set; }
@@ -126,10 +126,10 @@ namespace RegularizadorPolizas.Domain.Entities
         public int? Condednum { get; set; }
 
         [StringLength(30)]
-        public string Consta { get; set; } // Forma de pago
+        public string Consta { get; set; }
 
         [StringLength(30)]
-        public string Contra { get; set; } // Trámite
+        public string Contra { get; set; } 
 
         [StringLength(30)]
         public string Conconf { get; set; }
@@ -153,7 +153,7 @@ namespace RegularizadorPolizas.Domain.Entities
         public string Condecram { get; set; }
 
         [StringLength(80)]
-        public string Conmedtra { get; set; } // Medio de transporte
+        public string Conmedtra { get; set; } 
 
         [StringLength(80)]
         public string Conviades { get; set; }
@@ -179,7 +179,7 @@ namespace RegularizadorPolizas.Domain.Entities
         [Column(TypeName = "decimal(15,2)")]
         public decimal? Conviafle { get; set; }
 
-        public int? Dptnom { get; set; } // Departamento
+        public int? Dptnom { get; set; }
 
         [Column(TypeName = "decimal(15,2)")]
         public decimal? Conedaret { get; set; }
@@ -197,7 +197,7 @@ namespace RegularizadorPolizas.Domain.Entities
         public decimal? Condecptj { get; set; }
 
         [StringLength(200)]
-        public string Conubi { get; set; } // Ubicación
+        public string Conubi { get; set; } 
 
         [StringLength(200)]
         public string Concaudsc { get; set; }
@@ -254,7 +254,7 @@ namespace RegularizadorPolizas.Domain.Entities
         public string Conlimnav { get; set; }
 
         [StringLength(80)]
-        public string Contpocob { get; set; } // Tipo de cobertura
+        public string Contpocob { get; set; } 
 
         [StringLength(40)]
         public string Connomemb { get; set; }
@@ -295,10 +295,10 @@ namespace RegularizadorPolizas.Domain.Entities
         public string Forpagvid { get; set; }
 
         [StringLength(120)]
-        public string Clinom { get; set; } // Nombre cliente
+        public string Clinom { get; set; }
 
         public int? Tarcod { get; set; }
-        public int? Corrnom { get; set; } // Corredor
+        public int? Corrnom { get; set; } 
         public int? Connroint { get; set; }
 
         [StringLength(30)]
@@ -355,7 +355,7 @@ namespace RegularizadorPolizas.Domain.Entities
         [StringLength(80)]
         public string Condeta { get; set; }
 
-        public string Observaciones { get; set; } // TEXT
+        public string Observaciones { get; set; } 
 
         [Column(TypeName = "decimal(15,2)")]
         public decimal? Clipcupfia { get; set; }
@@ -382,14 +382,14 @@ namespace RegularizadorPolizas.Domain.Entities
         public string Congarantel { get; set; }
 
         [StringLength(30)]
-        public string Mot_no_ren { get; set; }
+        public string MotNoRen { get; set; } = string.Empty; 
 
         [StringLength(80)]
         public string Condetrc { get; set; }
 
         public bool Conautcort { get; set; }
 
-        [StringLength(200)]
+        [StringLength(500)] 
         public string Condetail { get; set; }
 
         public int? Clinro1 { get; set; }
@@ -401,25 +401,27 @@ namespace RegularizadorPolizas.Domain.Entities
         public string Conespbon { get; set; }
         public bool Leer { get; set; }
         public bool Enviado { get; set; }
-        public bool Sob_recib { get; set; }
-        public bool Leer_obs { get; set; }
-        public string Sublistas { get; set; } // TEXT
 
-        public int? Com_sub_corr { get; set; }
-        public int? Tipos_de_alarma { get; set; }
-        public bool Tiene_alarma { get; set; }
-        public int? Coberturas_bicicleta { get; set; }
-        public int? Com_bro { get; set; }
-        public int? Com_bo { get; set; }
+        public bool SobRecib { get; set; } = false;   
+        public bool LeerObs { get; set; } = false;     
+
+        public string Sublistas { get; set; } 
+
+        public int? ComSubCorr { get; set; }      
+        public int? TiposDeAlarma { get; set; }      
+        public bool TieneAlarma { get; set; } = false;  
+        public int? CoberturasBicicleta { get; set; }    
+        public int? ComBro { get; set; }              
+        public int? ComBo { get; set; }                  
 
         [Column(TypeName = "decimal(15,2)")]
         public decimal? Contotant { get; set; }
-        public string Cotizacion { get; set; } // TEXT
+        public string Cotizacion { get; set; } 
 
-        public int? Motivos_no_renovacion { get; set; }
+        public int? MotivosNoRenovacion { get; set; }   
 
         [StringLength(40)]
-        public string Com_alias { get; set; }
+        public string ComAlias { get; set; } = string.Empty; 
 
         [StringLength(30)]
         public string Ramo { get; set; }
@@ -430,9 +432,10 @@ namespace RegularizadorPolizas.Domain.Entities
         public bool Aereo { get; set; }
         public bool Maritimo { get; set; }
         public bool Terrestre { get; set; }
-        public int? Max_aereo { get; set; }
-        public int? Max_mar { get; set; }
-        public int? Max_terrestre { get; set; }
+
+        public int? MaxAereo { get; set; }           
+        public int? MaxMar { get; set; }                
+        public int? MaxTerrestre { get; set; }           
 
         [Column(TypeName = "decimal(5,2)")]
         public decimal? Tasa { get; set; }
@@ -442,28 +445,31 @@ namespace RegularizadorPolizas.Domain.Entities
         public bool Importacion { get; set; }
         public bool Exportacion { get; set; }
         public bool Offshore { get; set; }
-        public bool Transito_interno { get; set; }
+
+        public bool TransitoInterno { get; set; } = false; 
 
         [StringLength(80)]
         public string Coning { get; set; }
 
-        public int? Cat_cli { get; set; }
+        public int? CatCli { get; set; }              
         public bool Llamar { get; set; }
         public bool Granizo { get; set; }
 
         [StringLength(30)]
-        public string Idorden { get; set; }
+        public string IdOrden { get; set; } = string.Empty; 
 
-        public bool Var_ubi { get; set; }
-        public bool Mis_rie { get; set; }
+        public bool VarUbi { get; set; } = false;       
+        public bool MisRie { get; set; } = false;        
+
         public DateTime? Ingresado { get; set; }
-        public DateTime? Last_update { get; set; }
+        public DateTime? LastUpdate { get; set; }        
         public int? Comcod1 { get; set; }
         public int? Comcod2 { get; set; }
-        public int? Pagos_efectivo { get; set; }
-        public int? Productos_de_vida { get; set; }
-        public int? App_id { get; set; }
-        public DateTime? Update_date { get; set; }
+
+        public int? PagosEfectivo { get; set; }         
+        public int? ProductosDeVida { get; set; }        
+        public int? AppId { get; set; }                  
+        public DateTime? UpdateDate { get; set; }        
 
         [StringLength(80)]
         public string Gestion { get; set; }
@@ -476,10 +482,20 @@ namespace RegularizadorPolizas.Domain.Entities
         [StringLength(250)]
         public string DocumentoPdf { get; set; }
 
+        [StringLength(20)]
+        public string TipoOperacion { get; set; } = string.Empty; // NUEVA/RENOVACION/ENDOSO/CANCELACION
+
+        [Column(TypeName = "decimal(5,2)")]
+        public decimal? ConfianzaIA { get; set; } // Confianza del Document Intelligence (0.00 - 1.00)
+
+        [StringLength(100)]
+        public string OrigenDocumento { get; set; } = string.Empty; 
+
         public bool Procesado { get; set; } = false;
         public bool Activo { get; set; } = true;
         public DateTime FechaCreacion { get; set; } = DateTime.Now;
         public DateTime FechaModificacion { get; set; } = DateTime.Now;
+
         [ForeignKey("Clinro")]
         public virtual Client Client { get; set; }
 

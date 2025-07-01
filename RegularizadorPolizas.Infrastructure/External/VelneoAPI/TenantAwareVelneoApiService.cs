@@ -269,14 +269,17 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             try
             {
                 using var httpClient = await GetConfiguredHttpClientAsync();
-                var url = await BuildUrlWithApiKeyAsync($"v1/corredores/{id}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/brokers/{id}"); 
                 var response = await httpClient.GetAsync(url);
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                     return null;
 
                 response.EnsureSuccessStatusCode();
-                return await response.Content.ReadFromJsonAsync<BrokerDto>(_jsonOptions);
+
+                var velneoBroker = await response.Content.ReadFromJsonAsync<VelneoBrokerDto>(_jsonOptions);
+
+                return velneoBroker?.ToBrokerDto();
             }
             catch (Exception ex)
             {
@@ -292,20 +295,21 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var json = JsonSerializer.Serialize(brokerDto, _jsonOptions);
+                var velneoBroker = brokerDto.ToVelneoBrokerDto();
+                var json = JsonSerializer.Serialize(velneoBroker, _jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var url = await BuildUrlWithApiKeyAsync("v1/corredores");
+                var url = await BuildUrlWithApiKeyAsync("v1/brokers");
                 var response = await httpClient.PostAsync(url, content);
                 response.EnsureSuccessStatusCode();
 
-                var result = await response.Content.ReadFromJsonAsync<BrokerDto>(_jsonOptions);
+                var result = await response.Content.ReadFromJsonAsync<VelneoBrokerDto>(_jsonOptions);
                 if (result == null)
                 {
                     throw new InvalidOperationException("Failed to deserialize created broker from Velneo API");
                 }
 
-                return result;
+                return result.ToBrokerDto();
             }
             catch (Exception ex)
             {
@@ -321,11 +325,12 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var json = JsonSerializer.Serialize(brokerDto, _jsonOptions);
+                var velneoBroker = brokerDto.ToVelneoBrokerDto();
+                var json = JsonSerializer.Serialize(velneoBroker, _jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var url = await BuildUrlWithApiKeyAsync($"v1/corredores/{brokerDto.Id}");
-                var response = await httpClient.PostAsync(url, content);
+                var url = await BuildUrlWithApiKeyAsync($"v1/brokers/{brokerDto.Id}");
+                var response = await httpClient.PutAsync(url, content);
                 response.EnsureSuccessStatusCode();
 
                 _logger.LogInformation("Successfully updated broker {BrokerId} in Velneo API for tenant {TenantId}",
@@ -345,36 +350,16 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var url = await BuildUrlWithApiKeyAsync($"v1/corredores/{id}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/brokers/{id}"); 
                 var response = await httpClient.DeleteAsync(url);
                 response.EnsureSuccessStatusCode();
+
+                _logger.LogInformation("Successfully deleted broker {BrokerId} from Velneo API for tenant {TenantId}",
+                    id, tenantId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deleting broker {BrokerId} in Velneo API", id);
-                throw;
-            }
-        }
-
-        public async Task<BrokerDto?> GetBrokerByCodeAsync(string code)
-        {
-            try
-            {
-                var tenantId = _tenantService.GetCurrentTenantId();
-                using var httpClient = await GetConfiguredHttpClientAsync();
-
-                var url = await BuildUrlWithApiKeyAsync($"v1/corredores/code/{Uri.EscapeDataString(code)}");
-                var response = await httpClient.GetAsync(url);
-
-                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                    return null;
-
-                response.EnsureSuccessStatusCode();
-                return await response.Content.ReadFromJsonAsync<BrokerDto>(_jsonOptions);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting broker by code from Velneo API");
+                _logger.LogError(ex, "Error deleting broker {BrokerId} from Velneo API", id);
                 throw;
             }
         }
@@ -386,20 +371,52 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var url = await BuildUrlWithApiKeyAsync($"v1/corredores/email/{Uri.EscapeDataString(email)}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/brokers/email/{Uri.EscapeDataString(email)}"); 
                 var response = await httpClient.GetAsync(url);
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                     return null;
 
                 response.EnsureSuccessStatusCode();
-                return await response.Content.ReadFromJsonAsync<BrokerDto>(_jsonOptions);
+                var velneoBroker = await response.Content.ReadFromJsonAsync<VelneoBrokerDto>(_jsonOptions);
+
+                return velneoBroker?.ToBrokerDto();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting broker by email from Velneo API");
                 throw;
             }
+        }
+
+        public async Task<BrokerDto?> GetBrokerByCodigoAsync(string codigo)
+        {
+            try
+            {
+                var tenantId = _tenantService.GetCurrentTenantId();
+                using var httpClient = await GetConfiguredHttpClientAsync();
+
+                var url = await BuildUrlWithApiKeyAsync($"v1/brokers/codigo/{Uri.EscapeDataString(codigo)}");
+                var response = await httpClient.GetAsync(url);
+
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    return null;
+
+                response.EnsureSuccessStatusCode();
+                var velneoBroker = await response.Content.ReadFromJsonAsync<VelneoBrokerDto>(_jsonOptions);
+
+                return velneoBroker?.ToBrokerDto();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting broker by codigo from Velneo API");
+                throw;
+            }
+        }
+
+        public async Task<BrokerDto?> GetBrokerByCodeAsync(string code)
+        {
+            return await GetBrokerByCodigoAsync(code);
         }
 
         public async Task<IEnumerable<BrokerDto>> SearchBrokersAsync(string searchTerm)
@@ -409,12 +426,18 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var url = await BuildUrlWithApiKeyAsync($"v1/corredores/search?term={Uri.EscapeDataString(searchTerm)}");
+                var url = await BuildUrlWithApiKeyAsync($"v1/brokers/search?term={Uri.EscapeDataString(searchTerm)}"); 
                 var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
-                var result = await response.Content.ReadFromJsonAsync<IEnumerable<BrokerDto>>(_jsonOptions);
-                return result ?? new List<BrokerDto>();
+                var velneoResponse = await response.Content.ReadFromJsonAsync<VelneoBrokerResponse>(_jsonOptions);
+
+                if (velneoResponse?.Corredores == null || !velneoResponse.Corredores.Any())
+                {
+                    return new List<BrokerDto>();
+                }
+
+                return velneoResponse.Corredores.ToBrokerDtos();
             }
             catch (Exception ex)
             {
@@ -428,16 +451,61 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             try
             {
                 using var httpClient = await GetConfiguredHttpClientAsync();
-                var url = await BuildUrlWithApiKeyAsync("v1/corredores");
+                var url = await BuildUrlWithApiKeyAsync("v1/brokers"); 
                 var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
-                var result = await response.Content.ReadFromJsonAsync<IEnumerable<BrokerDto>>(_jsonOptions);
-                return result ?? new List<BrokerDto>();
+                var velneoResponse = await response.Content.ReadFromJsonAsync<VelneoBrokerResponse>(_jsonOptions);
+
+                if (velneoResponse?.Corredores == null || !velneoResponse.Corredores.Any())
+                {
+                    _logger.LogWarning("No brokers received from Velneo API");
+                    return new List<BrokerDto>();
+                }
+
+                var brokers = velneoResponse.Corredores.ToBrokerDtos().ToList();
+
+                _logger.LogInformation("Successfully retrieved {Count} brokers from Velneo API",
+                    brokers.Count);
+
+                return brokers;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting all brokers from Velneo API");
+                throw;
+            }
+        }
+
+        public async Task<IEnumerable<BrokerDto>> GetActiveBrokersAsync()
+        {
+            try
+            {
+                var tenantId = _tenantService.GetCurrentTenantId();
+                using var httpClient = await GetConfiguredHttpClientAsync();
+
+                var url = await BuildUrlWithApiKeyAsync("v1/brokers/active"); 
+                var response = await httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                var velneoResponse = await response.Content.ReadFromJsonAsync<VelneoBrokerResponse>(_jsonOptions);
+
+                if (velneoResponse?.Corredores == null || !velneoResponse.Corredores.Any())
+                {
+                    _logger.LogWarning("No active brokers received from Velneo API");
+                    return new List<BrokerDto>();
+                }
+
+                var brokers = velneoResponse.Corredores.ToBrokerDtos().ToList();
+
+                _logger.LogInformation("Successfully retrieved {Count} active brokers from Velneo API for tenant {TenantId}",
+                    brokers.Count, tenantId);
+
+                return brokers;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting active brokers from Velneo API");
                 throw;
             }
         }
@@ -449,7 +517,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var url = await BuildUrlWithApiKeyAsync("v1/corredores/lookup");
+                var url = await BuildUrlWithApiKeyAsync("v1/brokers/lookup"); 
                 var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 

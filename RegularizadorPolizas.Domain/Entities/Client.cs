@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace RegularizadorPolizas.Domain.Entities
 {
@@ -211,6 +212,16 @@ namespace RegularizadorPolizas.Domain.Entities
         public DateTime FechaModificacion { get; set; } = DateTime.Now;
 
         // Relaciones
+        public virtual ICollection<AutorizaCliente> AutorizacionesCliente { get; set; } = new List<AutorizaCliente>();
+        public virtual ICollection<CuentaBancaria> CuentasBancarias { get; set; } = new List<CuentaBancaria>();
+        public virtual ICollection<Tarjeta> Tarjetas { get; set; } = new List<Tarjeta>();
+        public virtual ICollection<Contacto> Contactos { get; set; } = new List<Contacto>();
         public virtual ICollection<Poliza> Polizas { get; set; }
+
+        [ForeignKey("Categorias_de_cliente")]
+        public virtual CategoriaCliente CategoriaCliente { get; set; }
+
+        [ForeignKey("Grupos_economicos")]
+        public virtual GrupoEconomico GrupoEconomico { get; set; }
     }
 }

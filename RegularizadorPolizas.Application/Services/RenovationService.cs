@@ -185,7 +185,7 @@ namespace RegularizadorPolizas.Application.Services
                     Concomcorr = originalPolicy.Concomcorr,
                     Conpadre = originalPolicy.Id, // Reference to original policy
                     Ramo = originalPolicy.Ramo,
-                    Com_alias = originalPolicy.Com_alias,
+                    ComAlias = originalPolicy.ComAlias,
                     Convig = "1", // Active status
                     // Set new validity dates
                     Confchdes = DateTime.Now,

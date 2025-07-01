@@ -1,7 +1,6 @@
 ﻿using AutoMapper;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
-using RegularizadorPolizas.Domain.Entities;
 
 namespace RegularizadorPolizas.Application.Services
 {
@@ -10,6 +9,7 @@ namespace RegularizadorPolizas.Application.Services
         private readonly ICurrencyRepository _currencyRepository;
         private readonly IPolizaRepository _polizaRepository;
         private readonly IMapper _mapper;
+
 
         public CurrencyService(
             ICurrencyRepository currencyRepository,
@@ -120,7 +120,7 @@ namespace RegularizadorPolizas.Application.Services
             try
             {
                 var defaultCurrency = await _currencyRepository.FindAsync(c =>
-                    c.Activo && (c.Codigo == "UYU" || c.Moneda == "UYU" || c.Nombre.Contains("Peso")));
+                    c.Activo && (c.Codigo == "UYU" || c.Moneda == "UYU" || c.Moneda.Contains("Peso")));
 
                 var currency = defaultCurrency.FirstOrDefault();
                 if (currency != null)
@@ -280,7 +280,6 @@ namespace RegularizadorPolizas.Application.Services
                 var normalizedSearchTerm = searchTerm.Trim().ToLower();
                 var currencies = await _currencyRepository.FindAsync(c =>
                     c.Activo && (
-                        (c.Nombre != null && c.Nombre.ToLower().Contains(normalizedSearchTerm)) ||
                         (c.Codigo != null && c.Codigo.ToLower().Contains(normalizedSearchTerm)) ||
                         (c.Moneda != null && c.Moneda.ToLower().Contains(normalizedSearchTerm)) ||
                         (c.Simbolo != null && c.Simbolo.ToLower().Contains(normalizedSearchTerm))

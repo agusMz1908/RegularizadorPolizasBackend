@@ -17,5 +17,19 @@ namespace RegularizadorPolizas.Application.Interfaces
         Task<IEnumerable<CompanyLookupDto>> GetCompaniesForLookupAsync();
         Task<IEnumerable<CompanyDto>> SearchCompaniesAsync(string searchTerm);
         Task<bool> ExistsByCodigoAsync(string codigo, int? excludeId = null);
+
+        Task<BrokerDto?> GetBrokerAsync(int id);
+        Task<BrokerDto?> GetBrokerByIdAsync(int id);
+        Task<BrokerDto?> GetBrokerByEmailAsync(string email);
+        Task<BrokerDto?> GetBrokerByCodigoAsync(string codigo);
+        Task<IEnumerable<BrokerDto>> GetAllBrokersAsync();
+        Task<IEnumerable<BrokerDto>> GetActiveBrokersAsync();
+        Task<IEnumerable<BrokerLookupDto>> GetBrokersForLookupAsync();
+        Task<BrokerDto> CreateBrokerAsync(BrokerDto brokerDto);
+        Task UpdateBrokerAsync(BrokerDto brokerDto);
+        Task DeleteBrokerAsync(int id);
+        Task<IEnumerable<BrokerDto>> SearchBrokersAsync(string searchTerm);
+        Task<bool> ExistsBrokerByCodigoAsync(string codigo, int? excludeId = null);
+        Task<bool> ExistsBrokerByEmailAsync(string email, int? excludeId = null);
     }
 }

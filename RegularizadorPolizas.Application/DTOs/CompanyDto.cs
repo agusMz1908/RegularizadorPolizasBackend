@@ -1,6 +1,5 @@
 ﻿using RegularizadorPolizas.Application.Converters;
 using System.Text.Json.Serialization;
-using System.ComponentModel.DataAnnotations;
 
 namespace RegularizadorPolizas.Application.DTOs
 {

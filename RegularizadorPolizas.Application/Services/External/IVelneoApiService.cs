@@ -54,6 +54,11 @@ namespace RegularizadorPolizas.Application.Services.External
         Task UpdateBrokerAsync(BrokerDto brokerDto);
         Task DeleteBrokerAsync(int id);
         Task<IEnumerable<BrokerDto>> SearchBrokersAsync(string searchTerm);
+        Task<BrokerDto?> GetBrokerByEmailAsync(string email); 
+        Task<BrokerDto?> GetBrokerByCodigoAsync(string codigo); 
+        Task<IEnumerable<BrokerDto>> GetAllBrokersAsync();
+        Task<IEnumerable<BrokerDto>> GetActiveBrokersAsync();
+        Task<IEnumerable<BrokerLookupDto>> GetBrokersForLookupAsync();
         #endregion
 
         #region Health Check

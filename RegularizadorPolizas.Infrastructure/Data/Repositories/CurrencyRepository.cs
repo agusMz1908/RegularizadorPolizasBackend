@@ -27,7 +27,7 @@ namespace RegularizadorPolizas.Infrastructure.Repositories
         {
             return await _context.Currencies
                 .Where(c => c.Activo)
-                .OrderBy(c => c.Nombre)
+                .OrderBy(c => c.Moneda)
                 .ToListAsync();
         }
 
@@ -47,7 +47,7 @@ namespace RegularizadorPolizas.Infrastructure.Repositories
             {
                 defaultCurrency = await _context.Currencies
                     .Where(c => c.Activo)
-                    .OrderBy(c => c.Nombre)
+                    .OrderBy(c => c.Moneda)
                     .FirstOrDefaultAsync();
             }
 

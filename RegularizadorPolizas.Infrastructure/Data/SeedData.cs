@@ -65,47 +65,6 @@ namespace RegularizadorPolizas.Infrastructure.Data
             );
         }
 
-        public static void SeedCurrencies(ModelBuilder modelBuilder)
-        {
-            var now = DateTime.Now;
-
-            modelBuilder.Entity<Currency>().HasData(
-                new Currency
-                {
-                    Id = 1,
-                    Nombre = "Peso Uruguayo",
-                    Moneda = "UYU", 
-                    Codigo = "UYU", 
-                    Simbolo = "$",
-                    Activo = true,
-                    FechaCreacion = now, 
-                    FechaModificacion = now 
-                },
-                new Currency
-                {
-                    Id = 2,
-                    Nombre = "Dólar Americano",
-                    Moneda = "USD",
-                    Codigo = "USD",
-                    Simbolo = "US$",
-                    Activo = true,
-                    FechaCreacion = now, 
-                    FechaModificacion = now 
-                },
-                new Currency
-                {
-                    Id = 3,
-                    Nombre = "Unidad Indexada",
-                    Moneda = "UI",
-                    Codigo = "UI",
-                    Simbolo = "UI",
-                    Activo = true,
-                    FechaCreacion = now,
-                    FechaModificacion = now 
-                }
-            );
-        }
-
         public static void SeedUsers(ModelBuilder modelBuilder)
         {
             var creationDate = new DateTime(2025, 5, 26, 16, 8, 52, 542, DateTimeKind.Local).AddTicks(5783);
@@ -150,7 +109,6 @@ namespace RegularizadorPolizas.Infrastructure.Data
         public static void ApplyAllSeedData(ModelBuilder modelBuilder)
         {
             SeedCompanies(modelBuilder);
-            SeedCurrencies(modelBuilder);
             SeedUsers(modelBuilder);
             SeedBrokers(modelBuilder);
         }

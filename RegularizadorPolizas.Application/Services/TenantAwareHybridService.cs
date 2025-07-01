@@ -285,24 +285,204 @@ namespace RegularizadorPolizas.Application.Services
                     "Broker.GET",
                     id);
             }
-
             return await _localBrokerService.GetBrokerByIdAsync(id);
+        }
+
+        public async Task<BrokerDto?> GetBrokerByIdAsync(int id)
+        {
+            if (await ShouldRouteToVelneoAsync("Broker", "GET"))
+            {
+                return await ExecuteWithFallback(
+                    () => _velneoApiService.GetBrokerAsync(id),
+                    () => _localBrokerService.GetBrokerByIdAsync(id),
+                    "Broker.GETBYID", 
+                    id);
+            }
+            return await _localBrokerService.GetBrokerByIdAsync(id);
+        }
+
+        public async Task<BrokerDto?> GetBrokerByEmailAsync(string email)
+        {
+            if (await ShouldRouteToVelneoAsync("Broker", "GET"))
+            {
+                return await ExecuteWithFallback(
+                    () => _velneoApiService.GetBrokerByEmailAsync(email),
+                    () => _localBrokerService.GetBrokerByEmailAsync(email),
+                    "Broker.GETBYEMAIL",
+                    email);
+            }
+
+            return await _localBrokerService.GetBrokerByEmailAsync(email);
+        }
+
+        public async Task<BrokerDto?> GetBrokerByCodigoAsync(string codigo)
+        {
+            if (await ShouldRouteToVelneoAsync("Broker", "GET"))
+            {
+                return await ExecuteWithFallback(
+                    () => _velneoApiService.GetBrokerByCodigoAsync(codigo),
+                    () => _localBrokerService.GetBrokerByCodigoAsync(codigo),
+                    "Broker.GETBYCODIGO",
+                    codigo);
+            }
+
+            return await _localBrokerService.GetBrokerByCodigoAsync(codigo);
+        }
+        public async Task<IEnumerable<BrokerLookupDto>> GetBrokersForLookupAsync()
+        {
+            if (await ShouldRouteToVelneoAsync("Broker", "GET"))
+            {
+                return await ExecuteWithFallback(
+                    () => _velneoApiService.GetBrokersForLookupAsync(),
+                    () => _localBrokerService.GetBrokersForLookupAsync(),
+                    "Broker.GETLOOKUP",
+                    "lookup_brokers");
+            }
+
+            return await _localBrokerService.GetBrokersForLookupAsync();
+        }
+
+        public async Task<IEnumerable<BrokerDto>> GetAllBrokersAsync()
+        {
+            if (await ShouldRouteToVelneoAsync("Broker", "GETALL"))
+            {
+                return await ExecuteWithFallback(
+                    () => _velneoApiService.GetAllBrokersAsync(),
+                    () => _localBrokerService.GetAllBrokersAsync(),
+                    "Broker.GETALL",
+                    "all_brokers");
+            }
+
+            return await _localBrokerService.GetAllBrokersAsync();
+        }
+
+        public async Task<IEnumerable<BrokerDto>> GetActiveBrokersAsync()
+        {
+            _logger.LogWarning("🔥 GetActiveBrokersAsync CALLED - Starting hybrid routing");
+
+            try
+            {
+                bool shouldRoute = await ShouldRouteToVelneoAsync("Broker", "GET");
+                _logger.LogWarning("🎯 ShouldRouteToVelneo result: {Result}", shouldRoute);
+
+                if (shouldRoute)
+                {
+                    _logger.LogWarning("📡 ROUTING TO VELNEO API");
+                    return await ExecuteWithFallback(
+                        () => _velneoApiService.GetActiveBrokersAsync(),
+                        () => _localBrokerService.GetActiveBrokersAsync(),
+                        "Broker.GETACTIVE",
+                        "active_brokers");
+                }
+
+                _logger.LogWarning("🏠 ROUTING TO LOCAL SERVICE");
+                return await _localBrokerService.GetActiveBrokersAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ ERROR in GetActiveBrokersAsync");
+                throw;
+            }
         }
 
         public async Task<BrokerDto> CreateBrokerAsync(BrokerDto brokerDto)
         {
             if (await ShouldRouteToVelneoAsync("Broker", "CREATE"))
             {
-                return await ExecuteWithAudit(
+                var result = await ExecuteWithAudit(
                     () => _velneoApiService.CreateBrokerAsync(brokerDto),
                     AuditEventType.BrokerCreated,
                     "Broker.CREATE",
                     newData: brokerDto);
+                return result;
             }
-
-            return await _localBrokerService.CreateBrokerAsync(brokerDto);
+            else
+            {
+                return await _localBrokerService.CreateBrokerAsync(brokerDto);
+            }
         }
 
+        public async Task UpdateBrokerAsync(BrokerDto brokerDto)
+        {
+            if (await ShouldRouteToVelneoAsync("Broker", "UPDATE"))
+            {
+                await ExecuteWithAudit(
+                    () => _velneoApiService.UpdateBrokerAsync(brokerDto),
+                    AuditEventType.BrokerUpdated,
+                    "Broker.UPDATE",
+                    newData: brokerDto);
+            }
+            else
+            {
+                await _localBrokerService.UpdateBrokerAsync(brokerDto);
+            }
+        }
+
+        public async Task DeleteBrokerAsync(int id)
+        {
+            if (await ShouldRouteToVelneoAsync("Broker", "DELETE"))
+            {
+                await ExecuteWithAudit(
+                    () => _velneoApiService.DeleteBrokerAsync(id),
+                    AuditEventType.BrokerDeleted,
+                    "Broker.DELETE",
+                    additionalData: new { BrokerId = id });
+            }
+            else
+            {
+                await _localBrokerService.DeleteBrokerAsync(id);
+            }
+        }
+
+        public async Task<IEnumerable<BrokerDto>> SearchBrokersAsync(string searchTerm)
+        {
+            if (await ShouldRouteToVelneoAsync("Broker", "SEARCH"))
+            {
+                return await ExecuteWithFallback(
+                    () => _velneoApiService.SearchBrokersAsync(searchTerm),
+                    () => _localBrokerService.SearchBrokersAsync(searchTerm),
+                    "Broker.SEARCH",
+                    searchTerm);
+            }
+
+            return await _localBrokerService.SearchBrokersAsync(searchTerm);
+        }
+
+        public async Task<bool> ExistsBrokerByCodigoAsync(string codigo, int? excludeId = null)
+        {
+            if (await ShouldRouteToVelneoAsync("Broker", "GET"))
+            {
+                return await ExecuteWithFallback(
+                    async () =>
+                    {
+                        var broker = await _velneoApiService.GetBrokerByCodigoAsync(codigo);
+                        return broker != null && (excludeId == null || broker.Id != excludeId);
+                    },
+                    () => _localBrokerService.ExistsByCodigoAsync(codigo, excludeId),
+                    "Broker.EXISTSBYCODIGO",
+                    codigo);
+            }
+
+            return await _localBrokerService.ExistsByCodigoAsync(codigo, excludeId);
+        }
+
+        public async Task<bool> ExistsBrokerByEmailAsync(string email, int? excludeId = null)
+        {
+            if (await ShouldRouteToVelneoAsync("Broker", "GET"))
+            {
+                return await ExecuteWithFallback(
+                    async () =>
+                    {
+                        var broker = await _velneoApiService.GetBrokerByEmailAsync(email);
+                        return broker != null && (excludeId == null || broker.Id != excludeId);
+                    },
+                    () => _localBrokerService.ExistsByEmailAsync(email, excludeId),
+                    "Broker.EXISTSBYEMAIL",
+                    email);
+            }
+
+            return await _localBrokerService.ExistsByEmailAsync(email, excludeId);
+        }
         #endregion
 
         #region Company Operations
@@ -432,16 +612,16 @@ namespace RegularizadorPolizas.Application.Services
 
         public async Task<IEnumerable<CompanyDto>> GetActiveCompaniesAsync()
         {
-            _logger.LogWarning("🔥 GetActiveCompaniesAsync CALLED - Starting hybrid routing");
+            _logger.LogWarning("GetActiveCompaniesAsync CALLED - Starting hybrid routing");
 
             try
             {
                 bool shouldRoute = await ShouldRouteToVelneoAsync("Company", "GET");
-                _logger.LogWarning("🎯 ShouldRouteToVelneo result: {Result}", shouldRoute);
+                _logger.LogWarning("ShouldRouteToVelneo result: {Result}", shouldRoute);
 
                 if (shouldRoute)
                 {
-                    _logger.LogWarning("📡 ROUTING TO VELNEO API");
+                    _logger.LogWarning("ROUTING TO VELNEO API");
                     return await ExecuteWithFallback(
                         () => _velneoApiService.GetActiveCompaniesAsync(),
                         () => _localCompanyService.GetActiveCompaniesAsync(),
@@ -449,12 +629,12 @@ namespace RegularizadorPolizas.Application.Services
                         "active_companies");
                 }
 
-                _logger.LogWarning("🏠 ROUTING TO LOCAL SERVICE");
+                _logger.LogWarning("ROUTING TO LOCAL SERVICE");
                 return await _localCompanyService.GetActiveCompaniesAsync();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ ERROR in GetActiveCompaniesAsync");
+                _logger.LogError(ex, "ERROR in GetActiveCompaniesAsync");
                 throw;
             }
         }
@@ -670,55 +850,6 @@ namespace RegularizadorPolizas.Application.Services
             return await _localCurrencyService.SearchCurrenciesAsync(searchTerm);
         }
 
-        #endregion
-
-        #region Broker Operations (Complete Implementation)
-
-        public async Task UpdateBrokerAsync(BrokerDto brokerDto)
-        {
-            if (await ShouldRouteToVelneoAsync("Broker", "UPDATE"))
-            {
-                await ExecuteWithAudit(
-                    () => _velneoApiService.UpdateBrokerAsync(brokerDto),
-                    AuditEventType.BrokerUpdated,
-                    "Broker.UPDATE",
-                    newData: brokerDto);
-            }
-            else
-            {
-                await _localBrokerService.UpdateBrokerAsync(brokerDto);
-            }
-        }
-
-        public async Task DeleteBrokerAsync(int id)
-        {
-            if (await ShouldRouteToVelneoAsync("Broker", "DELETE"))
-            {
-                await ExecuteWithAudit(
-                    () => _velneoApiService.DeleteBrokerAsync(id),
-                    AuditEventType.BrokerDeleted,
-                    "Broker.DELETE",
-                    additionalData: new { BrokerId = id });
-            }
-            else
-            {
-                await _localBrokerService.DeleteBrokerAsync(id);
-            }
-        }
-
-        public async Task<IEnumerable<BrokerDto>> SearchBrokersAsync(string searchTerm)
-        {
-            if (await ShouldRouteToVelneoAsync("Broker", "SEARCH"))
-            {
-                return await ExecuteWithFallback(
-                    () => _velneoApiService.SearchBrokersAsync(searchTerm),
-                    () => _localBrokerService.SearchBrokersAsync(searchTerm),
-                    "Broker.SEARCH",
-                    searchTerm);
-            }
-
-            return await _localBrokerService.SearchBrokersAsync(searchTerm);
-        }
         #endregion
 
         #region Helper Methods

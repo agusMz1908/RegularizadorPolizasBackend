@@ -81,7 +81,6 @@ namespace RegularizadorPolizas.Domain.Entities
         public DateTime? FechaCreacion { get; set; } = DateTime.Now;
         public DateTime? FechaModificacion { get; set; } = DateTime.Now;
 
-        // Navegación
         public virtual ICollection<Poliza> Polizas { get; set; } = new List<Poliza>();
     }
 }
