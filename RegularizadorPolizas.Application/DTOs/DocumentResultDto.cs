@@ -68,7 +68,7 @@
         {
             return $"Doc ID: {DocumentoId}, Archivo: {NombreArchivo}, " +
                    $"Estado: {EstadoProcesamiento}, Campos: {TotalCamposExtraidos}, " +
-                   $"Confianza: {ConfianzaExtraccion?.ToString("P") ?? "N/A"}";
+                   $"Confianza: {ConfianzaExtraccion.ToString("P") ?? "N/A"}";
         }
     }
 }

@@ -5,6 +5,7 @@ using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Application.Services.External;
 using RegularizadorPolizas.Infrastructure.Data;
 using RegularizadorPolizas.Infrastructure.Data.Repositories;
+using RegularizadorPolizas.Infrastructure.External;
 using RegularizadorPolizas.Infrastructure.External.VelneoAPI;
 using RegularizadorPolizas.Infrastructure.Repositories;
 

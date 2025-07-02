@@ -1,8 +1,8 @@
 ﻿using System.Globalization;
 using System.Text.RegularExpressions;
-using Azure.AI.FormRecognizer.DocumentAnalysis;
 using RegularizadorPolizas.Application.DTOs;
 using Microsoft.Extensions.Logging;
+using Azure.AI.DocumentIntelligence;
 
 namespace RegularizadorPolizas.Infrastructure.External
 {

@@ -158,189 +158,189 @@ namespace RegularizadorPolizas.API.Controllers
             }
         }
 
-        [HttpPost("document-parser-custom")]
-        [ProducesResponseType(typeof(object), 200)]
-        public ActionResult TestDocumentParserCustom([FromBody] Dictionary<string, string> camposPersonalizados)
-        {
-            try
-            {
-                if (camposPersonalizados == null || !camposPersonalizados.Any())
-                {
-                    return BadRequest(new
-                    {
-                        error = "Envía un JSON con campos para probar",
-                        ejemplo = new Dictionary<string, string>
-                        {
-                            ["numero_poliza"] = "TEST-001",
-                            ["cliente_nombre"] = "Juan Pérez",
-                            ["vehiculo_marca"] = "Toyota",
-                            ["premio_total"] = "15000"
-                        }
-                    });
-                }
+        //[HttpPost("document-parser-custom")]
+        //[ProducesResponseType(typeof(object), 200)]
+        //public ActionResult TestDocumentParserCustom([FromBody] Dictionary<string, string> camposPersonalizados)
+        //{
+        //    try
+        //    {
+        //        if (camposPersonalizados == null || !camposPersonalizados.Any())
+        //        {
+        //            return BadRequest(new
+        //            {
+        //                error = "Envía un JSON con campos para probar",
+        //                ejemplo = new Dictionary<string, string>
+        //                {
+        //                    ["numero_poliza"] = "TEST-001",
+        //                    ["cliente_nombre"] = "Juan Pérez",
+        //                    ["vehiculo_marca"] = "Toyota",
+        //                    ["premio_total"] = "15000"
+        //                }
+        //            });
+        //        }
 
-                var documento = new DocumentResultDto
-                {
-                    DocumentoId = 998,
-                    NombreArchivo = "test_custom.pdf",
-                    EstadoProcesamiento = "PROCESADO",
-                    ConfianzaExtraccion = null,
-                    RequiereRevision = false,
-                    MensajeError = string.Empty, // CORRECCIÓN: Inicializar
-                    CamposExtraidos = camposPersonalizados
-                };
+        //        var documento = new DocumentResultDto
+        //        {
+        //            DocumentoId = 998,
+        //            NombreArchivo = "test_custom.pdf",
+        //            EstadoProcesamiento = "PROCESADO",
+        //            ConfianzaExtraccion = null,
+        //            RequiereRevision = false,
+        //            MensajeError = string.Empty, // CORRECCIÓN: Inicializar
+        //            CamposExtraidos = camposPersonalizados
+        //        };
 
-                var parser = new DocumentResultParser(_logger);
-                var resultado = parser.ParseToPolizaDto(documento);
+        //        var parser = new DocumentResultParser(_logger);
+        //        var resultado = parser.ParseToPolizaDto(documento);
 
-                return Ok(new
-                {
-                    success = true,
-                    message = "✅ Test personalizado completado",
-                    camposEntrada = camposPersonalizados,
-                    polizaGenerada = resultado,
-                    estadisticas = new
-                    {
-                        camposEnviados = camposPersonalizados.Count,
-                        camposMapeados = ContarCamposMapeados(resultado),
-                        camposVacios = ContarCamposVacios(resultado),
-                        porcentajeMapeado = CalcularPorcentajeMapeado(camposPersonalizados.Count, resultado)
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new
-                {
-                    success = false,
-                    error = ex.Message,
-                    stackTrace = ex.StackTrace
-                });
-            }
-        }
+        //        return Ok(new
+        //        {
+        //            success = true,
+        //            message = "✅ Test personalizado completado",
+        //            camposEntrada = camposPersonalizados,
+        //            polizaGenerada = resultado,
+        //            estadisticas = new
+        //            {
+        //                camposEnviados = camposPersonalizados.Count,
+        //                camposMapeados = ContarCamposMapeados(resultado),
+        //                camposVacios = ContarCamposVacios(resultado),
+        //                porcentajeMapeado = CalcularPorcentajeMapeado(camposPersonalizados.Count, resultado)
+        //            }
+        //        });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return BadRequest(new
+        //        {
+        //            success = false,
+        //            error = ex.Message,
+        //            stackTrace = ex.StackTrace
+        //        });
+        //    }
+        //}
 
-        [HttpPost("test-date-formats")]
-        [ProducesResponseType(typeof(object), 200)]
-        public ActionResult TestDateFormats()
-        {
-            var formatosFecha = new[]
-            {
-                "15/03/2024",
-                "2024-03-15",
-                "15-03-2024",
-                "3/15/2024",
-                "2024/03/15",
-                "15 de marzo de 2024"
-            };
+        //[HttpPost("test-date-formats")]
+        //[ProducesResponseType(typeof(object), 200)]
+        //public ActionResult TestDateFormats()
+        //{
+        //    var formatosFecha = new[]
+        //    {
+        //        "15/03/2024",
+        //        "2024-03-15",
+        //        "15-03-2024",
+        //        "3/15/2024",
+        //        "2024/03/15",
+        //        "15 de marzo de 2024"
+        //    };
 
-            var resultados = new List<object>();
+        //    var resultados = new List<object>();
 
-            foreach (var formato in formatosFecha)
-            {
-                try
-                {
-                    var documento = new DocumentResultDto
-                    {
-                        DocumentoId = Array.IndexOf(formatosFecha, formato) + 1,
-                        NombreArchivo = $"test_fecha_{Array.IndexOf(formatosFecha, formato)}.pdf",
-                        EstadoProcesamiento = "PROCESADO",
-                        ConfianzaExtraccion = null,
-                        RequiereRevision = false,
-                        MensajeError = string.Empty, // CORRECCIÓN: Inicializar
-                        CamposExtraidos = new Dictionary<string, string>
-                        {
-                            ["numero_poliza"] = $"TEST-FECHA-{Array.IndexOf(formatosFecha, formato)}",
-                            ["fecha_desde"] = formato,
-                            ["fecha_hasta"] = formato // Usamos la misma para ver si corrige automáticamente
-                        }
-                    };
+        //    foreach (var formato in formatosFecha)
+        //    {
+        //        try
+        //        {
+        //            var documento = new DocumentResultDto
+        //            {
+        //                DocumentoId = Array.IndexOf(formatosFecha, formato) + 1,
+        //                NombreArchivo = $"test_fecha_{Array.IndexOf(formatosFecha, formato)}.pdf",
+        //                EstadoProcesamiento = "PROCESADO",
+        //                ConfianzaExtraccion = null,
+        //                RequiereRevision = false,
+        //                MensajeError = string.Empty, // CORRECCIÓN: Inicializar
+        //                CamposExtraidos = new Dictionary<string, string>
+        //                {
+        //                    ["numero_poliza"] = $"TEST-FECHA-{Array.IndexOf(formatosFecha, formato)}",
+        //                    ["fecha_desde"] = formato,
+        //                    ["fecha_hasta"] = formato // Usamos la misma para ver si corrige automáticamente
+        //                }
+        //            };
 
-                    var parser = new DocumentResultParser(_logger);
-                    var poliza = parser.ParseToPolizaDto(documento);
+        //            var parser = new DocumentResultParser(_logger);
+        //            var poliza = parser.ParseToPolizaDto(documento);
 
-                    resultados.Add(new
-                    {
-                        formatoOriginal = formato,
-                        fechaParseda = poliza.Confchdes,
-                        fechaCorregida = poliza.Confchhas,
-                        exitoso = poliza.Confchdes.HasValue,
-                        observaciones = poliza.Observaciones
-                    });
-                }
-                catch (Exception ex)
-                {
-                    resultados.Add(new
-                    {
-                        formatoOriginal = formato,
-                        error = ex.Message,
-                        exitoso = false
-                    });
-                }
-            }
+        //            resultados.Add(new
+        //            {
+        //                formatoOriginal = formato,
+        //                fechaParseda = poliza.Confchdes,
+        //                fechaCorregida = poliza.Confchhas,
+        //                exitoso = poliza.Confchdes.HasValue,
+        //                observaciones = poliza.Observaciones
+        //            });
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            resultados.Add(new
+        //            {
+        //                formatoOriginal = formato,
+        //                error = ex.Message,
+        //                exitoso = false
+        //            });
+        //        }
+        //    }
 
-            return Ok(new
-            {
-                message = "Test de formatos de fecha completado",
-                resultados = resultados,
-                exitosos = resultados.Count(r => {
-                    var exitosoProperty = r.GetType().GetProperty("exitoso");
-                    return exitosoProperty != null && (bool)exitosoProperty.GetValue(r)!;
-                }),
-                total = resultados.Count
-            });
-        }
+        //    return Ok(new
+        //    {
+        //        message = "Test de formatos de fecha completado",
+        //        resultados = resultados,
+        //        exitosos = resultados.Count(r => {
+        //            var exitosoProperty = r.GetType().GetProperty("exitoso");
+        //            return exitosoProperty != null && (bool)exitosoProperty.GetValue(r)!;
+        //        }),
+        //        total = resultados.Count
+        //    });
+        //}
 
-        [HttpPost("test-data-cleaning")]
-        [ProducesResponseType(typeof(object), 200)]
-        public ActionResult TestDataCleaning()
-        {
-            var documento = new DocumentResultDto
-            {
-                DocumentoId = 777,
-                NombreArchivo = "test_cleaning.pdf",
-                EstadoProcesamiento = "PROCESADO",
-                ConfianzaExtraccion = null,
-                RequiereRevision = false,
-                MensajeError = string.Empty, // CORRECCIÓN: Inicializar
-                CamposExtraidos = new Dictionary<string, string>
-                {
-                    ["numero_poliza"] = "  BSE-AUTO-123  \n\r\t",
-                    ["cliente_documento"] = "1.234.567-8",
-                    ["vehiculo_matricula"] = "SBD-1234",
-                    ["cliente_telefono"] = "099-123-456",
-                    ["premio_total"] = "15,000.50",
-                    ["cliente_email"] = "test@email.com",
-                    ["cliente_email_invalido"] = "email-sin-arroba"
-                }
-            };
+        //[HttpPost("test-data-cleaning")]
+        //[ProducesResponseType(typeof(object), 200)]
+        //public ActionResult TestDataCleaning()
+        //{
+        //    var documento = new DocumentResultDto
+        //    {
+        //        DocumentoId = 777,
+        //        NombreArchivo = "test_cleaning.pdf",
+        //        EstadoProcesamiento = "PROCESADO",
+        //        ConfianzaExtraccion = null,
+        //        RequiereRevision = false,
+        //        MensajeError = string.Empty, // CORRECCIÓN: Inicializar
+        //        CamposExtraidos = new Dictionary<string, string>
+        //        {
+        //            ["numero_poliza"] = "  BSE-AUTO-123  \n\r\t",
+        //            ["cliente_documento"] = "1.234.567-8",
+        //            ["vehiculo_matricula"] = "SBD-1234",
+        //            ["cliente_telefono"] = "099-123-456",
+        //            ["premio_total"] = "15,000.50",
+        //            ["cliente_email"] = "test@email.com",
+        //            ["cliente_email_invalido"] = "email-sin-arroba"
+        //        }
+        //    };
 
-            var parser = new DocumentResultParser(_logger);
-            var poliza = parser.ParseToPolizaDto(documento);
+        //    var parser = new DocumentResultParser(_logger);
+        //    var poliza = parser.ParseToPolizaDto(documento);
 
-            return Ok(new
-            {
-                message = "Test de limpieza de datos",
-                original = documento.CamposExtraidos,
-                limpiado = new
-                {
-                    numeroPoliza = poliza.Conpol,
-                    documento = poliza.Cliruc,
-                    matricula = poliza.Conmataut,
-                    telefono = poliza.Clitelcel,
-                    premio = poliza.Conpremio,
-                    email = poliza.Cliemail
-                },
-                validaciones = new
-                {
-                    numeroLimpio = poliza.Conpol == "BSE-AUTO-123",
-                    documentoLimpio = poliza.Cliruc == "12345678",
-                    matriculaLimpia = poliza.Conmataut == "SBD1234",
-                    telefonoLimpio = poliza.Clitelcel == "099123456",
-                    premioParseado = poliza.Conpremio == 15000.50m,
-                    emailValido = poliza.Cliemail == "test@email.com"
-                }
-            });
-        }
+        //    return Ok(new
+        //    {
+        //        message = "Test de limpieza de datos",
+        //        original = documento.CamposExtraidos,
+        //        limpiado = new
+        //        {
+        //            numeroPoliza = poliza.Conpol,
+        //            documento = poliza.Cliruc,
+        //            matricula = poliza.Conmataut,
+        //            telefono = poliza.Clitelcel,
+        //            premio = poliza.Conpremio,
+        //            email = poliza.Cliemail
+        //        },
+        //        validaciones = new
+        //        {
+        //            numeroLimpio = poliza.Conpol == "BSE-AUTO-123",
+        //            documentoLimpio = poliza.Cliruc == "12345678",
+        //            matriculaLimpia = poliza.Conmataut == "SBD1234",
+        //            telefonoLimpio = poliza.Clitelcel == "099123456",
+        //            premioParseado = poliza.Conpremio == 15000.50m,
+        //            emailValido = poliza.Cliemail == "test@email.com"
+        //        }
+        //    });
+        //}
 
         #region Métodos Helper
 
