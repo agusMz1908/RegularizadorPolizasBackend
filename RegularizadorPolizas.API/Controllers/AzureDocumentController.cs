@@ -91,7 +91,6 @@ namespace RegularizadorPolizas.API.Controllers
             try
             {
                 var documentResult = await _azureDocumentService.ProcessDocumentAsync(file);
-
                 if (documentResult.EstadoProcesamiento == "ERROR")
                 {
                     return BadRequest(new
@@ -102,16 +101,9 @@ namespace RegularizadorPolizas.API.Controllers
                 }
 
                 var polizaDto = _azureDocumentService.MapDocumentToPoliza(documentResult);
-
                 PolizaDto polizaCreada;
-                if (saveToVelneo)
-                {
-                    polizaCreada = await _polizaService.CreatePolizaAsync(polizaDto);
-                }
-                else
-                {
-                    polizaCreada = await _polizaService.CreatePolizaLocalAsync(polizaDto);
-                }
+
+                polizaCreada = await _polizaService.CreatePolizaAsync(polizaDto);
 
                 var resultado = new
                 {
@@ -133,8 +125,7 @@ namespace RegularizadorPolizas.API.Controllers
                         vehiculo = new
                         {
                             matricula = polizaCreada.Conmataut,
-                            marca = polizaCreada.Conmaraut,
-                            modelo = polizaCreada.conmodaut
+                            marcaModelo = polizaCreada.Conmaraut 
                         },
                         montos = new
                         {
@@ -149,13 +140,11 @@ namespace RegularizadorPolizas.API.Controllers
                         guardadoEn = saveToVelneo ? "Velneo" : "Local"
                     }
                 };
-
                 return Ok(resultado);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing document and creating policy: {FileName}", file?.FileName ?? "unknown");
-
                 return StatusCode(500, new
                 {
                     error = "Error al procesar documento y crear póliza",
@@ -262,9 +251,6 @@ namespace RegularizadorPolizas.API.Controllers
             }
         }
 
-        /// <summary>
-        /// Procesa múltiples documentos en lote
-        /// </summary>
         [HttpPost("process-batch")]
         [ProducesResponseType(typeof(object), 200)]
         [ProducesResponseType(400)]
@@ -277,7 +263,6 @@ namespace RegularizadorPolizas.API.Controllers
                 {
                     return BadRequest(new { error = "No se han proporcionado archivos" });
                 }
-
                 if (files.Count > 10)
                 {
                     return BadRequest(new { error = "Máximo 10 archivos por lote" });
@@ -291,7 +276,6 @@ namespace RegularizadorPolizas.API.Controllers
                     try
                     {
                         var documentResult = await _azureDocumentService.ProcessDocumentAsync(file);
-
                         if (documentResult.EstadoProcesamiento == "ERROR")
                         {
                             errores.Add(new
@@ -303,16 +287,7 @@ namespace RegularizadorPolizas.API.Controllers
                         }
 
                         var polizaDto = _azureDocumentService.MapDocumentToPoliza(documentResult);
-
-                        PolizaDto polizaCreada;
-                        if (saveToVelneo)
-                        {
-                            polizaCreada = await _polizaService.CreatePolizaAsync(polizaDto);
-                        }
-                        else
-                        {
-                            polizaCreada = await _polizaService.CreatePolizaLocalAsync(polizaDto);
-                        }
+                        var polizaCreada = await _polizaService.CreatePolizaAsync(polizaDto);
 
                         resultados.Add(new
                         {
@@ -321,7 +296,8 @@ namespace RegularizadorPolizas.API.Controllers
                             numeroPoliza = polizaCreada.Conpol,
                             cliente = polizaCreada.Clinom,
                             confianza = documentResult.ConfianzaExtraccion,
-                            requiereRevision = documentResult.RequiereRevision
+                            requiereRevision = documentResult.RequiereRevision,
+                            guardadoEn = saveToVelneo ? "Velneo" : "Local"
                         });
                     }
                     catch (Exception ex)
@@ -338,6 +314,7 @@ namespace RegularizadorPolizas.API.Controllers
                 {
                     procesados = resultados.Count,
                     errores = errores.Count,
+                    totalArchivos = files.Count,
                     resultados,
                     erroresDetalle = errores
                 });
