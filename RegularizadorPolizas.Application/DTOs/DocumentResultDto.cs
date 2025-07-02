@@ -2,21 +2,23 @@
 {
     public class DocumentResultDto
     {
-        public int DocumentoId { get; set; }
-
+        public int? DocumentoId { get; set; }
         public string NombreArchivo { get; set; } = string.Empty;
-
         public string EstadoProcesamiento { get; set; } = string.Empty;
-
-        public Dictionary<string, string> CamposExtraidos { get; set; } = new Dictionary<string, string>();
-
-        public decimal? ConfianzaExtraccion { get; set; }
-
+        public string? MensajeError { get; set; }
+        public Dictionary<string, string>? CamposExtraidos { get; set; }
+        public decimal ConfianzaExtraccion { get; set; }
         public bool RequiereRevision { get; set; }
+        public DateTime FechaProcesamiento { get; set; }
+        public long TiempoProcesamiento { get; set; }
+        public PolizaDto? PolizaProcesada { get; set; }
+        public string? ModeloUsado { get; set; }
+        public int? NumeroPaginas { get; set; }
+        public string? TipoDocumento { get; set; }
+        public int CamposDetectados { get; set; }
+        public int CamposMapeados { get; set; }
+        public List<string>? AdvertenciasMapeo { get; set; }
 
-        public string MensajeError { get; set; } = string.Empty;
-
-        // Constructor por defecto que inicializa las propiedades requeridas
         public DocumentResultDto()
         {
             NombreArchivo = string.Empty;
@@ -26,7 +28,6 @@
             RequiereRevision = false;
         }
 
-        // Constructor con parámetros básicos
         public DocumentResultDto(int documentoId, string nombreArchivo, string estadoProcesamiento)
         {
             DocumentoId = documentoId;
@@ -37,7 +38,6 @@
             RequiereRevision = false;
         }
 
-        // Método helper para agregar campos extraídos de forma segura
         public void AgregarCampo(string clave, string? valor)
         {
             if (!string.IsNullOrEmpty(clave) && valor != null)
@@ -46,21 +46,17 @@
             }
         }
 
-        // Método para obtener un campo de forma segura
         public string? ObtenerCampo(string clave)
         {
             return CamposExtraidos.TryGetValue(clave, out var valor) ? valor : null;
         }
 
-        // Propiedad para verificar si el procesamiento fue exitoso
         public bool ProcesamientoExitoso =>
             EstadoProcesamiento.Equals("PROCESADO", StringComparison.OrdinalIgnoreCase) ||
             EstadoProcesamiento.Equals("SUCCESS", StringComparison.OrdinalIgnoreCase);
 
-        // Propiedad para obtener el número total de campos extraídos
         public int TotalCamposExtraidos => CamposExtraidos?.Count ?? 0;
 
-        // Método para validar que el documento tiene la información mínima
         public bool TieneInformacionMinima()
         {
             return DocumentoId > 0 &&
@@ -68,7 +64,6 @@
                    !string.IsNullOrEmpty(EstadoProcesamiento);
         }
 
-        // Método para obtener un resumen del documento
         public string ObtenerResumen()
         {
             return $"Doc ID: {DocumentoId}, Archivo: {NombreArchivo}, " +
