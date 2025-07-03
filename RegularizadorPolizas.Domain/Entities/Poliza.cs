@@ -502,6 +502,9 @@ namespace RegularizadorPolizas.Domain.Entities
         [ForeignKey("Comcod")]
         public virtual Company Company { get; set; }
 
+        [ForeignKey("Seccod")]
+        public virtual Seccion Seccion { get; set; }
+
         [ForeignKey("Corrnom")]
         public virtual Broker Broker { get; set; }
 

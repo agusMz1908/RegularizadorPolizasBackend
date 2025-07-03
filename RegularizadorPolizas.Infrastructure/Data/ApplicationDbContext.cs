@@ -103,6 +103,11 @@ namespace RegularizadorPolizas.Infrastructure.Data
                       .HasForeignKey(p => p.Conpadre)
                       .OnDelete(DeleteBehavior.Restrict);
 
+                entity.HasOne(p => p.Seccion)
+                    .WithMany()
+                    .HasForeignKey(p => p.Seccod)
+                    .OnDelete(DeleteBehavior.Restrict);
+
                 entity.HasIndex(e => e.Conpol);
                 entity.HasIndex(e => e.Conmataut);
                 entity.HasIndex(e => e.Confchdes);

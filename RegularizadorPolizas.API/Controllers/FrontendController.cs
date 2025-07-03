@@ -18,6 +18,7 @@ namespace RegularizadorPolizas.API.Controllers
         private readonly IAzureDocumentIntelligenceService _documentService;
         private readonly IFileStorageService _fileStorageService;
         private readonly IVelneoApiService _velneoApiService;
+        private readonly IHybridApiService _hybridApiService;
         private readonly ILogger<FrontendController> _logger;
 
         public FrontendController(
@@ -26,6 +27,7 @@ namespace RegularizadorPolizas.API.Controllers
             IAzureDocumentIntelligenceService documentService,
             IFileStorageService fileStorageService,
             IVelneoApiService velneoApiService,
+            IHybridApiService hybridApiService,
             ILogger<FrontendController> logger)
         {
             _clientService = clientService ?? throw new ArgumentNullException(nameof(clientService));
@@ -108,13 +110,13 @@ namespace RegularizadorPolizas.API.Controllers
                     Numero = p.Conpol,
                     Desde = p.Confchdes,
                     Hasta = p.Confchhas,
-                    Compania = DetermineCompanyName(p.Comcod),
-                    Ramo = DetermineRamoName(p.Seccod),
+                    //Compania = p.Comcod,
+                    //Ramo = DetermineRamoName(p.Seccod),
                     Estado = DeterminePolizaEstado(p),
                     Prima = p.Conpremio,
                     Moneda = DetermineMoneda(p.Moncod),
                     RequiereAtencion = IsPolizaRequiereAtencion(p),
-                    TipoOperacion = DetermineTipoOperacion(p),
+                    //TipoOperacion = DetermineTipoOperacion(p),
                     Vigencia = p.Convig,
                     Endoso = p.Conend,
                     Total = p.Contot
@@ -129,46 +131,46 @@ namespace RegularizadorPolizas.API.Controllers
             }
         }
 
-        [HttpPost("process-document")]
+        [HttpPost("process-poliza")]
+        [Consumes("multipart/form-data")]
         [ProducesResponseType(typeof(DocumentProcessResultDto), 200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(500)]
-        public async Task<ActionResult<DocumentProcessResultDto>> ProcessDocument(
-            IFormFile file,
-            [FromQuery] int clientId)
+        public async Task<ActionResult<DocumentProcessResultDto>> ProcessPoliza(
+            int compañiaId,        
+            IFormFile archivo)        
         {
             try
             {
-                if (file == null || file.Length == 0)
+                if (archivo == null || archivo.Length == 0)
                     return BadRequest("No se proporcionó ningún archivo");
 
-                if (!file.ContentType.Contains("pdf") && !file.FileName.ToLower().EndsWith(".pdf"))
+                if (!archivo.ContentType.Contains("pdf") && !archivo.FileName.ToLower().EndsWith(".pdf"))
                     return BadRequest("Solo se admiten archivos PDF");
 
-                if (file.Length > 10 * 1024 * 1024) // 10MB
+                if (archivo.Length > 10 * 1024 * 1024) // 10MB
                     return BadRequest("El archivo es demasiado grande. Máximo 10MB");
 
-                _logger.LogInformation("Processing document {FileName} ({FileSize} bytes) for client {ClientId}",
-                    file.FileName, file.Length, clientId);
+                _logger.LogInformation("Processing poliza document {FileName} for company {CompanyId}",
+                    archivo.FileName, compañiaId);
 
-                var cliente = await _clientService.GetClientByIdAsync(clientId);
-                if (cliente == null)
-                {
-                    return BadRequest($"Cliente con ID {clientId} no encontrado");
-                }
+                var company = await _hybridApiService.GetCompanyByIdAsync(compañiaId);
+                if (company == null)
+                    return BadRequest($"Compañía con ID {compañiaId} no encontrada");
+                var modelId = DetermineModelByCompany(company.Cod_srvcompanias);
 
-                var azureResult = await _documentService.ProcessDocumentAsync(file);
+                var azureResult = await _documentService.ProcessDocumentAsync(archivo, modelId);
 
                 if (azureResult.EstadoProcesamiento != "PROCESADO")
                 {
                     return BadRequest($"Error procesando documento: {azureResult.MensajeError}");
                 }
 
-                var pdfUrl = await _fileStorageService.SavePdfAsync(file, clientId);
+                var pdfUrl = await _fileStorageService.SavePdfAsync(archivo, 0); 
 
                 if (azureResult.PolizaProcesada != null)
                 {
-                    azureResult.PolizaProcesada.Clinro = clientId;
+                    azureResult.PolizaProcesada.Comcod = compañiaId;
 
                     var result = new DocumentProcessResultDto
                     {
@@ -180,19 +182,6 @@ namespace RegularizadorPolizas.API.Controllers
                         FechaProcesamiento = azureResult.FechaProcesamiento,
 
                         PdfViewerUrl = pdfUrl,
-                        ClienteAsociado = new ClientSummaryDto
-                        {
-                            Id = cliente.Id,
-                            Nombre = cliente.Clinom,
-                            Documento = !string.IsNullOrEmpty(cliente.Cliruc) ? cliente.Cliruc : cliente.Cliced,
-                            Email = cliente.Cliemail,
-                            Telefono = cliente.Telefono,
-                            Celular = cliente.Clitelcel,
-                            Domicilio = cliente.Clidir,
-                            TipoCliente = !string.IsNullOrEmpty(cliente.Cliruc) ? "Empresa" : "Persona",
-                            RazonSocial = cliente.Clirsoc
-                        },
-
                         PolizaDatos = azureResult.PolizaProcesada,
 
                         RequiereVerificacion = azureResult.ConfianzaExtraccion < 0.85m,
@@ -200,13 +189,13 @@ namespace RegularizadorPolizas.API.Controllers
                         ConfianzaPorCampo = GetConfidencePerField(azureResult),
                         EstadoFormulario = "pendiente",
 
-                        TipoDocumentoDetectado = "Póliza de Seguro",
-                        CompaniaDetectada = azureResult.PolizaProcesada.Clinom,
-                        EsRenovacion = DetectIfRenovacion(azureResult.PolizaProcesada)
+                        CompaniaSeleccionada = company.Comnom,
+                        TipoOperacion = "Nueva", 
+                        TipoDocumentoDetectado = "Póliza de Seguro"
                     };
 
-                    _logger.LogInformation("Document processed successfully. Policy: {PolicyNumber}, Confidence: {Confidence}%",
-                        azureResult.PolizaProcesada.Conpol, azureResult.ConfianzaExtraccion * 100);
+                    _logger.LogInformation("Poliza processed successfully. Company: {Company}, Confidence: {Confidence}%",
+                        company.Comnom, azureResult.ConfianzaExtraccion * 100);
 
                     return Ok(result);
                 }
@@ -215,9 +204,22 @@ namespace RegularizadorPolizas.API.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error processing document {FileName} for client {ClientId}", file?.FileName, clientId);
-                return StatusCode(500, $"Error interno procesando documento: {ex.Message}");
+                _logger.LogError(ex, "Error processing poliza {FileName} for company {CompanyId}",
+                    archivo?.FileName, compañiaId);
+                return StatusCode(500, $"Error interno procesando póliza: {ex.Message}");
             }
+        }
+
+        private string DetermineModelByCompany(string companyCod)
+        {
+            return companyCod switch
+            {
+                "BSE" => "poliza-vehiculo-bse",
+                "SURA" => "poliza-vehiculo-sura",    
+                "MAPFRE" => "poliza-vehiculo-mapfre", 
+                "PORTO" => "poliza-vehiculo-porto",  
+                _ => "poliza-vehiculo-bse" // Fallback al modelo BSE
+            };
         }
 
         [HttpPost("send-to-velneo")]
@@ -315,30 +317,6 @@ namespace RegularizadorPolizas.API.Controllers
             return "Nuevo";
         }
 
-        private string DetermineCompanyName(int? companyCode)
-        {
-            return companyCode switch
-            {
-                1 => "BANCO DE SEGUROS",
-                2 => "PORTO SEGUROS",
-                3 => "MAPFRE",
-                4 => "SURA SEGUROS",
-                _ => "No especificada"
-            };
-        }
-
-        private string DetermineRamoName(int? sectionCode)
-        {
-            return sectionCode switch
-            {
-                1 => "AUTOMÓVILES",
-                2 => "INCENDIO",
-                3 => "VIDA",
-                4 => "ACCIDENTES",
-                _ => "No especificado"
-            };
-        }
-
         private string DetermineMoneda(int? monedaCode)
         {
             return monedaCode switch
@@ -355,15 +333,6 @@ namespace RegularizadorPolizas.API.Controllers
 
             var diasParaVencimiento = (poliza.Confchhas.Value - DateTime.Now).Days;
             return diasParaVencimiento <= 30 && diasParaVencimiento >= 0;
-        }
-
-        private string DetermineTipoOperacion(PolizaDto poliza)
-        {
-            if (poliza.Conpol?.Contains("-R") == true)
-                return "Renovación";
-            if (poliza.Conpol?.Contains("-E") == true)
-                return "Endoso";
-            return "Nueva";
         }
 
         private List<string> GetLowConfidenceFields(DocumentResultDto azureResult)

@@ -38,7 +38,6 @@ namespace RegularizadorPolizas.Infrastructure.External
                 new Uri(_endpoint),
                 new AzureKeyCredential(_apiKey));
 
-            // ALTERNATIVA SIMPLE: Pasar null (el constructor lo permite)
             _parser = new VelneoDocumentResultParser(null);
         }
 
@@ -89,6 +88,76 @@ namespace RegularizadorPolizas.Infrastructure.External
                     TiempoProcesamiento = stopwatch.ElapsedMilliseconds,
 
                     // Datos de la póliza procesada para Velneo
+                    PolizaProcesada = polizaDto
+                };
+
+                _logger.LogInformation("Document processed successfully in {ElapsedMs}ms. Policy: {PolicyNumber}, Client: {ClientName}",
+                    stopwatch.ElapsedMilliseconds, polizaDto.Conpol, polizaDto.Clinom);
+
+                return resultado;
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                _logger.LogError(ex, "Error processing document {FileName} after {ElapsedMs}ms",
+                    file.FileName, stopwatch.ElapsedMilliseconds);
+
+                return new DocumentResultDto
+                {
+                    NombreArchivo = file.FileName,
+                    EstadoProcesamiento = "ERROR",
+                    MensajeError = $"Error al procesar el documento: {ex.Message}",
+                    FechaProcesamiento = DateTime.Now,
+                    TiempoProcesamiento = stopwatch.ElapsedMilliseconds
+                };
+            }
+        }
+
+        public async Task<DocumentResultDto> ProcessDocumentAsync(IFormFile file, string modelId)
+        {
+            if (file == null || file.Length == 0)
+            {
+                return new DocumentResultDto
+                {
+                    NombreArchivo = file?.FileName ?? "unknown",
+                    EstadoProcesamiento = "ERROR",
+                    MensajeError = "El archivo está vacío o no se ha proporcionado.",
+                    FechaProcesamiento = DateTime.Now
+                };
+            }
+
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+            try
+            {
+                _logger.LogInformation("Starting document processing for file: {FileName}, Size: {FileSize} bytes",
+                    file.FileName, file.Length);
+
+                using var stream = file.OpenReadStream();
+
+                var binaryData = BinaryData.FromStream(stream);
+
+                var operation = await _client.AnalyzeDocumentAsync(
+                    WaitUntil.Completed,
+                    _modelId,
+                    binaryData);
+
+                var analyzeResult = operation.Value;
+                var azureResultJson = ConvertAnalyzeResultToJObject(analyzeResult);
+                var polizaDto = _parser.ParseToPolizaDto(azureResultJson);
+                var camposExtraidos = ExtractFieldsDictionary(azureResultJson);
+                stopwatch.Stop();
+
+                var resultado = new DocumentResultDto
+                {
+                    NombreArchivo = file.FileName,
+                    EstadoProcesamiento = "PROCESADO",
+                    CamposExtraidos = camposExtraidos,
+                    ConfianzaExtraccion = (decimal)(analyzeResult.Documents?.FirstOrDefault()?.Confidence ?? 0),
+                    RequiereRevision = DetermineIfReviewRequired(polizaDto, analyzeResult),
+                    FechaProcesamiento = DateTime.Now,
+                    TiempoProcesamiento = stopwatch.ElapsedMilliseconds,
+
                     PolizaProcesada = polizaDto
                 };
 

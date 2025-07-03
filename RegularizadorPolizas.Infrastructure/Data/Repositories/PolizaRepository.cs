@@ -15,6 +15,8 @@ namespace RegularizadorPolizas.Infrastructure.Data.Repositories
         public async Task<IEnumerable<Poliza>> GetPolizasByClienteAsync(int clienteId)
         {
             return await _context.Polizas
+                .Include(p => p.Company)   
+                .Include(p => p.Seccion)
                 .Where(p => p.Clinro == clienteId && p.Activo)
                 .OrderByDescending(p => p.Confchdes)
                 .ToListAsync();
