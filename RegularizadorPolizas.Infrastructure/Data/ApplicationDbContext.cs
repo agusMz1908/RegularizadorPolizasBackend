@@ -50,6 +50,7 @@ namespace RegularizadorPolizas.Infrastructure.Data
         public DbSet<ImpuestoPorSeccion> ImpuestosPorSeccion { get; set; }
         public DbSet<NumeroUtil> NumerosUtiles { get; set; }
         public DbSet<Vehiculo> Vehiculos { get; set; }
+        public DbSet<PolizaVerification> PolizaVerifications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -287,6 +288,43 @@ namespace RegularizadorPolizas.Infrastructure.Data
 
                 entity.HasIndex(e => new { e.Activo, e.FechaExpiracion })
                     .HasDatabaseName("IX_ApiKeys_Activo_FechaExpiracion");
+            });
+
+            modelBuilder.Entity<PolizaVerification>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.ToTable("PolizaVerifications");
+
+                entity.Property(e => e.PolizaId)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.EstadoGeneral)
+                    .IsRequired()
+                    .HasMaxLength(50);
+
+                entity.Property(e => e.CamposVerificados)
+                    .HasColumnType("TEXT");
+
+                entity.Property(e => e.Observaciones)
+                    .HasMaxLength(1000);
+
+                entity.Property(e => e.FechaCreacion)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.HasIndex(e => e.PolizaId)
+                    .HasDatabaseName("IX_PolizaVerifications_PolizaId");
+
+                entity.HasIndex(e => e.UserId)
+                    .HasDatabaseName("IX_PolizaVerifications_UserId");
+
+                entity.HasIndex(e => new { e.PolizaId, e.EstadoGeneral })
+                    .HasDatabaseName("IX_PolizaVerifications_PolizaId_Estado");
+
+                entity.HasOne(pv => pv.User)
+                    .WithMany()
+                    .HasForeignKey(pv => pv.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
         }
 

@@ -1,4 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿
+
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace RegularizadorPolizas.Domain.Entities
@@ -207,7 +209,6 @@ namespace RegularizadorPolizas.Domain.Entities
 
         public int? App_id { get; set; }
 
-        // Propiedades específicas de la aplicación
         public DateTime FechaCreacion { get; set; } = DateTime.Now;
         public DateTime FechaModificacion { get; set; } = DateTime.Now;
 

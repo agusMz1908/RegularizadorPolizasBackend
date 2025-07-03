@@ -1,13 +1,15 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Azure.Storage.Blobs;
 using RegularizadorPolizas.Application.Interfaces;
-using RegularizadorPolizas.Application.Services.External;
 using RegularizadorPolizas.Infrastructure.Data;
 using RegularizadorPolizas.Infrastructure.Data.Repositories;
+using RegularizadorPolizas.Infrastructure.Repositories;
+using RegularizadorPolizas.Infrastructure.Services;
+using RegularizadorPolizas.Application.Services.External;
 using RegularizadorPolizas.Infrastructure.External;
 using RegularizadorPolizas.Infrastructure.External.VelneoAPI;
-using RegularizadorPolizas.Infrastructure.Repositories;
 
 namespace RegularizadorPolizas.Infrastructure
 {
@@ -32,21 +34,60 @@ namespace RegularizadorPolizas.Infrastructure
             services.AddScoped<IPolizaRepository, PolizaRepository>();
             services.AddScoped<IProcessDocumentRepository, ProcessDocumentRepository>();
             services.AddScoped<IRenovationRepository, RenovationRepository>();
-            services.AddScoped<IBrokerRepository, BrokerRepository>();
             services.AddScoped<ICompanyRepository, CompanyRepository>();
+            services.AddScoped<IBrokerRepository, BrokerRepository>();
             services.AddScoped<ICurrencyRepository, CurrencyRepository>();
             services.AddScoped<IAuditRepository, AuditRepository>();
-            services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
+
             services.AddScoped<IUserRepository, UserRepository>();
-            services.AddScoped<IRoleRepository, RoleRepository>();
             services.AddScoped<IUserRoleRepository, UserRoleRepository>();
+            services.AddScoped<IRoleRepository, RoleRepository>();
             services.AddScoped<IPermissionRepository, PermissionRepository>();
             services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
+            services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
+            services.AddScoped<IVerificationRepository, VerificationRepository>();
 
+            services.AddScoped<IVerificationRepository, VerificationRepository>();
             services.AddScoped<IAzureDocumentIntelligenceService, AzureDocumentIntelligenceService>();
-
-            services.AddHttpClient(); // Para IHttpClientFactory
+            services.AddScoped<IFileStorageService, AzureBlobStorageService>();
             services.AddScoped<IVelneoApiService, TenantAwareVelneoApiService>();
+
+            services.AddSingleton(provider =>
+            {
+                var connectionString = configuration.GetConnectionString("AzureStorage");
+                if (string.IsNullOrEmpty(connectionString))
+                {
+                    throw new InvalidOperationException("Azure Storage connection string is not configured");
+                }
+                return new BlobServiceClient(connectionString);
+            });
+
+            services.AddHttpClient<TenantAwareVelneoApiService>((serviceProvider, client) =>
+            {
+                var baseUrl = configuration["VelneoAPI:BaseUrl"];
+                if (!string.IsNullOrEmpty(baseUrl))
+                {
+                    client.BaseAddress = new Uri(baseUrl);
+                }
+
+                var timeoutSeconds = configuration.GetValue<int>("VelneoAPI:TimeoutSeconds", 30);
+                client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+
+                var apiKey = configuration["VelneoAPI:ApiKey"];
+                if (!string.IsNullOrEmpty(apiKey))
+                {
+                    client.DefaultRequestHeaders.Add("ApiKey", apiKey);
+                }
+
+                client.DefaultRequestHeaders.Add("User-Agent", "RegularizadorPolizas-API/1.0");
+
+                var apiVersion = configuration["VelneoAPI:ApiVersion"];
+                if (!string.IsNullOrEmpty(apiVersion))
+                {
+                    client.DefaultRequestHeaders.Add("Api-Version", apiVersion);
+                }
+            });
+
 
             return services;
         }

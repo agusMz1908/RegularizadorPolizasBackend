@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Application.Services;
+using RegularizadorPolizas.Infrastructure.Services;
 using System.Reflection;
 
 namespace RegularizadorPolizas.Application
@@ -25,6 +26,10 @@ namespace RegularizadorPolizas.Application
 
             services.AddScoped<ITenantService, TenantService>();
             services.AddScoped<IHybridApiService, TenantAwareHybridService>();
+
+            services.AddScoped<IFileStorageService, AzureBlobStorageService>();
+            services.AddScoped<IVerificationService, VerificationService>();
+            services.AddScoped<IVerificationService, VerificationService>();
 
             services.AddAutoMapper(Assembly.GetExecutingAssembly());
 

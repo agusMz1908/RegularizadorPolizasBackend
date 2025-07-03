@@ -107,11 +107,65 @@ builder.Services.AddSwaggerGen(c =>
 #region CORS Configuration
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll",
-        policy => policy
-            .AllowAnyOrigin()
-            .AllowAnyMethod()
-            .AllowAnyHeader());
+    var isDevelopment = builder.Environment.IsDevelopment();
+    var enableDevCors = builder.Configuration.GetValue<bool>("Frontend:EnableCorsForDevelopment", true);
+
+    if (isDevelopment && enableDevCors)
+    {
+        options.AddPolicy("ReactApp", policy =>
+        {
+            policy.WithOrigins(
+                    "http://localhost:3000",           // React dev server
+                    "http://localhost:3001",           // React dev server alternativo
+                    "https://localhost:3000",          // React dev server HTTPS
+                    "https://localhost:3001"           // React dev server HTTPS alternativo
+                )
+                .AllowAnyMethod()
+                .AllowAnyHeader()
+                .AllowCredentials()
+                .SetIsOriginAllowedToAllowWildcardSubdomains();
+        });
+
+        options.AddPolicy("Development", policy =>
+        {
+            policy.AllowAnyOrigin()
+                .AllowAnyMethod()
+                .AllowAnyHeader();
+        });
+    }
+    else
+    {
+        var reactAppUrl = builder.Configuration["Frontend:ProductionReactUrl"];
+        var allowedOrigins = new List<string>();
+
+        if (!string.IsNullOrEmpty(reactAppUrl))
+        {
+            allowedOrigins.Add(reactAppUrl);
+        }
+
+        var additionalOrigins = builder.Configuration.GetSection("Frontend:AllowedOrigins").Get<string[]>();
+        if (additionalOrigins != null)
+        {
+            allowedOrigins.AddRange(additionalOrigins);
+        }
+
+        options.AddPolicy("ReactApp", policy =>
+        {
+            if (allowedOrigins.Any())
+            {
+                policy.WithOrigins(allowedOrigins.ToArray())
+                    .AllowAnyMethod()
+                    .AllowAnyHeader()
+                    .AllowCredentials();
+            }
+            else
+            {
+                policy.AllowAnyOrigin()
+                    .AllowAnyMethod()
+                    .AllowAnyHeader();
+            }
+        });
+    }
 });
 #endregion
 
