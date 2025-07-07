@@ -16,7 +16,9 @@ namespace RegularizadorPolizas.Infrastructure.Data.Repositories
         {
             return await _context.Polizas
                 .Include(p => p.Company)   
-                .Include(p => p.Seccion)
+                .Include(p => p.Seccion)   
+                .Include(p => p.Currency)   
+                .Include(p => p.Client)   
                 .Where(p => p.Clinro == clienteId && p.Activo)
                 .OrderByDescending(p => p.Confchdes)
                 .ToListAsync();
@@ -26,6 +28,9 @@ namespace RegularizadorPolizas.Infrastructure.Data.Repositories
         {
             return await _context.Polizas
                 .Include(p => p.Client)
+                .Include(p => p.Company)      
+                .Include(p => p.Seccion)       
+                .Include(p => p.Currency)       
                 .Include(p => p.PolizaPadre)
                 .Include(p => p.PolizasHijas.Where(h => h.Activo))
                 .Include(p => p.ProcessDocuments)
@@ -73,6 +78,35 @@ namespace RegularizadorPolizas.Infrastructure.Data.Repositories
                 .Where(predicate)
                 .Include(p => p.Client)
                 .ToListAsync();
+        }
+
+        public async Task<Poliza> CreatePolizaFromDocumentAsync(Poliza poliza)
+        {
+            poliza.FechaCreacion = DateTime.Now;
+            poliza.FechaModificacion = DateTime.Now;
+            poliza.Activo = true;
+            poliza.Procesado = true;
+            poliza.TipoOperacion = "NUEVA";
+            poliza.OrigenDocumento = "DOCUMENT_INTELLIGENCE";
+
+            await _context.Polizas.AddAsync(poliza);
+            await _context.SaveChangesAsync();
+
+            return await GetPolizaDetalladaAsync(poliza.Id);
+        }
+
+
+        public async Task<bool> ExistePolizaAsync(string numeroPoliza, int? excludeId = null)
+        {
+            if (string.IsNullOrWhiteSpace(numeroPoliza))
+                return false;
+
+            var query = _context.Polizas.Where(p => p.Conpol == numeroPoliza && p.Activo);
+
+            if (excludeId.HasValue)
+                query = query.Where(p => p.Id != excludeId.Value);
+
+            return await query.AnyAsync();
         }
     }
 }

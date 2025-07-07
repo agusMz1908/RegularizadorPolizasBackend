@@ -1,10 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RegularizadorPolizas.Application.DTOs;
-using RegularizadorPolizas.Application.Interfaces;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using RegularizadorPolizas.Application.Interfaces; 
 
 namespace RegularizadorPolizas.API.Controllers
 {
