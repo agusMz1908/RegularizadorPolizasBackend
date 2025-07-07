@@ -107,62 +107,36 @@ builder.Services.AddSwaggerGen(c =>
 #region CORS Configuration
 builder.Services.AddCors(options =>
 {
-    var isDevelopment = builder.Environment.IsDevelopment();
-    var enableDevCors = builder.Configuration.GetValue<bool>("Frontend:EnableCorsForDevelopment", true);
-
-    if (isDevelopment && enableDevCors)
+    if (builder.Environment.IsDevelopment())
     {
-        options.AddPolicy("ReactApp", policy =>
+        // Configuración permisiva para desarrollo
+        options.AddPolicy("AllowAll", policy =>
         {
             policy.WithOrigins(
-                    "http://localhost:3000",           // React dev server
-                    "http://localhost:3001",           // React dev server alternativo
-                    "https://localhost:3000",          // React dev server HTTPS
-                    "https://localhost:3001"           // React dev server HTTPS alternativo
+                    "http://localhost:3000",
+                    "http://localhost:3001",
+                    "https://localhost:3000",
+                    "https://localhost:3001",
+                    "http://localhost:5173",           
+                    "https://localhost:5173"         
                 )
                 .AllowAnyMethod()
                 .AllowAnyHeader()
-                .AllowCredentials()
-                .SetIsOriginAllowedToAllowWildcardSubdomains();
-        });
-
-        options.AddPolicy("Development", policy =>
-        {
-            policy.AllowAnyOrigin()
-                .AllowAnyMethod()
-                .AllowAnyHeader();
+                .AllowCredentials();
         });
     }
     else
     {
-        var reactAppUrl = builder.Configuration["Frontend:ProductionReactUrl"];
-        var allowedOrigins = new List<string>();
+        var allowedOrigins = builder.Configuration.GetSection("Frontend:AllowedOrigins").Get<string[]>() ?? new string[0];
 
-        if (!string.IsNullOrEmpty(reactAppUrl))
+        options.AddPolicy("AllowAll", policy =>
         {
-            allowedOrigins.Add(reactAppUrl);
-        }
-
-        var additionalOrigins = builder.Configuration.GetSection("Frontend:AllowedOrigins").Get<string[]>();
-        if (additionalOrigins != null)
-        {
-            allowedOrigins.AddRange(additionalOrigins);
-        }
-
-        options.AddPolicy("ReactApp", policy =>
-        {
-            if (allowedOrigins.Any())
+            if (allowedOrigins.Length > 0)
             {
-                policy.WithOrigins(allowedOrigins.ToArray())
+                policy.WithOrigins(allowedOrigins)
                     .AllowAnyMethod()
                     .AllowAnyHeader()
                     .AllowCredentials();
-            }
-            else
-            {
-                policy.AllowAnyOrigin()
-                    .AllowAnyMethod()
-                    .AllowAnyHeader();
             }
         });
     }

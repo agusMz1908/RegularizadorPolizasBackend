@@ -15,10 +15,10 @@ namespace RegularizadorPolizas.Infrastructure.Data.Repositories
         public async Task<IEnumerable<Poliza>> GetPolizasByClienteAsync(int clienteId)
         {
             return await _context.Polizas
-                .Include(p => p.Company)   
-                .Include(p => p.Seccion)   
-                .Include(p => p.Currency)   
-                .Include(p => p.Client)   
+                .Include(p => p.Company)  
+                .Include(p => p.Seccion)    
+                .Include(p => p.Currency)  
+                .Include(p => p.Client)     
                 .Where(p => p.Clinro == clienteId && p.Activo)
                 .OrderByDescending(p => p.Confchdes)
                 .ToListAsync();
@@ -28,7 +28,7 @@ namespace RegularizadorPolizas.Infrastructure.Data.Repositories
         {
             return await _context.Polizas
                 .Include(p => p.Client)
-                .Include(p => p.Company)      
+                .Include(p => p.Company)     
                 .Include(p => p.Seccion)       
                 .Include(p => p.Currency)       
                 .Include(p => p.PolizaPadre)
