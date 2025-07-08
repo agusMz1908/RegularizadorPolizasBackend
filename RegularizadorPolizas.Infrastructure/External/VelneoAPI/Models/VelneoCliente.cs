@@ -20,7 +20,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models
         public string Telefono { get; set; } = string.Empty;
 
         [JsonPropertyName("clifchnac")]
-        public DateTime? Clifchnac { get; set; }
+        public string? Clifchnac { get; set; }
 
         [JsonPropertyName("clifching")]
         public DateTime? Clifching { get; set; }
@@ -137,7 +137,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models
         public string Cli_s_cris { get; set; } = string.Empty;
 
         [JsonPropertyName("clifchnac1")]
-        public DateTime? Clifchnac1 { get; set; }
+        public string? Clifchnac1 { get; set; }
 
         [JsonPropertyName("clilocnom")]
         public string Clilocnom { get; set; } = string.Empty;
@@ -233,7 +233,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models
         public bool Noti_obs_sini_wap { get; set; }
 
         [JsonPropertyName("last_update")]
-        public DateTime? Last_update { get; set; }
+        public string? Last_update { get; set; }
 
         [JsonPropertyName("app_id")]
         public int? App_id { get; set; }

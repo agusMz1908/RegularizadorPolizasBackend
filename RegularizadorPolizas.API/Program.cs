@@ -14,7 +14,6 @@ using RegularizadorPolizas.Application.Services;
 using RegularizadorPolizas.Application.Mappings;
 using RegularizadorPolizas.Infrastructure.Data.Repositories;
 using RegularizadorPolizas.Infrastructure.External.VelneoAPI;
-using RegularizadorPolizas.Application.Services.External;
 
 var builder = WebApplication.CreateBuilder(args);
 

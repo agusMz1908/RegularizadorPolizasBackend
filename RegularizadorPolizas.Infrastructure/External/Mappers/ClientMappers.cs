@@ -1,4 +1,4 @@
-﻿// REEMPLAZAR COMPLETO: ClientMappers.cs - Mapeando la estructura REAL
+﻿// ClientMappers.cs - CORREGIDO: Eliminadas propiedades inexistentes
 
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models;
@@ -12,7 +12,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers
             return new ClientDto
             {
                 Id = velneoCliente.Id,
-
                 Corrcod = velneoCliente.Corrcod,
                 Subcorr = velneoCliente.Subcorr,
                 Clinom = velneoCliente.Clinom,
@@ -91,12 +90,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers
                 Last_update = velneoCliente.Last_update,
                 App_id = velneoCliente.App_id,
 
-                Clinro = velneoCliente.Id, 
-                Cliape = string.Empty,     
-                Clitel = velneoCliente.Telefono,
-                Cliciu = string.Empty,     
-                Clidep = string.Empty,    
-                Clipai = string.Empty,     
+                Clinro = velneoCliente.Id,
 
                 Polizas = new List<PolizaResumidaDto>()
             };
@@ -192,7 +186,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers
             };
         }
 
-        // Mapper específico para lookups/búsquedas
         public static ClientLookupDto ToClienteLookupDto(this VelneoCliente velneoCliente)
         {
             return new ClientLookupDto
@@ -200,7 +193,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers
                 Id = velneoCliente.Id,
                 NombreCompleto = velneoCliente.Clinom,
                 Documento = velneoCliente.Cliced,
-                TipoDocumento = "CI", // Valor por defecto
+                TipoDocumento = "CI", 
                 Email = velneoCliente.Cliemail,
                 Activo = velneoCliente.Activo
             };
@@ -209,6 +202,17 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers
         public static IEnumerable<ClientLookupDto> ToClienteLookupDtos(this IEnumerable<VelneoCliente> velneoClientes)
         {
             return velneoClientes.Select(c => c.ToClienteLookupDto());
+        }
+
+        private static DateTime? ParseVelneoDate(string? dateString)
+        {
+            if (string.IsNullOrEmpty(dateString))
+                return null;
+
+            if (DateTime.TryParse(dateString, out var date))
+                return date;
+
+            return null;
         }
     }
 }

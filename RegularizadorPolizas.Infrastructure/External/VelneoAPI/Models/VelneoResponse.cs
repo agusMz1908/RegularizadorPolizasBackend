@@ -41,11 +41,57 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models
         [JsonPropertyName("message")]
         public string Message { get; set; } = string.Empty;
     }
+        public class VelneoSeccionesResponse
+    {
+        [JsonPropertyName("secciones")]
+        public List<VelneoSeccion> Secciones { get; set; } = new();
+
+        [JsonPropertyName("total")]
+        public int Total { get; set; }
+
+        [JsonPropertyName("success")]
+        public bool Success { get; set; }
+
+        [JsonPropertyName("message")]
+        public string Message { get; set; } = string.Empty;
+    }
+
+    public class VelneoSeccionesLookupResponse
+    {
+        [JsonPropertyName("secciones")]
+        public List<VelneoSeccionLookup> Secciones { get; set; } = new();
+
+        [JsonPropertyName("success")]
+        public bool Success { get; set; }
+
+        [JsonPropertyName("message")]
+        public string Message { get; set; } = string.Empty;
+    }
 
     public class VelneoClientResponse
     {
         [JsonPropertyName("cliente")]
         public VelneoCliente Cliente { get; set; } = new();
+
+        [JsonPropertyName("success")]
+        public bool Success { get; set; }
+        [JsonPropertyName("total_count")]
+        public int TotalCount { get; set; }
+
+        [JsonPropertyName("message")]
+        public string Message { get; set; } = string.Empty;
+    }
+
+    public class VelneoClientsResponse
+    {
+        [JsonPropertyName("clientes")]
+        public List<VelneoCliente> Clientes { get; set; } = new();
+
+        [JsonPropertyName("total_count")]
+        public int TotalCount { get; set; }
+
+        [JsonPropertyName("total")]
+        public int Total { get; set; }
 
         [JsonPropertyName("success")]
         public bool Success { get; set; }
@@ -76,33 +122,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models
 
         [JsonPropertyName("timestamp")]
         public DateTime Timestamp { get; set; }
-
-        [JsonPropertyName("success")]
-        public bool Success { get; set; }
-
-        [JsonPropertyName("message")]
-        public string Message { get; set; } = string.Empty;
-    }
-
-    public class VelneoSeccionesResponse
-    {
-        [JsonPropertyName("secciones")]
-        public List<VelneoSeccion> Secciones { get; set; } = new();
-
-        [JsonPropertyName("total")]
-        public int Total { get; set; }
-
-        [JsonPropertyName("success")]
-        public bool Success { get; set; }
-
-        [JsonPropertyName("message")]
-        public string Message { get; set; } = string.Empty;
-    }
-
-    public class VelneoSeccionesLookupResponse
-    {
-        [JsonPropertyName("secciones")]
-        public List<VelneoSeccionLookup> Secciones { get; set; } = new();
 
         [JsonPropertyName("success")]
         public bool Success { get; set; }
