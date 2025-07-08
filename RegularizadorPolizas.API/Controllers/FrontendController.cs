@@ -4,7 +4,9 @@ using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.DTOs.Frontend;
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Application.Services.External;
+using System.Net;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace RegularizadorPolizas.API.Controllers
 {

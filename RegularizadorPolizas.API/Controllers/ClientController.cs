@@ -36,7 +36,6 @@ namespace RegularizadorPolizas.API.Controllers
             }
             catch (Exception ex)
             {
-                // Log exception
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
