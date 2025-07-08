@@ -1,68 +1,51 @@
 ﻿using RegularizadorPolizas.Application.DTOs;
 
-namespace RegularizadorPolizas.Application.Services.External
+namespace RegularizadorPolizas.Application.Interfaces
 {
     public interface IVelneoApiService
     {
-        #region Currency Operations
-        Task<CurrencyDto?> GetCurrencyAsync(int id);
-        Task<CurrencyDto> CreateCurrencyAsync(CurrencyDto currencyDto);
-        Task UpdateCurrencyAsync(CurrencyDto currencyDto);
-        Task DeleteCurrencyAsync(int id);
-        Task<CurrencyDto?> GetCurrencyByCodeAsync(string codigo);
-        Task<IEnumerable<CurrencyDto>> GetAllCurrenciesAsync();
-        Task<IEnumerable<CurrencyLookupDto>> GetCurrenciesForLookupAsync();
-        Task<CurrencyDto?> GetDefaultCurrencyAsync();
-        Task<IEnumerable<CurrencyDto>> SearchCurrenciesAsync(string searchTerm);
-        #endregion
+        // Métodos de Clientes 
+        Task<ClientDto> GetClienteAsync(int id);
+        Task<IEnumerable<ClientDto>> GetClientesAsync();
+        Task<IEnumerable<ClientDto>> SearchClientesAsync(string searchTerm);
+        Task<ClientDto> CreateClienteAsync(ClientDto clienteDto);
+        Task UpdateClienteAsync(ClientDto clienteDto);
+        Task DeleteClienteAsync(int id);
 
-        #region Company Operations
-        Task<CompanyDto?> GetCompanyAsync(int id);
-        Task<CompanyDto> CreateCompanyAsync(CompanyDto companyDto);
-        Task UpdateCompanyAsync(CompanyDto companyDto);
-        Task DeleteCompanyAsync(int id);
-        Task<CompanyDto?> GetCompanyByCodeAsync(string code);
-        Task<CompanyDto?> GetCompanyByAliasAsync(string alias);
-        Task<IEnumerable<CompanyDto>> GetAllCompaniesAsync();
-        Task<IEnumerable<CompanyLookupDto>> GetCompaniesForLookupAsync();
-        Task<IEnumerable<CompanyDto>> GetActiveCompaniesAsync();
-        Task<IEnumerable<CompanyDto>> SearchCompaniesAsync(string searchTerm);
-        #endregion
-
-        #region Poliza Operations
-        Task<PolizaDto?> GetPolizaAsync(int id);
+        // Métodos de Pólizas 
+        Task<PolizaDto> GetPolizaAsync(int id);
+        Task<PolizaDto> GetPolizaByNumberAsync(string numeroPoliza);
+        Task<IEnumerable<PolizaDto>> GetPolizasAsync();
+        Task<IEnumerable<PolizaDto>> GetPolizasByClientAsync(int clienteId);
+        Task<IEnumerable<PolizaDto>> SearchPolizasAsync(string searchTerm);
         Task<PolizaDto> CreatePolizaAsync(PolizaDto polizaDto);
         Task UpdatePolizaAsync(PolizaDto polizaDto);
         Task DeletePolizaAsync(int id);
-        Task<PolizaDto?> GetPolizaByNumberAsync(string policyNumber);
-        Task<IEnumerable<PolizaDto>> GetPolizasByClientAsync(int clientId);
-        Task<IEnumerable<PolizaDto>> SearchPolizasAsync(string searchTerm);
-        #endregion
 
-        #region Client Operations
-        Task<ClientDto?> GetClientAsync(int id);
-        Task<ClientDto> CreateClientAsync(ClientDto clientDto);
-        Task UpdateClientAsync(ClientDto clientDto);
-        Task DeleteClientAsync(int id);
-        Task<IEnumerable<ClientDto>> SearchClientsAsync(string searchTerm);
-        Task<IEnumerable<ClientDto>> GetAllClientsAsync();
-        #endregion
+        // Métodos de Compañías
+        Task<IEnumerable<CompanyDto>> GetActiveCompaniesAsync();
+        Task<IEnumerable<CompanyDto>> SearchCompaniesAsync(string searchTerm);
+        Task<IEnumerable<CompanyLookupDto>> GetCompaniesForLookupAsync();
 
-        #region Broker Operations
-        Task<BrokerDto?> GetBrokerAsync(int id);
+        // Métodos de Secciones
+        Task<SeccionDto> GetSeccionAsync(int id);
+        Task<IEnumerable<SeccionDto>> GetActiveSeccionesAsync();
+        Task<IEnumerable<SeccionDto>> GetSeccionesByCompanyAsync(int companyId);
+        Task<IEnumerable<SeccionDto>> SearchSeccionesAsync(string searchTerm);
+        Task<IEnumerable<SeccionLookupDto>> GetSeccionesForLookupAsync();
+        Task<SeccionDto> CreateSeccionAsync(SeccionDto seccionDto);
+        Task UpdateSeccionAsync(SeccionDto seccionDto);
+        Task DeleteSeccionAsync(int id);
+
+        // Métodos de Brokers
+        Task<BrokerDto> GetBrokerAsync(int id);
+        Task<IEnumerable<BrokerDto>> GetBrokersAsync();
+        Task<IEnumerable<BrokerDto>> SearchBrokersAsync(string searchTerm);
         Task<BrokerDto> CreateBrokerAsync(BrokerDto brokerDto);
         Task UpdateBrokerAsync(BrokerDto brokerDto);
         Task DeleteBrokerAsync(int id);
-        Task<IEnumerable<BrokerDto>> SearchBrokersAsync(string searchTerm);
-        Task<BrokerDto?> GetBrokerByEmailAsync(string email); 
-        Task<BrokerDto?> GetBrokerByCodigoAsync(string codigo); 
-        Task<IEnumerable<BrokerDto>> GetAllBrokersAsync();
-        Task<IEnumerable<BrokerDto>> GetActiveBrokersAsync();
-        Task<IEnumerable<BrokerLookupDto>> GetBrokersForLookupAsync();
-        #endregion
 
-        #region Health Check
-        Task<bool> TestConnectivityAsync();
-        #endregion
+        // Métodos de Conectividad y Configuración
+        Task<bool> TestConnectionAsync();
     }
 }
