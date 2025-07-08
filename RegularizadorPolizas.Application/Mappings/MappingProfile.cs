@@ -1,7 +1,6 @@
 ﻿using AutoMapper;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.DTOs.Audit;
-using RegularizadorPolizas.Application.DTOs.External.Velneo;
 using RegularizadorPolizas.Domain.Entities;
 using RegularizadorPolizas.Domain.Enums;
 using System.ComponentModel;
@@ -95,10 +94,6 @@ namespace RegularizadorPolizas.Application.Mappings
 
             CreateMap<CompanyDto, object>()
                 .ConvertUsing<CompanyLegacyConverter>();
-
-            CreateMap<VelneoCompanyDto, CompanyDto>()
-                .ForMember(dest => dest.TotalPolizas, opt => opt.Ignore())
-                .ForMember(dest => dest.Activo, opt => opt.MapFrom(src => true));
         }
 
         private void CreateBrokerMappings()
@@ -132,12 +127,6 @@ namespace RegularizadorPolizas.Application.Mappings
 
             CreateMap<BrokerDto, object>()
                 .ConvertUsing<BrokerLegacyConverter>();
-
-            CreateMap<VelneoBrokerDto, BrokerDto>()
-                .ForMember(dest => dest.Codigo, opt => opt.Ignore()) 
-                .ForMember(dest => dest.Email, opt => opt.Ignore())  
-                .ForMember(dest => dest.Activo, opt => opt.MapFrom(src => true))
-                .ForMember(dest => dest.TotalPolizas, opt => opt.Ignore());
         }
 
         private void CreateCurrencyMappings()

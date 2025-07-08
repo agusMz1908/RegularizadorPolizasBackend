@@ -52,28 +52,24 @@ namespace RegularizadorPolizas.Application.Services
                 _logger.LogWarning("🔧 Tenant Config Retrieved: TenantId={TenantId}, Mode={Mode}, BaseUrl={BaseUrl}",
                     tenantConfig.TenantId, tenantConfig.Mode, tenantConfig.BaseUrl);
 
-                // Azure IA siempre local
                 if (entity == "Document" && (operation == "PROCESS" || operation == "EXTRACT"))
                 {
                     _logger.LogWarning("📄 Document IA operations always go Local");
                     return false;
                 }
 
-                // Si el tenant está configurado como LOCAL, todo va local
                 if (tenantConfig.Mode.Equals("LOCAL", StringComparison.OrdinalIgnoreCase))
                 {
                     _logger.LogWarning("🏠 Tenant configured as LOCAL, routing to Local");
                     return false;
                 }
 
-                // Si el tenant está configurado como VELNEO, todo va a Velneo (excepto Document IA)
                 if (tenantConfig.Mode.Equals("VELNEO", StringComparison.OrdinalIgnoreCase))
                 {
                     _logger.LogWarning("📡 Tenant configured as VELNEO, routing to Velneo");
                     return true;
                 }
 
-                // Fallback: Si no está claro, va local por seguridad
                 _logger.LogWarning("⚠️ Tenant {TenantId} has unclear mode '{Mode}', defaulting to Local",
                     tenantConfig.TenantId, tenantConfig.Mode);
                 return false;
@@ -94,7 +90,7 @@ namespace RegularizadorPolizas.Application.Services
             if (await ShouldRouteToVelneoAsync("Client", "GET"))
             {
                 return await ExecuteWithFallback(
-                    () => _velneoApiService.GetClientAsync(id),
+                    () => _velneoApiService.GetClienteAsync(id), 
                     () => _localClientService.GetClientByIdAsync(id),
                     "Client.GET",
                     id);
@@ -108,7 +104,7 @@ namespace RegularizadorPolizas.Application.Services
             if (await ShouldRouteToVelneoAsync("Client", "CREATE"))
             {
                 return await ExecuteWithAudit(
-                    () => _velneoApiService.CreateClientAsync(clientDto),
+                    () => _velneoApiService.CreateClienteAsync(clientDto), 
                     AuditEventType.ClientCreated,
                     "Client.CREATE",
                     newData: clientDto);
@@ -122,7 +118,7 @@ namespace RegularizadorPolizas.Application.Services
             if (await ShouldRouteToVelneoAsync("Client", "UPDATE"))
             {
                 await ExecuteWithAudit(
-                    () => _velneoApiService.UpdateClientAsync(clientDto),
+                    () => _velneoApiService.UpdateClienteAsync(clientDto), 
                     AuditEventType.ClientUpdated,
                     "Client.UPDATE",
                     newData: clientDto);
@@ -138,7 +134,7 @@ namespace RegularizadorPolizas.Application.Services
             if (await ShouldRouteToVelneoAsync("Client", "DELETE"))
             {
                 await ExecuteWithAudit(
-                    () => _velneoApiService.DeleteClientAsync(id),
+                    () => _velneoApiService.DeleteClienteAsync(id), 
                     AuditEventType.ClientDeleted,
                     "Client.DELETE",
                     additionalData: new { ClientId = id });
@@ -154,7 +150,7 @@ namespace RegularizadorPolizas.Application.Services
             if (await ShouldRouteToVelneoAsync("Client", "SEARCH"))
             {
                 return await ExecuteWithFallback(
-                    () => _velneoApiService.SearchClientsAsync(searchTerm),
+                    () => _velneoApiService.SearchClientesAsync(searchTerm), 
                     () => _localClientService.SearchClientsAsync(searchTerm),
                     "Client.SEARCH",
                     searchTerm);
@@ -168,7 +164,7 @@ namespace RegularizadorPolizas.Application.Services
             if (await ShouldRouteToVelneoAsync("Client", "GET"))
             {
                 return await ExecuteWithFallback(
-                    () => _velneoApiService.GetAllClientsAsync(),
+                    () => _velneoApiService.GetClientesAsync(), 
                     () => _localClientService.GetAllClientsAsync(),
                     "Client.GETALL",
                     "all_clients");
@@ -272,70 +268,55 @@ namespace RegularizadorPolizas.Application.Services
 
         #endregion
 
-        #region Broker Operations
-
+        #region Broker Operations - CORREGIDAS
         public async Task<BrokerDto?> GetBrokerAsync(int id)
         {
             if (await ShouldRouteToVelneoAsync("Broker", "GET"))
             {
                 return await ExecuteWithFallback(
-                    () => _velneoApiService.GetBrokerAsync(id),
+                    () => _velneoApiService.GetBrokerAsync(id), 
                     () => _localBrokerService.GetBrokerByIdAsync(id),
                     "Broker.GET",
                     id);
             }
+
             return await _localBrokerService.GetBrokerByIdAsync(id);
         }
 
         public async Task<BrokerDto?> GetBrokerByIdAsync(int id)
         {
-            if (await ShouldRouteToVelneoAsync("Broker", "GET"))
-            {
-                return await ExecuteWithFallback(
-                    () => _velneoApiService.GetBrokerAsync(id),
-                    () => _localBrokerService.GetBrokerByIdAsync(id),
-                    "Broker.GETBYID", 
-                    id);
-            }
-            return await _localBrokerService.GetBrokerByIdAsync(id);
+            return await GetBrokerAsync(id); 
         }
 
         public async Task<BrokerDto?> GetBrokerByEmailAsync(string email)
         {
-            if (await ShouldRouteToVelneoAsync("Broker", "GET"))
-            {
-                return await ExecuteWithFallback(
-                    () => _velneoApiService.GetBrokerByEmailAsync(email),
-                    () => _localBrokerService.GetBrokerByEmailAsync(email),
-                    "Broker.GETBYEMAIL",
-                    email);
-            }
-
             return await _localBrokerService.GetBrokerByEmailAsync(email);
         }
 
         public async Task<BrokerDto?> GetBrokerByCodigoAsync(string codigo)
         {
-            if (await ShouldRouteToVelneoAsync("Broker", "GET"))
-            {
-                return await ExecuteWithFallback(
-                    () => _velneoApiService.GetBrokerByCodigoAsync(codigo),
-                    () => _localBrokerService.GetBrokerByCodigoAsync(codigo),
-                    "Broker.GETBYCODIGO",
-                    codigo);
-            }
-
             return await _localBrokerService.GetBrokerByCodigoAsync(codigo);
         }
+
         public async Task<IEnumerable<BrokerLookupDto>> GetBrokersForLookupAsync()
         {
             if (await ShouldRouteToVelneoAsync("Broker", "GET"))
             {
                 return await ExecuteWithFallback(
-                    () => _velneoApiService.GetBrokersForLookupAsync(),
+                    async () =>
+                    {
+                        var brokers = await _velneoApiService.GetBrokersAsync(); 
+                        return brokers.Select(b => new BrokerLookupDto
+                        {
+                            Id = b.Id,
+                            Name = b.Name,
+                            Codigo = b.Codigo,
+                            Telefono = b.Telefono
+                        });
+                    },
                     () => _localBrokerService.GetBrokersForLookupAsync(),
-                    "Broker.GETLOOKUP",
-                    "lookup_brokers");
+                    "Broker.LOOKUP",
+                    "brokers_lookup");
             }
 
             return await _localBrokerService.GetBrokersForLookupAsync();
@@ -343,10 +324,10 @@ namespace RegularizadorPolizas.Application.Services
 
         public async Task<IEnumerable<BrokerDto>> GetAllBrokersAsync()
         {
-            if (await ShouldRouteToVelneoAsync("Broker", "GETALL"))
+            if (await ShouldRouteToVelneoAsync("Broker", "GET"))
             {
                 return await ExecuteWithFallback(
-                    () => _velneoApiService.GetAllBrokersAsync(),
+                    () => _velneoApiService.GetBrokersAsync(), 
                     () => _localBrokerService.GetAllBrokersAsync(),
                     "Broker.GETALL",
                     "all_brokers");
@@ -357,48 +338,21 @@ namespace RegularizadorPolizas.Application.Services
 
         public async Task<IEnumerable<BrokerDto>> GetActiveBrokersAsync()
         {
-            _logger.LogWarning("🔥 GetActiveBrokersAsync CALLED - Starting hybrid routing");
-
-            try
-            {
-                bool shouldRoute = await ShouldRouteToVelneoAsync("Broker", "GET");
-                _logger.LogWarning("🎯 ShouldRouteToVelneo result: {Result}", shouldRoute);
-
-                if (shouldRoute)
-                {
-                    _logger.LogWarning("📡 ROUTING TO VELNEO API");
-                    return await ExecuteWithFallback(
-                        () => _velneoApiService.GetActiveBrokersAsync(),
-                        () => _localBrokerService.GetActiveBrokersAsync(),
-                        "Broker.GETACTIVE",
-                        "active_brokers");
-                }
-
-                _logger.LogWarning("🏠 ROUTING TO LOCAL SERVICE");
-                return await _localBrokerService.GetActiveBrokersAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "❌ ERROR in GetActiveBrokersAsync");
-                throw;
-            }
+            return await GetAllBrokersAsync();
         }
 
         public async Task<BrokerDto> CreateBrokerAsync(BrokerDto brokerDto)
         {
             if (await ShouldRouteToVelneoAsync("Broker", "CREATE"))
             {
-                var result = await ExecuteWithAudit(
-                    () => _velneoApiService.CreateBrokerAsync(brokerDto),
+                return await ExecuteWithAudit(
+                    () => _velneoApiService.CreateBrokerAsync(brokerDto), 
                     AuditEventType.BrokerCreated,
                     "Broker.CREATE",
                     newData: brokerDto);
-                return result;
             }
-            else
-            {
-                return await _localBrokerService.CreateBrokerAsync(brokerDto);
-            }
+
+            return await _localBrokerService.CreateBrokerAsync(brokerDto);
         }
 
         public async Task UpdateBrokerAsync(BrokerDto brokerDto)
@@ -406,7 +360,7 @@ namespace RegularizadorPolizas.Application.Services
             if (await ShouldRouteToVelneoAsync("Broker", "UPDATE"))
             {
                 await ExecuteWithAudit(
-                    () => _velneoApiService.UpdateBrokerAsync(brokerDto),
+                    () => _velneoApiService.UpdateBrokerAsync(brokerDto), 
                     AuditEventType.BrokerUpdated,
                     "Broker.UPDATE",
                     newData: brokerDto);
@@ -438,7 +392,7 @@ namespace RegularizadorPolizas.Application.Services
             if (await ShouldRouteToVelneoAsync("Broker", "SEARCH"))
             {
                 return await ExecuteWithFallback(
-                    () => _velneoApiService.SearchBrokersAsync(searchTerm),
+                    () => _velneoApiService.SearchBrokersAsync(searchTerm), 
                     () => _localBrokerService.SearchBrokersAsync(searchTerm),
                     "Broker.SEARCH",
                     searchTerm);
@@ -449,158 +403,64 @@ namespace RegularizadorPolizas.Application.Services
 
         public async Task<bool> ExistsBrokerByCodigoAsync(string codigo, int? excludeId = null)
         {
-            if (await ShouldRouteToVelneoAsync("Broker", "GET"))
-            {
-                return await ExecuteWithFallback(
-                    async () =>
-                    {
-                        var broker = await _velneoApiService.GetBrokerByCodigoAsync(codigo);
-                        return broker != null && (excludeId == null || broker.Id != excludeId);
-                    },
-                    () => _localBrokerService.ExistsByCodigoAsync(codigo, excludeId),
-                    "Broker.EXISTSBYCODIGO",
-                    codigo);
-            }
-
             return await _localBrokerService.ExistsByCodigoAsync(codigo, excludeId);
         }
 
         public async Task<bool> ExistsBrokerByEmailAsync(string email, int? excludeId = null)
         {
-            if (await ShouldRouteToVelneoAsync("Broker", "GET"))
-            {
-                return await ExecuteWithFallback(
-                    async () =>
-                    {
-                        var broker = await _velneoApiService.GetBrokerByEmailAsync(email);
-                        return broker != null && (excludeId == null || broker.Id != excludeId);
-                    },
-                    () => _localBrokerService.ExistsByEmailAsync(email, excludeId),
-                    "Broker.EXISTSBYEMAIL",
-                    email);
-            }
-
             return await _localBrokerService.ExistsByEmailAsync(email, excludeId);
         }
+
         #endregion
 
-        #region Company Operations
-        public async Task<CompanyDto?> GetCompanyByIdAsync(int id)
-        {
-            if (await ShouldRouteToVelneoAsync("Company", "GET"))
-            {
-                return await ExecuteWithFallback(
-                    () => _velneoApiService.GetCompanyAsync(id),
-                    () => _localCompanyService.GetCompanyByIdAsync(id),
-                    "Company.GETBYID",
-                    id);
-            }
-
-            return await _localCompanyService.GetCompanyByIdAsync(id);
-        }
+        #region Company Operations - CORREGIDAS
 
         public async Task<CompanyDto?> GetCompanyAsync(int id)
         {
-            if (await ShouldRouteToVelneoAsync("Company", "GET"))
-            {
-                return await ExecuteWithFallback(
-                    () => _velneoApiService.GetCompanyAsync(id),
-                    () => _localCompanyService.GetCompanyByIdAsync(id),
-                    "Company.GET",
-                    id);
-            }
-
             return await _localCompanyService.GetCompanyByIdAsync(id);
+        }
+
+        public async Task<CompanyDto?> GetCompanyByIdAsync(int id)
+        {
+            return await GetCompanyAsync(id);
         }
 
         public async Task<CompanyDto> CreateCompanyAsync(CompanyDto companyDto)
         {
-            try
-            {
-                if (await ShouldRouteToVelneoAsync("Company", "CREATE"))
-                {
-                    _logger.LogInformation("Routing Company creation to Velneo for tenant {TenantId}",
-                        _tenantService.GetCurrentTenantId());
-
-                    var velneoCompany = await ExecuteWithAudit(
-                        () => _velneoApiService.CreateCompanyAsync(companyDto),
-                        AuditEventType.CompanyCreated,
-                        "Company.CREATE",
-                        newData: companyDto);
-
-                    return velneoCompany;
-                }
-
-                _logger.LogInformation("Routing Company creation to Local for tenant {TenantId}",
-                    _tenantService.GetCurrentTenantId());
-
-                var localCompany = await _localCompanyService.CreateCompanyAsync(companyDto);
-
-                await _auditService.LogWithUserAsync(AuditEventType.CompanyCreated, "Company.CREATE",
-                    null, localCompany, _tenantService.GetCurrentUserId());
-
-                return localCompany;
-                return localCompany;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "❌ Error creating company {CompanyName}", companyDto.Comnom);
-                throw;
-            }
-        }
-
-        public async Task<CompanyDto?> GetCompanyByCodigoAsync(string codigo)
-        {
-            if (await ShouldRouteToVelneoAsync("Company", "GET"))
-            {
-                return await ExecuteWithFallback(
-                    () => _velneoApiService.GetCompanyByCodeAsync(codigo),
-                    () => _localCompanyService.GetCompanyByCodigoAsync(codigo),
-                    "Company.GETBYCODIGO",
-                    codigo);
-            }
-
-            return await _localCompanyService.GetCompanyByCodigoAsync(codigo);
+            return await _localCompanyService.CreateCompanyAsync(companyDto);
         }
 
         public async Task UpdateCompanyAsync(CompanyDto companyDto)
         {
-            if (await ShouldRouteToVelneoAsync("Company", "UPDATE"))
-            {
-                await ExecuteWithAudit(
-                    () => _velneoApiService.UpdateCompanyAsync(companyDto),
-                    AuditEventType.CompanyUpdated,
-                    "Company.UPDATE",
-                    newData: companyDto);
-            }
-            else
-            {
-                await _localCompanyService.UpdateCompanyAsync(companyDto);
-            }
+            await _localCompanyService.UpdateCompanyAsync(companyDto);
         }
 
         public async Task DeleteCompanyAsync(int id)
         {
-            if (await ShouldRouteToVelneoAsync("Company", "DELETE"))
-            {
-                await ExecuteWithAudit(
-                    () => _velneoApiService.DeleteCompanyAsync(id),
-                    AuditEventType.CompanyDeleted,
-                    "Company.DELETE",
-                    additionalData: new { CompanyId = id });
-            }
-            else
-            {
-                await _localCompanyService.DeleteCompanyAsync(id);
-            }
+            await _localCompanyService.DeleteCompanyAsync(id);
+        }
+
+        public async Task<CompanyDto?> GetCompanyByCodeAsync(string code)
+        {
+            return await _localCompanyService.GetCompanyByCodigoAsync(code);
+        }
+
+        public async Task<CompanyDto?> GetCompanyByCodigoAsync(string codigo)
+        {
+            return await GetCompanyByCodeAsync(codigo);
+        }
+
+        public async Task<CompanyDto?> GetCompanyByAliasAsync(string alias)
+        {
+            return await _localCompanyService.GetCompanyByAliasAsync(alias);
         }
 
         public async Task<IEnumerable<CompanyDto>> GetAllCompaniesAsync()
         {
-            if (await ShouldRouteToVelneoAsync("Company", "GETALL"))
+            if (await ShouldRouteToVelneoAsync("Company", "GET"))
             {
                 return await ExecuteWithFallback(
-                    () => _velneoApiService.GetAllCompaniesAsync(),
+                    () => _velneoApiService.GetActiveCompaniesAsync(), // ✅ YA ESTÁ CORRECTO
                     () => _localCompanyService.GetAllCompaniesAsync(),
                     "Company.GETALL",
                     "all_companies");
@@ -611,31 +471,16 @@ namespace RegularizadorPolizas.Application.Services
 
         public async Task<IEnumerable<CompanyDto>> GetActiveCompaniesAsync()
         {
-            _logger.LogWarning("GetActiveCompaniesAsync CALLED - Starting hybrid routing");
-
-            try
+            if (await ShouldRouteToVelneoAsync("Company", "GET"))
             {
-                bool shouldRoute = await ShouldRouteToVelneoAsync("Company", "GET");
-                _logger.LogWarning("ShouldRouteToVelneo result: {Result}", shouldRoute);
-
-                if (shouldRoute)
-                {
-                    _logger.LogWarning("ROUTING TO VELNEO API");
-                    return await ExecuteWithFallback(
-                        () => _velneoApiService.GetActiveCompaniesAsync(),
-                        () => _localCompanyService.GetActiveCompaniesAsync(),
-                        "Company.GETACTIVE",
-                        "active_companies");
-                }
-
-                _logger.LogWarning("ROUTING TO LOCAL SERVICE");
-                return await _localCompanyService.GetActiveCompaniesAsync();
+                return await ExecuteWithFallback(
+                    () => _velneoApiService.GetActiveCompaniesAsync(), // ✅ YA ESTÁ CORRECTO
+                    () => _localCompanyService.GetActiveCompaniesAsync(),
+                    "Company.ACTIVE",
+                    "active_companies");
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "ERROR in GetActiveCompaniesAsync");
-                throw;
-            }
+
+            return await _localCompanyService.GetActiveCompaniesAsync();
         }
 
         public async Task<IEnumerable<CompanyLookupDto>> GetCompaniesForLookupAsync()
@@ -643,7 +488,7 @@ namespace RegularizadorPolizas.Application.Services
             if (await ShouldRouteToVelneoAsync("Company", "GET"))
             {
                 return await ExecuteWithFallback(
-                    () => _velneoApiService.GetCompaniesForLookupAsync(),
+                    () => _velneoApiService.GetCompaniesForLookupAsync(), // ✅ YA ESTÁ CORRECTO
                     () => _localCompanyService.GetCompaniesForLookupAsync(),
                     "Company.LOOKUP",
                     "companies_lookup");
@@ -657,7 +502,7 @@ namespace RegularizadorPolizas.Application.Services
             if (await ShouldRouteToVelneoAsync("Company", "SEARCH"))
             {
                 return await ExecuteWithFallback(
-                    () => _velneoApiService.SearchCompaniesAsync(searchTerm),
+                    () => _velneoApiService.SearchCompaniesAsync(searchTerm), // ✅ YA ESTÁ CORRECTO
                     () => _localCompanyService.SearchCompaniesAsync(searchTerm),
                     "Company.SEARCH",
                     searchTerm);
@@ -666,130 +511,39 @@ namespace RegularizadorPolizas.Application.Services
             return await _localCompanyService.SearchCompaniesAsync(searchTerm);
         }
 
-        public async Task<CompanyDto?> GetCompanyByCodeAsync(string code)
-        {
-            if (await ShouldRouteToVelneoAsync("Company", "GET"))
-            {
-                return await ExecuteWithFallback(
-                    () => _velneoApiService.GetCompanyByCodeAsync(code),
-                    () => _localCompanyService.GetCompanyByCodigoAsync(code), 
-                    "Company.GETBYCODE",
-                    code);
-            }
-
-            return await _localCompanyService.GetCompanyByCodigoAsync(code); 
-        }
-
-        public async Task<CompanyDto?> GetCompanyByAliasAsync(string alias)
-        {
-            if (await ShouldRouteToVelneoAsync("Company", "GET"))
-            {
-                return await ExecuteWithFallback(
-                    () => _velneoApiService.GetCompanyByAliasAsync(alias),
-                    () => _localCompanyService.GetCompanyByAliasAsync(alias),
-                    "Company.GETBYALIAS",
-                    alias);
-            }
-
-            return await _localCompanyService.GetCompanyByAliasAsync(alias);
-        }
-
         public async Task<bool> ExistsByCodigoAsync(string codigo, int? excludeId = null)
         {
-            if (await ShouldRouteToVelneoAsync("Company", "GET"))
-            {
-                try
-                {
-                    var company = await _velneoApiService.GetCompanyByCodeAsync(codigo);
-                    if (company == null)
-                        return false;
-
-                    return excludeId == null || company.Id != excludeId;
-                }
-                catch
-                {
-                    return await _localCompanyService.ExistsByCodigoAsync(codigo, excludeId);
-                }
-            }
-
+            // Usar solo local para verificaciones de existencia
             return await _localCompanyService.ExistsByCodigoAsync(codigo, excludeId);
         }
 
         #endregion
 
+
         #region Currency Operations
 
         public async Task<CurrencyDto?> GetCurrencyAsync(int id)
         {
-            if (await ShouldRouteToVelneoAsync("Currency", "GET"))
-            {
-                return await ExecuteWithFallback(
-                    () => _velneoApiService.GetCurrencyAsync(id),
-                    () => _localCurrencyService.GetCurrencyByIdAsync(id),
-                    "Currency.GET",
-                    id);
-            }
-
             return await _localCurrencyService.GetCurrencyByIdAsync(id);
         }
 
         public async Task<CurrencyDto> CreateCurrencyAsync(CurrencyDto currencyDto)
         {
-            if (await ShouldRouteToVelneoAsync("Currency", "CREATE"))
-            {
-                return await ExecuteWithAudit(
-                    () => _velneoApiService.CreateCurrencyAsync(currencyDto),
-                    AuditEventType.CurrencyCreated,
-                    "Currency.CREATE",
-                    newData: currencyDto);
-            }
-
             return await _localCurrencyService.CreateCurrencyAsync(currencyDto);
         }
 
         public async Task UpdateCurrencyAsync(CurrencyDto currencyDto)
         {
-            if (await ShouldRouteToVelneoAsync("Currency", "UPDATE"))
-            {
-                await ExecuteWithAudit(
-                    () => _velneoApiService.UpdateCurrencyAsync(currencyDto),
-                    AuditEventType.CurrencyUpdated,
-                    "Currency.UPDATE",
-                    newData: currencyDto);
-            }
-            else
-            {
-                await _localCurrencyService.UpdateCurrencyAsync(currencyDto);
-            }
+            await _localCurrencyService.UpdateCurrencyAsync(currencyDto);
         }
 
         public async Task DeleteCurrencyAsync(int id)
         {
-            if (await ShouldRouteToVelneoAsync("Currency", "DELETE"))
-            {
-                await ExecuteWithAudit(
-                    () => _velneoApiService.DeleteCurrencyAsync(id),
-                    AuditEventType.CurrencyDeleted,
-                    "Currency.DELETE",
-                    additionalData: new { CurrencyId = id });
-            }
-            else
-            {
-                await _localCurrencyService.DeleteCurrencyAsync(id);
-            }
+            await _localCurrencyService.DeleteCurrencyAsync(id);
         }
 
         public async Task<CurrencyDto?> GetCurrencyByCodigoAsync(string codigo)
         {
-            if (await ShouldRouteToVelneoAsync("Currency", "GET"))
-            {
-                return await ExecuteWithFallback(
-                    () => _velneoApiService.GetCurrencyByCodeAsync(codigo),
-                    () => _localCurrencyService.GetCurrencyByCodigoAsync(codigo),
-                    "Currency.GET_BY_CODE",
-                    codigo);
-            }
-
             return await _localCurrencyService.GetCurrencyByCodigoAsync(codigo);
         }
 
@@ -1112,9 +866,7 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
-                // Intentar obtener un cliente que no existe para probar conectividad
-                await _velneoApiService.GetClientAsync(999999);
-                return true;
+                return await _velneoApiService.TestConnectionAsync();
             }
             catch (HttpRequestException)
             {
@@ -1124,12 +876,13 @@ namespace RegularizadorPolizas.Application.Services
             {
                 return false;
             }
-            catch
+            catch (Exception ex)
             {
-                // Si obtenemos otro error, significa que al menos pudimos conectar
-                return true;
+                _logger.LogError(ex, "Error testing Velneo connectivity");
+                return false;
             }
         }
+
         #endregion
     }
 }

@@ -83,4 +83,31 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models
         [JsonPropertyName("message")]
         public string Message { get; set; } = string.Empty;
     }
+
+    public class VelneoSeccionesResponse
+    {
+        [JsonPropertyName("secciones")]
+        public List<VelneoSeccion> Secciones { get; set; } = new();
+
+        [JsonPropertyName("total")]
+        public int Total { get; set; }
+
+        [JsonPropertyName("success")]
+        public bool Success { get; set; }
+
+        [JsonPropertyName("message")]
+        public string Message { get; set; } = string.Empty;
+    }
+
+    public class VelneoSeccionesLookupResponse
+    {
+        [JsonPropertyName("secciones")]
+        public List<VelneoSeccionLookup> Secciones { get; set; } = new();
+
+        [JsonPropertyName("success")]
+        public bool Success { get; set; }
+
+        [JsonPropertyName("message")]
+        public string Message { get; set; } = string.Empty;
+    }
 }
