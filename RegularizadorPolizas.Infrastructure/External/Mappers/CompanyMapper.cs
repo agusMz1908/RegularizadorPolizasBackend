@@ -10,28 +10,34 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers
             return new CompanyDto
             {
                 Id = velneoCompany.Id,
-                Comnom = velneoCompany.Nombre, // VelneoCompany.Nombre -> CompanyDto.Comnom
-                Comrazsoc = velneoCompany.Descripcion ?? string.Empty,
-                Comruc = velneoCompany.Ruc ?? string.Empty,
-                Comdom = velneoCompany.Direccion ?? string.Empty,
-                Comtel = velneoCompany.Telefono ?? string.Empty,
-                Comfax = string.Empty,
-                Comalias = velneoCompany.Codigo ?? string.Empty,
-                Cod_srvcompanias = velneoCompany.Codigo ?? string.Empty,
-                Activo = velneoCompany.Activo,
-                Broker = false,
-                No_utiles = 0,
-                Paq_dias = 0,
-                Comcntcli = 0,
-                Comcntcon = 0,
-                Comprepes = 0,
-                Compredol = 0,
-                Comcomipe = 0,
-                Comcomido = 0,
-                Comtotcomi = 0,
-                Comtotpre = 0,
-                Comlog = string.Empty,
-                Comsumodia = string.Empty,
+
+                Comnom = velneoCompany.Comnom ?? string.Empty,
+                Comrazsoc = velneoCompany.Comrazsoc ?? string.Empty,
+                Comruc = velneoCompany.Comruc ?? string.Empty,
+                Comdom = velneoCompany.Comdom ?? string.Empty,
+                Comtel = velneoCompany.Comtel ?? string.Empty,
+                Comfax = velneoCompany.Comfax ?? string.Empty,
+                Comalias = velneoCompany.Comalias ?? string.Empty,
+                Cod_srvcompanias = velneoCompany.Cod_srvcompanias ?? string.Empty,
+
+                Comcntcli = velneoCompany.Comcntcli,
+                Comcntcon = velneoCompany.Comcntcon,
+                Comprepes = velneoCompany.Comprepes,
+                Compredol = velneoCompany.Compredol,
+                Comcomipe = velneoCompany.Comcomipe,
+                Comcomido = velneoCompany.Comcomido,
+                Comtotcomi = velneoCompany.Comtotcomi,
+                Comtotpre = velneoCompany.Comtotpre,
+                Paq_dias = velneoCompany.Paq_dias,
+
+                Comlog = velneoCompany.Comlog ?? string.Empty,
+                Comsumodia = velneoCompany.Comsumodia ?? string.Empty,
+
+                Broker = velneoCompany.Broker,
+                Activo = true,
+
+                No_utiles = ParseNoUtiles(velneoCompany.No_utiles),
+
                 TotalPolizas = 0
             };
         }
@@ -41,36 +47,14 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers
             return velneoCompanies.Select(c => c.ToCompanyDto());
         }
 
-        public static VelneoCompany ToVelneoCompanyDto(this CompanyDto companyDto)
-        {
-            return new VelneoCompany
-            {
-                Id = companyDto.Id,
-                Nombre = companyDto.Comnom,
-                Codigo = companyDto.Cod_srvcompanias,
-                Descripcion = companyDto.Comrazsoc,
-                Activo = companyDto.Activo,
-                Direccion = companyDto.Comdom,
-                Telefono = companyDto.Comtel,
-                Email = string.Empty,
-                Website = string.Empty,
-                Ruc = companyDto.Comruc,
-                ContactoPrincipal = string.Empty,
-                TelefonoContacto = string.Empty,
-                EmailContacto = string.Empty,
-                FechaCreacion = DateTime.Now,
-                FechaModificacion = DateTime.Now
-            };
-        }
-
         public static CompanyLookupDto ToCompanyLookupDto(this VelneoCompany velneoCompany)
         {
             return new CompanyLookupDto
             {
                 Id = velneoCompany.Id,
-                Comnom = velneoCompany.Nombre,
-                Comalias = velneoCompany.Codigo ?? string.Empty,
-                Cod_srvcompanias = velneoCompany.Codigo ?? string.Empty
+                Comnom = velneoCompany.Comnom ?? string.Empty,           
+                Comalias = velneoCompany.Comalias ?? string.Empty,       
+                Cod_srvcompanias = velneoCompany.Cod_srvcompanias ?? string.Empty 
             };
         }
 
@@ -93,6 +77,17 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers
         public static IEnumerable<CompanyLookupDto> ToCompanyLookupDtos(this IEnumerable<VelneoCompanyLookup> velneoCompanyLookups)
         {
             return velneoCompanyLookups.Select(c => c.ToCompanyLookupDto());
+        }
+
+        private static int ParseNoUtiles(string? noUtilesString)
+        {
+            if (string.IsNullOrEmpty(noUtilesString))
+                return 0;
+
+            if (int.TryParse(noUtilesString, out var numero))
+                return numero;
+
+            return 0;
         }
     }
 }

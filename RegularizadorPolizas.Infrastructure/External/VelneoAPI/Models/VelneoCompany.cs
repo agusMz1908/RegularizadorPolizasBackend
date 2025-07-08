@@ -7,62 +7,94 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models
         [JsonPropertyName("id")]
         public int Id { get; set; }
 
-        [JsonPropertyName("nombre")]
-        public string Nombre { get; set; } = string.Empty;
+        [JsonPropertyName("comnom")]
+        public string? Comnom { get; set; }
 
-        [JsonPropertyName("codigo")]
-        public string? Codigo { get; set; }
+        [JsonPropertyName("comrazsoc")]
+        public string? Comrazsoc { get; set; }
 
-        [JsonPropertyName("descripcion")]
-        public string? Descripcion { get; set; }
+        [JsonPropertyName("comruc")]
+        public string? Comruc { get; set; }
 
-        [JsonPropertyName("activo")]
-        public bool Activo { get; set; } = true;
+        [JsonPropertyName("comdom")]
+        public string? Comdom { get; set; }
 
-        [JsonPropertyName("fechaCreacion")]
-        public DateTime FechaCreacion { get; set; }
+        [JsonPropertyName("comtel")]
+        public string? Comtel { get; set; }
 
-        [JsonPropertyName("fechaModificacion")]
-        public DateTime FechaModificacion { get; set; }
+        [JsonPropertyName("comfax")]
+        public string? Comfax { get; set; }
 
-        [JsonPropertyName("direccion")]
-        public string? Direccion { get; set; }
+        [JsonPropertyName("comsumodia")]
+        public string? Comsumodia { get; set; }
 
-        [JsonPropertyName("telefono")]
-        public string? Telefono { get; set; }
+        [JsonPropertyName("comcntcli")]
+        public int Comcntcli { get; set; }
 
-        [JsonPropertyName("email")]
-        public string? Email { get; set; }
+        [JsonPropertyName("comcntcon")]
+        public int Comcntcon { get; set; }
 
-        [JsonPropertyName("website")]
-        public string? Website { get; set; }
+        [JsonPropertyName("comprepes")]
+        public decimal Comprepes { get; set; }
 
-        [JsonPropertyName("ruc")]
-        public string? Ruc { get; set; }
+        [JsonPropertyName("compredol")]
+        public decimal Compredol { get; set; }
 
-        [JsonPropertyName("contactoPrincipal")]
-        public string? ContactoPrincipal { get; set; }
+        [JsonPropertyName("comcomipe")]
+        public decimal Comcomipe { get; set; }
 
-        [JsonPropertyName("telefonoContacto")]
-        public string? TelefonoContacto { get; set; }
+        [JsonPropertyName("comcomido")]
+        public decimal Comcomido { get; set; }
 
-        [JsonPropertyName("emailContacto")]
-        public string? EmailContacto { get; set; }
+        [JsonPropertyName("comtotcomi")]
+        public decimal Comtotcomi { get; set; }
+
+        [JsonPropertyName("comtotpre")]
+        public decimal Comtotpre { get; set; }
+
+        [JsonPropertyName("comalias")]
+        public string? Comalias { get; set; }
+
+        [JsonPropertyName("comlog")]
+        public string? Comlog { get; set; }
+
+        [JsonPropertyName("broker")]
+        public bool Broker { get; set; }
+
+        [JsonPropertyName("cod_srvcompanias")]
+        public string? Cod_srvcompanias { get; set; }
+
+        [JsonPropertyName("no_utiles")]
+        public string? No_utiles { get; set; } 
+
+        [JsonPropertyName("paq_dias")]
+        public int Paq_dias { get; set; }
+
+        public string? Nombre => Comnom;
+        public string? Codigo => Comalias;
+        public string? Descripcion => Comrazsoc;
+        public bool Activo => true; 
+        public string? Direccion => Comdom;
+        public string? Telefono => Comtel;
+        public string? Email => string.Empty;
+        public string? Website => string.Empty;
+        public string? Ruc => Comruc;
+        public string? ContactoPrincipal => string.Empty;
+        public string? TelefonoContacto => string.Empty;
+        public string? EmailContacto => string.Empty;
+        public DateTime FechaCreacion => DateTime.Now;
+        public DateTime FechaModificacion => DateTime.Now;
     }
-
     public class VelneoCompaniesResponse
     {
+        [JsonPropertyName("count")]
+        public int Count { get; set; }
+
+        [JsonPropertyName("total_count")]
+        public int TotalCount { get; set; }
+
         [JsonPropertyName("companias")]
         public List<VelneoCompany> Companias { get; set; } = new();
-
-        [JsonPropertyName("total")]
-        public int Total { get; set; }
-
-        [JsonPropertyName("success")]
-        public bool Success { get; set; }
-
-        [JsonPropertyName("message")]
-        public string Message { get; set; } = string.Empty;
     }
 
     public class VelneoCompanyLookup
@@ -70,25 +102,19 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models
         [JsonPropertyName("id")]
         public int Id { get; set; }
 
-        [JsonPropertyName("nombre")]
-        public string Nombre { get; set; } = string.Empty;
+        [JsonPropertyName("comnom")]
+        public string? Comnom { get; set; }
 
-        [JsonPropertyName("codigo")]
-        public string? Codigo { get; set; }
+        [JsonPropertyName("comalias")]
+        public string? Comalias { get; set; }
+
+        [JsonPropertyName("cod_srvcompanias")]
+        public string? Cod_srvcompanias { get; set; }
 
         [JsonPropertyName("activo")]
         public bool Activo { get; set; }
-    }
 
-    public class VelneoCompanyLookupResponse
-    {
-        [JsonPropertyName("companias")]
-        public List<VelneoCompanyLookup> Companias { get; set; } = new();
-
-        [JsonPropertyName("success")]
-        public bool Success { get; set; }
-
-        [JsonPropertyName("message")]
-        public string Message { get; set; } = string.Empty;
+        public string? Nombre => Comnom;
+        public string? Codigo => Comalias;
     }
 }
