@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using RegularizadorPolizas.Application.DTOs.Frontend;
 using RegularizadorPolizas.Application.DTOs.Verification;
 using RegularizadorPolizas.Application.Interfaces;
-using RegularizadorPolizas.Application.Services.External;
 using RegularizadorPolizas.Domain.Entities;
 
 namespace RegularizadorPolizas.Application.Services

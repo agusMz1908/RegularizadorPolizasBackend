@@ -84,6 +84,15 @@
         // Propiedades de navegación simplificadas
         public List<PolizaResumidaDto> Polizas { get; set; }
     }
+    public class ClientLookupDto
+    {
+        public int Id { get; set; }
+        public string NombreCompleto { get; set; } = string.Empty;
+        public string? Documento { get; set; }
+        public string? TipoDocumento { get; set; }
+        public string? Email { get; set; }
+        public bool Activo { get; set; }
+    }
 
     // DTO simplificado para mostrar resumen de pólizas cuando se cargan con el cliente
     public class PolizaResumidaDto

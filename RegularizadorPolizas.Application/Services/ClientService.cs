@@ -1,7 +1,6 @@
 ﻿using AutoMapper;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
-using RegularizadorPolizas.Application.Services.External;
 using RegularizadorPolizas.Domain.Entities;
 
 namespace RegularizadorPolizas.Application.Services
@@ -128,7 +127,7 @@ namespace RegularizadorPolizas.Application.Services
                 // If not found in local database, try to get from Velneo API
                 if (client == null)
                 {
-                    var clientDto = await _velneoApiService.GetClientAsync(id);
+                    var clientDto = await _velneoApiService.GetClienteAsync(id);
                     if (clientDto != null)
                     {
                         // Save client from API to local database for future use

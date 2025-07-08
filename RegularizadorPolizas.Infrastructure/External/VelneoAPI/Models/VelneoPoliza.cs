@@ -2,33 +2,6 @@
 
 namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models
 {
-    public class VelneoPolizaResponse
-    {
-        [JsonPropertyName("poliza")]
-        public VelneoPoliza Poliza { get; set; } = new();
-
-        [JsonPropertyName("success")]
-        public bool Success { get; set; }
-
-        [JsonPropertyName("message")]
-        public string Message { get; set; } = string.Empty;
-    }
-
-    public class VelneoPolizasResponse
-    {
-        [JsonPropertyName("polizas")]
-        public List<VelneoPoliza> Polizas { get; set; } = new();
-
-        [JsonPropertyName("total")]
-        public int Total { get; set; }
-
-        [JsonPropertyName("success")]
-        public bool Success { get; set; }
-
-        [JsonPropertyName("message")]
-        public string Message { get; set; } = string.Empty;
-    }
-
     public class VelneoPoliza
     {
         [JsonPropertyName("id")]
@@ -82,7 +55,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models
         [JsonPropertyName("usuarioModificacion")]
         public string? UsuarioModificacion { get; set; }
 
-        // Campos adicionales que puede tener Velneo
         [JsonPropertyName("brokerId")]
         public int? BrokerId { get; set; }
 
@@ -104,20 +76,16 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models
         [JsonPropertyName("activa")]
         public bool Activa { get; set; } = true;
 
-        // Información del cliente (si viene en la respuesta)
         [JsonPropertyName("cliente")]
         public VelneoClienteInfo? Cliente { get; set; }
 
-        // Información de la compañía (si viene en la respuesta)
         [JsonPropertyName("compania")]
         public VelneoCompaniaInfo? Compania { get; set; }
 
-        // Información de la sección (si viene en la respuesta)
         [JsonPropertyName("seccion")]
         public VelneoSeccionInfo? Seccion { get; set; }
     }
 
-    // Clases auxiliares para información anidada
     public class VelneoClienteInfo
     {
         [JsonPropertyName("id")]

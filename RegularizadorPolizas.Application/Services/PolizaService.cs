@@ -1,7 +1,6 @@
 ﻿using AutoMapper;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
-using RegularizadorPolizas.Application.Services.External;
 using RegularizadorPolizas.Domain.Entities;
 
 namespace RegularizadorPolizas.Application.Services
@@ -38,7 +37,7 @@ namespace RegularizadorPolizas.Application.Services
                     var client = await _clientRepository.GetByIdAsync(polizaDto.Clinro.Value);
                     if (client == null)
                     {
-                        var clientDto = await _velneoApiService.GetClientAsync(polizaDto.Clinro.Value);
+                        var clientDto = await _velneoApiService.GetClienteAsync(polizaDto.Clinro.Value);
                         if (clientDto != null)
                         {
                             var newClient = _mapper.Map<Client>(clientDto);
@@ -120,7 +119,7 @@ namespace RegularizadorPolizas.Application.Services
                             var client = await _clientRepository.GetByIdAsync(polizaDto.Clinro.Value);
                             if (client == null)
                             {
-                                var clientDto = await _velneoApiService.GetClientAsync(polizaDto.Clinro.Value);
+                                var clientDto = await _velneoApiService.GetClienteAsync(polizaDto.Clinro.Value);
                                 if (clientDto != null)
                                 {
                                     var newClient = _mapper.Map<Client>(clientDto);

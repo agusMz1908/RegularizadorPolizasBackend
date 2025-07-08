@@ -1,13 +1,12 @@
-﻿using Microsoft.Extensions.Logging;
-using RegularizadorPolizas.Application.DTOs;
-using RegularizadorPolizas.Application.Interfaces;
-using RegularizadorPolizas.Application.Services.External;
-using RegularizadorPolizas.Application.DTOs.External.Velneo;
-using RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers; 
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
-using System.Web;
+using Microsoft.Extensions.Logging;
+using RegularizadorPolizas.Application.DTOs;
+using RegularizadorPolizas.Application.Interfaces;
+using RegularizadorPolizas.Application.DTOs.External.Velneo;
+using RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers;
+using RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models;
 
 namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 {
@@ -73,189 +72,187 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             return $"{endpoint}?api_key={tenantConfig.Key}";
         }
 
-        #region Client Operations
 
-        public async Task<ClientDto?> GetClientAsync(int id)
+        #region Métodos de Clientes
+
+        public async Task<ClientDto> GetClienteAsync(int id)
         {
             try
             {
                 var tenantId = _tenantService.GetCurrentTenantId();
-                using var httpClient = await GetConfiguredHttpClientAsync();
+                _logger.LogDebug("Getting cliente {ClienteId} from Velneo API for tenant {TenantId}", id, tenantId);
 
+                using var httpClient = await GetConfiguredHttpClientAsync();
                 var url = await BuildUrlWithApiKeyAsync($"v1/clientes/{id}");
                 var response = await httpClient.GetAsync(url);
-
-                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                    return null;
-
                 response.EnsureSuccessStatusCode();
-                return await response.Content.ReadFromJsonAsync<ClientDto>(_jsonOptions);
+
+                var velneoResponse = await response.Content.ReadFromJsonAsync<VelneoClienteResponse>(_jsonOptions);
+
+                if (velneoResponse?.Cliente == null)
+                {
+                    throw new KeyNotFoundException($"Cliente with ID {id} not found in Velneo API");
+                }
+
+                var result = velneoResponse.Cliente.ToClienteDto();
+                _logger.LogInformation("Successfully retrieved cliente {ClienteId} from Velneo API for tenant {TenantId}", id, tenantId);
+
+                return result;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting client {ClientId} from Velneo API", id);
+                _logger.LogError(ex, "Error getting cliente {ClienteId} from Velneo API", id);
                 throw;
             }
         }
 
-        public async Task<ClientDto> CreateClientAsync(ClientDto clientDto)
+        public async Task<IEnumerable<ClientDto>> GetClientesAsync()
         {
             try
             {
                 var tenantId = _tenantService.GetCurrentTenantId();
-                _logger.LogDebug("Creating client in Velneo API: {ClientName} for tenant {TenantId}", clientDto.Clinom, tenantId);
+                _logger.LogDebug("Getting all clientes from Velneo API for tenant {TenantId}", tenantId);
 
                 using var httpClient = await GetConfiguredHttpClientAsync();
-                var json = JsonSerializer.Serialize(clientDto, _jsonOptions);
+                var url = await BuildUrlWithApiKeyAsync("v1/clientes");
+                var response = await httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                var velneoResponse = await response.Content.ReadFromJsonAsync<VelneoClientesResponse>(_jsonOptions);
+
+                if (velneoResponse?.Clientes == null || !velneoResponse.Clientes.Any())
+                {
+                    _logger.LogWarning("No clientes received from Velneo API for tenant {TenantId}", tenantId);
+                    return new List<ClientDto>();
+                }
+
+                var clientes = velneoResponse.Clientes.ToClienteDtos().ToList();
+                _logger.LogInformation("Successfully retrieved {Count} clientes from Velneo API for tenant {TenantId}",
+                    clientes.Count, tenantId);
+
+                return clientes;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting clientes from Velneo API");
+                throw;
+            }
+        }
+
+        public async Task<IEnumerable<ClientDto>> SearchClientesAsync(string searchTerm)
+        {
+            try
+            {
+                var tenantId = _tenantService.GetCurrentTenantId();
+                _logger.LogDebug("Searching clientes with term '{SearchTerm}' in Velneo API for tenant {TenantId}", searchTerm, tenantId);
+
+                using var httpClient = await GetConfiguredHttpClientAsync();
+                var url = await BuildUrlWithApiKeyAsync($"v1/clientes/search?term={Uri.EscapeDataString(searchTerm)}");
+                var response = await httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                var velneoResponse = await response.Content.ReadFromJsonAsync<VelneoClientesResponse>(_jsonOptions);
+
+                if (velneoResponse?.Clientes == null || !velneoResponse.Clientes.Any())
+                {
+                    _logger.LogWarning("No clientes found for search term '{SearchTerm}' in Velneo API for tenant {TenantId}", searchTerm, tenantId);
+                    return new List<ClientDto>();
+                }
+
+                var clientes = velneoResponse.Clientes.ToClienteDtos().ToList();
+                _logger.LogInformation("Successfully found {Count} clientes for search term '{SearchTerm}' in Velneo API for tenant {TenantId}",
+                    clientes.Count, searchTerm, tenantId);
+
+                return clientes;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error searching clientes with term '{SearchTerm}' in Velneo API", searchTerm);
+                throw;
+            }
+        }
+
+        public async Task<ClientDto> CreateClienteAsync(ClientDto clienteDto)
+        {
+            try
+            {
+                var tenantId = _tenantService.GetCurrentTenantId();
+                _logger.LogDebug("Creating cliente in Velneo API for tenant {TenantId}", tenantId);
+
+                using var httpClient = await GetConfiguredHttpClientAsync();
+
+                // Convertir a formato Velneo
+                var velneoCliente = clienteDto.ToVelneoClienteDto();
+                var json = JsonSerializer.Serialize(velneoCliente, _jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
                 var url = await BuildUrlWithApiKeyAsync("v1/clientes");
                 var response = await httpClient.PostAsync(url, content);
                 response.EnsureSuccessStatusCode();
 
-                var result = await response.Content.ReadFromJsonAsync<ClientDto>(_jsonOptions);
-                if (result == null)
+                var velneoResponse = await response.Content.ReadFromJsonAsync<VelneoClienteResponse>(_jsonOptions);
+
+                if (velneoResponse?.Cliente == null)
                 {
-                    throw new InvalidOperationException("Failed to deserialize created client from Velneo API");
+                    throw new InvalidOperationException("Failed to create cliente in Velneo API - no response data");
                 }
 
-                _logger.LogInformation("Successfully created client {ClientId} in Velneo API for tenant {TenantId}", result.Id, tenantId);
+                var result = velneoResponse.Cliente.ToClienteDto();
+                _logger.LogInformation("Successfully created cliente {ClienteId} in Velneo API for tenant {TenantId}", result.Id, tenantId);
+
                 return result;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating client in Velneo API");
+                _logger.LogError(ex, "Error creating cliente in Velneo API");
                 throw;
             }
         }
 
-        public async Task UpdateClientAsync(ClientDto clientDto)
+        public async Task UpdateClienteAsync(ClientDto clienteDto)
         {
             try
             {
                 var tenantId = _tenantService.GetCurrentTenantId();
+                _logger.LogDebug("Updating cliente {ClienteId} in Velneo API for tenant {TenantId}", clienteDto.Id, tenantId);
+
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var json = JsonSerializer.Serialize(clientDto, _jsonOptions);
+                // Convertir a formato Velneo
+                var velneoCliente = clienteDto.ToVelneoClienteDto();
+                var json = JsonSerializer.Serialize(velneoCliente, _jsonOptions);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var url = await BuildUrlWithApiKeyAsync($"v1/clientes/{clientDto.Id}");
-                var response = await httpClient.PostAsync(url, content);
+                var url = await BuildUrlWithApiKeyAsync($"v1/clientes/{clienteDto.Id}");
+                var response = await httpClient.PutAsync(url, content);
                 response.EnsureSuccessStatusCode();
 
-                _logger.LogInformation("Successfully updated client {ClientId} in Velneo API for tenant {TenantId}",
-                    clientDto.Id, tenantId);
+                _logger.LogInformation("Successfully updated cliente {ClienteId} in Velneo API for tenant {TenantId}", clienteDto.Id, tenantId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error updating client {ClientId} in Velneo API", clientDto.Id);
+                _logger.LogError(ex, "Error updating cliente {ClienteId} in Velneo API", clienteDto.Id);
                 throw;
             }
         }
 
-        public async Task DeleteClientAsync(int id)
+        public async Task DeleteClienteAsync(int id)
         {
             try
             {
                 var tenantId = _tenantService.GetCurrentTenantId();
-                _logger.LogDebug("Deleting client {ClientId} in Velneo API for tenant {TenantId}", id, tenantId);
+                _logger.LogDebug("Deleting cliente {ClienteId} in Velneo API for tenant {TenantId}", id, tenantId);
 
                 using var httpClient = await GetConfiguredHttpClientAsync();
                 var url = await BuildUrlWithApiKeyAsync($"v1/clientes/{id}");
                 var response = await httpClient.DeleteAsync(url);
                 response.EnsureSuccessStatusCode();
 
-                _logger.LogInformation("Successfully deleted client {ClientId} in Velneo API for tenant {TenantId}", id, tenantId);
+                _logger.LogInformation("Successfully deleted cliente {ClienteId} in Velneo API for tenant {TenantId}", id, tenantId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deleting client {ClientId} in Velneo API", id);
-                throw;
-            }
-        }
-
-        public async Task<ClientDto?> GetClientByEmailAsync(string email)
-        {
-            try
-            {
-                var tenantId = _tenantService.GetCurrentTenantId();
-                using var httpClient = await GetConfiguredHttpClientAsync();
-
-                var url = await BuildUrlWithApiKeyAsync($"v1/clientes/email/{Uri.EscapeDataString(email)}");
-                var response = await httpClient.GetAsync(url);
-
-                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                    return null;
-
-                response.EnsureSuccessStatusCode();
-                return await response.Content.ReadFromJsonAsync<ClientDto>(_jsonOptions);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting client by email from Velneo API");
-                throw;
-            }
-        }
-
-        public async Task<ClientDto?> GetClientByDocumentAsync(string document)
-        {
-            try
-            {
-                var tenantId = _tenantService.GetCurrentTenantId();
-                using var httpClient = await GetConfiguredHttpClientAsync();
-
-                var url = await BuildUrlWithApiKeyAsync($"v1/clientes/document/{Uri.EscapeDataString(document)}");
-                var response = await httpClient.GetAsync(url);
-
-                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                    return null;
-
-                response.EnsureSuccessStatusCode();
-                return await response.Content.ReadFromJsonAsync<ClientDto>(_jsonOptions);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting client by document from Velneo API");
-                throw;
-            }
-        }
-
-        public async Task<IEnumerable<ClientDto>> SearchClientsAsync(string searchTerm)
-        {
-            try
-            {
-                var tenantId = _tenantService.GetCurrentTenantId();
-                using var httpClient = await GetConfiguredHttpClientAsync();
-
-                var url = await BuildUrlWithApiKeyAsync($"v1/clientes/search?term={Uri.EscapeDataString(searchTerm)}");
-                var response = await httpClient.GetAsync(url);
-                response.EnsureSuccessStatusCode();
-
-                var result = await response.Content.ReadFromJsonAsync<IEnumerable<ClientDto>>(_jsonOptions);
-                return result ?? new List<ClientDto>();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error searching clients in Velneo API");
-                throw;
-            }
-        }
-
-        public async Task<IEnumerable<ClientDto>> GetAllClientsAsync()
-        {
-            try
-            {
-                using var httpClient = await GetConfiguredHttpClientAsync();
-                var url = await BuildUrlWithApiKeyAsync("v1/clientes");
-                var response = await httpClient.GetAsync(url);
-                response.EnsureSuccessStatusCode();
-
-                var result = await response.Content.ReadFromJsonAsync<IEnumerable<ClientDto>>(_jsonOptions);
-                return result ?? new List<ClientDto>();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting all clients from Velneo API");
+                _logger.LogError(ex, "Error deleting cliente {ClienteId} from Velneo API", id);
                 throw;
             }
         }
@@ -264,26 +261,35 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 
         #region Broker Operations
 
-        public async Task<BrokerDto?> GetBrokerAsync(int id)
+        public async Task<IEnumerable<BrokerDto>> GetBrokersAsync()
         {
             try
             {
+                var tenantId = _tenantService.GetCurrentTenantId();
+                _logger.LogDebug("Getting all brokers from Velneo API for tenant {TenantId}", tenantId);
+
                 using var httpClient = await GetConfiguredHttpClientAsync();
-                var url = await BuildUrlWithApiKeyAsync($"v1/brokers/{id}"); 
+                var url = await BuildUrlWithApiKeyAsync("v1/brokers");
                 var response = await httpClient.GetAsync(url);
-
-                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                    return null;
-
                 response.EnsureSuccessStatusCode();
 
-                var velneoBroker = await response.Content.ReadFromJsonAsync<VelneoBrokerDto>(_jsonOptions);
+                var velneoResponse = await response.Content.ReadFromJsonAsync<VelneoBrokersResponse>(_jsonOptions);
 
-                return velneoBroker?.ToBrokerDto();
+                if (velneoResponse?.Brokers == null || !velneoResponse.Brokers.Any())
+                {
+                    _logger.LogWarning("No brokers received from Velneo API for tenant {TenantId}", tenantId);
+                    return new List<BrokerDto>();
+                }
+
+                var brokers = velneoResponse.Brokers.ToBrokerDtos().ToList();
+                _logger.LogInformation("Successfully retrieved {Count} brokers from Velneo API for tenant {TenantId}",
+                    brokers.Count, tenantId);
+
+                return brokers;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting broker {BrokerId} from Velneo API", id);
+                _logger.LogError(ex, "Error getting brokers from Velneo API");
                 throw;
             }
         }
@@ -350,7 +356,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var url = await BuildUrlWithApiKeyAsync($"v1/brokers/{id}"); 
+                var url = await BuildUrlWithApiKeyAsync($"v1/brokers/{id}");
                 var response = await httpClient.DeleteAsync(url);
                 response.EnsureSuccessStatusCode();
 
@@ -371,7 +377,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var url = await BuildUrlWithApiKeyAsync($"v1/brokers/email/{Uri.EscapeDataString(email)}"); 
+                var url = await BuildUrlWithApiKeyAsync($"v1/brokers/email/{Uri.EscapeDataString(email)}");
                 var response = await httpClient.GetAsync(url);
 
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
@@ -426,11 +432,11 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var url = await BuildUrlWithApiKeyAsync($"v1/brokers/search?term={Uri.EscapeDataString(searchTerm)}"); 
+                var url = await BuildUrlWithApiKeyAsync($"v1/brokers/search?term={Uri.EscapeDataString(searchTerm)}");
                 var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
-                var velneoResponse = await response.Content.ReadFromJsonAsync<VelneoBrokerResponse>(_jsonOptions);
+                var velneoResponse = await response.Content.ReadFromJsonAsync<Application.DTOs.External.Velneo.VelneoBrokerResponse>(_jsonOptions);
 
                 if (velneoResponse?.Corredores == null || !velneoResponse.Corredores.Any())
                 {
@@ -451,7 +457,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             try
             {
                 using var httpClient = await GetConfiguredHttpClientAsync();
-                var url = await BuildUrlWithApiKeyAsync("v1/brokers"); 
+                var url = await BuildUrlWithApiKeyAsync("v1/brokers");
                 var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
@@ -484,7 +490,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var url = await BuildUrlWithApiKeyAsync("v1/brokers/active"); 
+                var url = await BuildUrlWithApiKeyAsync("v1/brokers/active");
                 var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
@@ -517,7 +523,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var tenantId = _tenantService.GetCurrentTenantId();
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                var url = await BuildUrlWithApiKeyAsync("v1/brokers/lookup"); 
+                var url = await BuildUrlWithApiKeyAsync("v1/brokers/lookup");
                 var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
@@ -1712,6 +1718,53 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             {
                 _logger.LogError(ex, "Error getting polizas expiring between {FromDate} and {ToDate} from Velneo API", fromDate, toDate);
                 throw;
+            }
+        }
+
+        #endregion
+    }
+
+    #region Métodos de Conectividad
+
+public async Task<bool> TestConnectionAsync()
+        {
+            try
+            {
+                var tenantId = _tenantService.GetCurrentTenantId();
+                _logger.LogDebug("Testing connection to Velneo API for tenant {TenantId}", tenantId);
+
+                using var httpClient = await GetConfiguredHttpClientAsync();
+                var url = await BuildUrlWithApiKeyAsync("v1/health");
+                httpClient.Timeout = TimeSpan.FromSeconds(10);
+
+                var response = await httpClient.GetAsync(url);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var healthResponse = await response.Content.ReadFromJsonAsync<VelneoHealthResponse>(_jsonOptions);
+                    var isHealthy = healthResponse?.Success == true && healthResponse?.Status?.ToLower() == "healthy";
+
+                    _logger.LogInformation("Velneo API health check for tenant {TenantId}: {Status}",
+                        tenantId, isHealthy ? "HEALTHY" : "UNHEALTHY");
+
+                    return isHealthy;
+                }
+                else
+                {
+                    _logger.LogWarning("Velneo API health check failed for tenant {TenantId} with status {StatusCode}",
+                        tenantId, response.StatusCode);
+                    return false;
+                }
+            }
+            catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+            {
+                _logger.LogWarning("Velneo API health check timed out for tenant {TenantId}", _tenantService.GetCurrentTenantId());
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error testing connection to Velneo API for tenant {TenantId}", _tenantService.GetCurrentTenantId());
+                return false;
             }
         }
 

@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
-using RegularizadorPolizas.Application.Services.External; 
 using RegularizadorPolizas.Domain.Enums;
 
 namespace RegularizadorPolizas.Application.Services

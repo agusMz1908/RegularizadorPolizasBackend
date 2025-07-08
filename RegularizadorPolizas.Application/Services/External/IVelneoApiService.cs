@@ -47,5 +47,9 @@ namespace RegularizadorPolizas.Application.Interfaces
 
         // Métodos de Conectividad y Configuración
         Task<bool> TestConnectionAsync();
+        Task<IEnumerable<CurrencyDto>> SearchCurrenciesAsync(string searchTerm);
+        Task<CurrencyDto> GetDefaultCurrencyAsync();
+        Task<IEnumerable<CurrencyLookupDto>> GetCurrenciesForLookupAsync();
+        Task<IEnumerable<CurrencyDto>> GetAllCurrenciesAsync();
     }
 }
