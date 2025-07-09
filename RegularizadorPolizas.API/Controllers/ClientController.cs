@@ -32,10 +32,8 @@ namespace RegularizadorPolizas.API.Controllers
             {
                 _logger.LogInformation("Getting clients with pagination - Page: {Page}, PageSize: {PageSize}", page, pageSize);
 
-                // Obtener TODOS los clientes de Velneo (tu paginación interna funciona perfecto)
                 var allClients = (await _velneoApiService.GetClientesAsync()).ToList();
 
-                // Aplicar paginación para la respuesta HTTP
                 var totalCount = allClients.Count;
                 var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
 

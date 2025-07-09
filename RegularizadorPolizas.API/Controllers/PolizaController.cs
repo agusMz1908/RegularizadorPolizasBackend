@@ -10,30 +10,88 @@ namespace RegularizadorPolizas.API.Controllers
     [Authorize]
     public class PolizasController : ControllerBase
     {
-        private readonly IPolizaService _polizaService;
+        private readonly IVelneoApiService _velneoApiService;
+        private readonly IPolizaService _polizaService; 
+        private readonly ILogger<PolizasController> _logger;
 
-        public PolizasController(IPolizaService polizaService)
+        public PolizasController(
+            IVelneoApiService velneoApiService,
+            IPolizaService polizaService,
+            ILogger<PolizasController> logger)
         {
+            _velneoApiService = velneoApiService ?? throw new ArgumentNullException(nameof(velneoApiService));
             _polizaService = polizaService ?? throw new ArgumentNullException(nameof(polizaService));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        [HttpGet]
-        [ProducesResponseType(typeof(IEnumerable<PolizaDto>), 200)]
-        [ProducesResponseType(404)]
+        [HttpGet("count")]
+        [ProducesResponseType(typeof(object), 200)]
         [ProducesResponseType(500)]
-        public async Task<ActionResult<IEnumerable<PolizaDto>>> GetPolizas()
+        public async Task<ActionResult> GetPolizasCount()
         {
             try
             {
-                var polizas = await _polizaService.GetAllPolizasAsync();
-                if (polizas == null || !polizas.Any())
-                    return NotFound("No policies found");
+                _logger.LogInformation("Getting polizas count from Velneo API");
 
-                return Ok(polizas);
+                var polizas = await _velneoApiService.GetPolizasAsync();
+                var count = polizas.Count();
+
+                var result = new
+                {
+                    total_polizas = count,
+                    timestamp = DateTime.UtcNow,
+                    source = "Velneo API - Contratos",
+                    message = $"Total de {count} contratos/pólizas obtenidos exitosamente"
+                };
+
+                _logger.LogInformation("Successfully counted {Count} polizas from Velneo API", count);
+                return Ok(result);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
+                _logger.LogError(ex, "Error counting polizas via Velneo API");
+                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
+            }
+        }
+
+        [HttpGet]
+        [ProducesResponseType(typeof(PagedResult<PolizaDto>), 200)]
+        [ProducesResponseType(500)]
+        public async Task<ActionResult<PagedResult<PolizaDto>>> GetPolizas(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50)
+        {
+            try
+            {
+                _logger.LogInformation("Getting polizas with pagination - Page: {Page}, PageSize: {PageSize}", page, pageSize);
+
+                var allPolizas = (await _velneoApiService.GetPolizasAsync()).ToList();
+
+                var totalCount = allPolizas.Count;
+                var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
+                var polizasPage = allPolizas
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToList();
+
+                var result = new PagedResult<PolizaDto>
+                {
+                    Items = polizasPage,
+                    TotalCount = totalCount,
+                    PageNumber = page,
+                    PageSize = pageSize
+                };
+
+                _logger.LogInformation("Successfully retrieved page {Page} of {TotalPages} - {Count} polizas of {Total} total",
+                    page, totalPages, polizasPage.Count, totalCount);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting polizas with pagination");
+                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
             }
         }
 
@@ -45,145 +103,108 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                var poliza = await _polizaService.GetPolizaByIdAsync(id);
-                if (poliza == null)
-                    return NotFound($"Policy with ID {id} not found");
+                _logger.LogInformation("Getting poliza {PolizaId} via Velneo API", id);
 
+                var poliza = await _velneoApiService.GetPolizaAsync(id);
+
+                _logger.LogInformation("Successfully retrieved poliza {PolizaId} via Velneo API", id);
                 return Ok(poliza);
+            }
+            catch (KeyNotFoundException)
+            {
+                _logger.LogWarning("Poliza {PolizaId} not found in Velneo API", id);
+                return NotFound(new { message = $"Póliza con ID {id} no encontrada" });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
+                _logger.LogError(ex, "Error getting poliza {PolizaId} via Velneo API", id);
+                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
             }
         }
 
         [HttpGet("cliente/{clienteId}")]
-        [ProducesResponseType(typeof(IEnumerable<PolizaDto>), 200)]
+        [ProducesResponseType(typeof(PagedResult<PolizaDto>), 200)]
         [ProducesResponseType(404)]
         [ProducesResponseType(500)]
-        public async Task<ActionResult<IEnumerable<PolizaDto>>> GetPolizasByCliente(int clienteId)
+        public async Task<ActionResult<PagedResult<PolizaDto>>> GetPolizasByCliente(
+            int clienteId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50)
         {
             try
             {
-                var polizas = await _polizaService.GetPolizasByClienteAsync(clienteId);
-                if (polizas == null || !polizas.Any())
-                    return NotFound($"No policies found for client with ID {clienteId}");
+                _logger.LogInformation("Getting polizas for client {ClienteId} with pagination - Page: {Page}, PageSize: {PageSize}",
+                    clienteId, page, pageSize);
 
-                return Ok(polizas);
+                var allPolizas = (await _velneoApiService.GetPolizasByClientAsync(clienteId)).ToList();
+
+                if (!allPolizas.Any())
+                {
+                    _logger.LogWarning("No policies found for client {ClienteId}", clienteId);
+                    return NotFound(new { message = $"No se encontraron pólizas para el cliente con ID {clienteId}" });
+                }
+
+                var totalCount = allPolizas.Count;
+                var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
+                var polizasPage = allPolizas
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToList();
+
+                var result = new PagedResult<PolizaDto>
+                {
+                    Items = polizasPage,
+                    TotalCount = totalCount,
+                    PageNumber = page,
+                    PageSize = pageSize
+                };
+
+                _logger.LogInformation("Successfully retrieved page {Page} of {TotalPages} - {Count} polizas of {Total} total for client {ClienteId}",
+                    page, totalPages, polizasPage.Count, totalCount, clienteId);
+
+                return Ok(result);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
+                _logger.LogError(ex, "Error getting polizas for client {ClienteId} with pagination", clienteId);
+                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
             }
         }
 
-        [HttpGet("search")]
-        [ProducesResponseType(typeof(IEnumerable<PolizaDto>), 200)]
+        [HttpGet("cliente/{clienteId}/count")]
+        [ProducesResponseType(typeof(object), 200)]
         [ProducesResponseType(404)]
         [ProducesResponseType(500)]
-        public async Task<ActionResult<IEnumerable<PolizaDto>>> SearchPolizas([FromQuery] string searchTerm)
+        public async Task<ActionResult> GetPolizasCountByCliente(int clienteId)
         {
             try
             {
-                var polizas = await _polizaService.SearchPolizasAsync(searchTerm);
-                if (polizas == null || !polizas.Any())
-                    return NotFound($"No policies found matching '{searchTerm}'");
+                _logger.LogInformation("Getting polizas count for client {ClienteId} from Velneo API", clienteId);
 
-                return Ok(polizas);
+                var polizas = await _velneoApiService.GetPolizasByClientAsync(clienteId);
+                var count = polizas.Count();
+
+                if (count == 0)
+                {
+                    return NotFound(new { message = $"No se encontraron pólizas para el cliente con ID {clienteId}" });
+                }
+
+                var result = new
+                {
+                    client_id = clienteId,
+                    total_polizas = count,
+                    timestamp = DateTime.UtcNow,
+                    source = "Velneo API - Contratos filtrados por cliente"
+                };
+
+                _logger.LogInformation("Successfully counted {Count} polizas for client {ClienteId}", count, clienteId);
+                return Ok(result);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
-        }
-
-        [HttpPost]
-        [ProducesResponseType(typeof(PolizaDto), 201)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(500)]
-        public async Task<ActionResult<PolizaDto>> CreatePoliza(PolizaDto polizaDto)
-        {
-            try
-            {
-                if (polizaDto == null)
-                    return BadRequest("Policy data is null");
-
-                var createdPoliza = await _polizaService.CreatePolizaAsync(polizaDto);
-                return CreatedAtAction(nameof(GetPolizaById), new { id = createdPoliza.Id }, createdPoliza);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
-        }
-
-        [HttpPut("{id}")]
-        [ProducesResponseType(204)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(404)]
-        [ProducesResponseType(500)]
-        public async Task<IActionResult> UpdatePoliza(int id, PolizaDto polizaDto)
-        {
-            try
-            {
-                if (polizaDto == null)
-                    return BadRequest("Policy data is null");
-
-                if (id != polizaDto.Id)
-                    return BadRequest("Policy ID mismatch");
-
-                var existingPoliza = await _polizaService.GetPolizaByIdAsync(id);
-                if (existingPoliza == null)
-                    return NotFound($"Policy with ID {id} not found");
-
-                await _polizaService.UpdatePolizaAsync(polizaDto);
-                return NoContent();
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
-        }
-
-        [HttpDelete("{id}")]
-        [ProducesResponseType(204)]
-        [ProducesResponseType(404)]
-        [ProducesResponseType(500)]
-        public async Task<IActionResult> DeletePoliza(int id)
-        {
-            try
-            {
-                var existingPoliza = await _polizaService.GetPolizaByIdAsync(id);
-                if (existingPoliza == null)
-                    return NotFound($"Policy with ID {id} not found");
-
-                await _polizaService.DeletePolizaAsync(id);
-                return NoContent();
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
-        }
-
-        [HttpPost("{id}/renew")]
-        [ProducesResponseType(typeof(PolizaDto), 200)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(404)]
-        [ProducesResponseType(500)]
-        public async Task<ActionResult<PolizaDto>> RenovarPoliza(int id, RenovationDto renovationDto)
-        {
-            try
-            {
-                if (renovationDto == null)
-                    return BadRequest("Renewal data is null");
-
-                var polizaRenovada = await _polizaService.RenovarPolizaAsync(id, renovationDto);
-                return Ok(polizaRenovada);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
+                _logger.LogError(ex, "Error counting polizas for client {ClienteId} via Velneo API", clienteId);
+                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
             }
         }
     }

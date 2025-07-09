@@ -57,10 +57,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
         {
             var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
 
-            // Construir URL completa según formato Velneo
             var baseUrl = tenantConfig.BaseUrl.TrimEnd('/');
 
-            // Verificar si el endpoint ya contiene parámetros de query
             var separator = endpoint.Contains('?') ? "&" : "?";
             var fullUrl = $"{baseUrl}/{endpoint}{separator}api_key={tenantConfig.Key}";
 
@@ -124,67 +122,65 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 
                 var allClientes = new List<ClientDto>();
                 var pageNumber = 1;
-                var pageSize = 1000; // Máximo permitido por Velneo
+                var pageSize = 1000; 
                 var hasMoreData = true;
 
                 while (hasMoreData)
                 {
-                    _logger.LogInformation("📄 Obteniendo página {Page}...", pageNumber);
+                    _logger.LogInformation("Obteniendo página {Page}...", pageNumber);
 
                     using var httpClient = await GetConfiguredHttpClientAsync();
                     httpClient.Timeout = TimeSpan.FromMinutes(5);
 
-                    // Usar paginación: page[number] y page[size]
                     var url = await BuildVelneoUrlAsync($"v1/clientes?page[number]={pageNumber}&page[size]={pageSize}");
-                    _logger.LogInformation("🌐 URL página {Page}: {Url}", pageNumber, url);
+                    _logger.LogInformation("URL página {Page}: {Url}", pageNumber, url);
 
                     var response = await httpClient.GetAsync(url);
-                    _logger.LogInformation("📡 Respuesta página {Page}: Status {StatusCode}", pageNumber, response.StatusCode);
+                    _logger.LogInformation("Respuesta página {Page}: Status {StatusCode}", pageNumber, response.StatusCode);
                     response.EnsureSuccessStatusCode();
 
                     var jsonContent = await response.Content.ReadAsStringAsync();
-                    _logger.LogInformation("📄 JSON página {Page} - Length: {Length} caracteres", pageNumber, jsonContent.Length);
+                    _logger.LogInformation("JSON página {Page} - Length: {Length} caracteres", pageNumber, jsonContent.Length);
 
-                    _logger.LogInformation("🔄 Deserializando página {Page}...", pageNumber);
+                    _logger.LogInformation("Deserializando página {Page}...", pageNumber);
                     var velneoResponse = await response.Content.ReadFromJsonAsync<VelneoClientsResponse>(_jsonOptions);
 
                     if (velneoResponse?.Clientes != null && velneoResponse.Clientes.Any())
                     {
-                        _logger.LogInformation("✅ Página {Page} - Count: {Count}, Total en DB: {Total}",
+                        _logger.LogInformation("Página {Page} - Count: {Count}, Total en DB: {Total}",
                             pageNumber, velneoResponse.Clientes.Count, velneoResponse.TotalCount);
 
                         var clientesPage = velneoResponse.Clientes.ToClienteDtos().ToList();
                         allClientes.AddRange(clientesPage);
 
-                        _logger.LogInformation("🗺️ Mapeados {Count} clientes de página {Page}. Total acumulado: {TotalAccumulated}",
+                        _logger.LogInformation("🗺Mapeados {Count} clientes de página {Page}. Total acumulado: {TotalAccumulated}",
                             clientesPage.Count, pageNumber, allClientes.Count);
 
-                        // Verificar si hay más páginas
                         hasMoreData = velneoResponse.Clientes.Count == pageSize && allClientes.Count < velneoResponse.TotalCount;
 
                         if (hasMoreData)
                         {
                             pageNumber++;
-                            _logger.LogInformation("➡️ Hay más datos. Continuando con página {NextPage}", pageNumber);
+                            _logger.LogInformation("➡Hay más datos. Continuando con página {NextPage}", pageNumber);
                         }
                         else
                         {
-                            _logger.LogInformation("🏁 No hay más páginas. Proceso completado.");
+                            _logger.LogInformation("No hay más páginas. Proceso completado.");
                         }
                     }
                     else
                     {
-                        _logger.LogWarning("⚠️ Página {Page} vacía. Finalizando paginación.", pageNumber);
+                        _logger.LogWarning("Página {Page} vacía. Finalizando paginación.", pageNumber);
                         hasMoreData = false;
                     }
                 }
 
-                _logger.LogInformation("✅ COMPLETADO: {TotalRetrieved} clientes obtenidos en total", allClientes.Count);
+                _logger.LogInformation("COMPLETADO: {TotalRetrieved} clientes obtenidos en total", allClientes.Count);
                 return allClientes;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ ERROR en GetClientesAsync con paginación: {Message}", ex.Message);
+                _logger.LogError(ex, "ERROR en GetClientesAsync con paginación: {Message}", ex.Message);
                 throw;
             }
         }
@@ -352,20 +348,71 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
         {
             try
             {
-                using var httpClient = await GetConfiguredHttpClientAsync();
-                var url = await BuildVelneoUrlAsync("v1/contratos");
+                var tenantId = _tenantService.GetCurrentTenantId();
+                _logger.LogInformation("🔍 INICIO: Getting ALL polizas/contratos from Velneo API for tenant {TenantId}", tenantId);
 
-                var response = await httpClient.GetAsync(url);
-                response.EnsureSuccessStatusCode();
+                var allPolizas = new List<PolizaDto>();
+                var pageNumber = 1;
+                var pageSize = 1000;
+                var hasMoreData = true;
 
-                var jsonContent = await response.Content.ReadAsStringAsync();
-                _logger.LogInformation("Contratos list response length: {Length}", jsonContent.Length);
+                while (hasMoreData)
+                {
+                    _logger.LogInformation("📄 Obteniendo página {Page} de contratos...", pageNumber);
 
-                throw new NotImplementedException("Mapeo de contratos a pólizas pendiente de implementación");
+                    using var httpClient = await GetConfiguredHttpClientAsync();
+                    httpClient.Timeout = TimeSpan.FromMinutes(5);
+
+                    var url = await BuildVelneoUrlAsync($"v1/contratos?page[number]={pageNumber}&page[size]={pageSize}");
+                    _logger.LogInformation("🌐 URL página {Page}: {Url}", pageNumber, url);
+
+                    var response = await httpClient.GetAsync(url);
+                    _logger.LogInformation("📡 Respuesta página {Page}: Status {StatusCode}", pageNumber, response.StatusCode);
+                    response.EnsureSuccessStatusCode();
+
+                    var jsonContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogInformation("📄 JSON página {Page} - Length: {Length} caracteres", pageNumber, jsonContent.Length);
+
+                    _logger.LogInformation("🔄 Deserializando página {Page}...", pageNumber);
+
+                    var velneoResponse = await response.Content.ReadFromJsonAsync<VelneoPolizasResponse>(_jsonOptions);
+
+                    if (velneoResponse?.Polizas != null && velneoResponse.Polizas.Any())
+                    {
+                        _logger.LogInformation("✅ Página {Page} - Count: {Count}, Total en DB: {Total}",
+                            pageNumber, velneoResponse.Polizas.Count, velneoResponse.TotalCount);
+
+                        var polizasPage = velneoResponse.Polizas.ToPolizaDtos().ToList();
+                        allPolizas.AddRange(polizasPage);
+
+                        _logger.LogInformation("🗺️ Mapeados {Count} contratos de página {Page}. Total acumulado: {TotalAccumulated}",
+                            polizasPage.Count, pageNumber, allPolizas.Count);
+
+                        hasMoreData = velneoResponse.Polizas.Count == pageSize && allPolizas.Count < velneoResponse.TotalCount;
+
+                        if (hasMoreData)
+                        {
+                            pageNumber++;
+                            _logger.LogInformation("➡️ Hay más datos. Continuando con página {NextPage}", pageNumber);
+                        }
+                        else
+                        {
+                            _logger.LogInformation("🏁 No hay más páginas. Proceso completado.");
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning("⚠️ Página {Page} vacía. Finalizando paginación.", pageNumber);
+                        hasMoreData = false;
+                    }
+                }
+
+                _logger.LogInformation("✅ COMPLETADO: {TotalRetrieved} pólizas obtenidas en total", allPolizas.Count);
+                return allPolizas;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting polizas from Velneo API");
+                _logger.LogError(ex, "❌ ERROR en GetPolizasAsync con paginación: {Message}", ex.Message);
                 throw;
             }
         }
@@ -374,21 +421,71 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
         {
             try
             {
-                using var httpClient = await GetConfiguredHttpClientAsync();
-                var baseUrl = await BuildVelneoUrlAsync("v1/contratos");
-                var url = baseUrl.Replace("?api_key=", $"?filter%5Bclientes%5D={clienteId}&api_key=");
+                var tenantId = _tenantService.GetCurrentTenantId();
+                _logger.LogInformation("INICIO: Getting polizas for client {ClienteId} from Velneo API for tenant {TenantId}", clienteId, tenantId);
 
-                var response = await httpClient.GetAsync(url);
-                response.EnsureSuccessStatusCode();
+                var allPolizas = new List<PolizaDto>();
+                var pageNumber = 1;
+                var pageSize = 1000;
+                var hasMoreData = true;
 
-                var jsonContent = await response.Content.ReadAsStringAsync();
-                _logger.LogInformation("Contratos by client response length: {Length}", jsonContent.Length);
+                while (hasMoreData)
+                {
+                    _logger.LogInformation("Obteniendo página {Page} de contratos para cliente {ClienteId}...", pageNumber, clienteId);
 
-                throw new NotImplementedException("Mapeo de contratos por cliente pendiente de implementación");
+                    using var httpClient = await GetConfiguredHttpClientAsync();
+                    httpClient.Timeout = TimeSpan.FromMinutes(5);
+
+                    var url = await BuildVelneoUrlAsync($"v1/contratos?filter[clientes]={clienteId}&page[number]={pageNumber}&page[size]={pageSize}");
+                    _logger.LogInformation("URL página {Page}: {Url}", pageNumber, url);
+
+                    var response = await httpClient.GetAsync(url);
+                    _logger.LogInformation("Respuesta página {Page}: Status {StatusCode}", pageNumber, response.StatusCode);
+                    response.EnsureSuccessStatusCode();
+
+                    var jsonContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogInformation("JSON página {Page} - Length: {Length} caracteres", pageNumber, jsonContent.Length);
+
+                    _logger.LogInformation("Deserializando página {Page}...", pageNumber);
+
+                    var velneoResponse = await response.Content.ReadFromJsonAsync<VelneoPolizasResponse>(_jsonOptions);
+
+                    if (velneoResponse?.Polizas != null && velneoResponse.Polizas.Any())
+                    {
+                        _logger.LogInformation("Página {Page} - Count: {Count}, Total en DB: {Total}",
+                            pageNumber, velneoResponse.Polizas.Count, velneoResponse.TotalCount);
+
+                        var polizasPage = velneoResponse.Polizas.ToPolizaDtos().ToList();
+                        allPolizas.AddRange(polizasPage);
+
+                        _logger.LogInformation("Mapeados {Count} contratos de página {Page}. Total acumulado: {TotalAccumulated}",
+                            polizasPage.Count, pageNumber, allPolizas.Count);
+
+                        hasMoreData = velneoResponse.Polizas.Count == pageSize && allPolizas.Count < velneoResponse.TotalCount;
+
+                        if (hasMoreData)
+                        {
+                            pageNumber++;
+                            _logger.LogInformation("Hay más datos. Continuando con página {NextPage}", pageNumber);
+                        }
+                        else
+                        {
+                            _logger.LogInformation("No hay más páginas. Proceso completado.");
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning("⚠Página {Page} vacía. Finalizando paginación.", pageNumber);
+                        hasMoreData = false;
+                    }
+                }
+
+                _logger.LogInformation("COMPLETADO: {TotalRetrieved} contratos obtenidos para cliente {ClienteId}", allPolizas.Count, clienteId);
+                return allPolizas;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting polizas for client {ClienteId} from Velneo API", clienteId);
+                _logger.LogError(ex, "ERROR en GetPolizasByClientAsync para cliente {ClienteId}: {Message}", clienteId, ex.Message);
                 throw;
             }
         }

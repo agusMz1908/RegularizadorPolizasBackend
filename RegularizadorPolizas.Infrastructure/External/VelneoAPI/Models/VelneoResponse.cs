@@ -17,8 +17,11 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models
 
     public class VelneoPolizasResponse
     {
-        [JsonPropertyName("polizas")]
-        public List<VelneoPoliza> Polizas { get; set; } = new();
+        [JsonPropertyName("contratos")] 
+        public List<VelneoPoliza> Polizas { get; set; } = new(); 
+
+        [JsonPropertyName("total_count")]
+        public int TotalCount { get; set; }
 
         [JsonPropertyName("total")]
         public int Total { get; set; }
