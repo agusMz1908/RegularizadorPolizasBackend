@@ -1,6 +1,4 @@
-﻿// ClientMappers.cs - CORREGIDO: Eliminadas propiedades inexistentes
-
-using RegularizadorPolizas.Application.DTOs;
+﻿using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models;
 
 namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers
@@ -12,14 +10,15 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers
             return new ClientDto
             {
                 Id = velneoCliente.Id,
+                Clinro = velneoCliente.Id,
                 Corrcod = velneoCliente.Corrcod,
                 Subcorr = velneoCliente.Subcorr,
                 Clinom = velneoCliente.Clinom,
                 Telefono = velneoCliente.Telefono,
                 Clitelcel = velneoCliente.Clitelcel,
-                Clifchnac = velneoCliente.Clifchnac,
-                Clifching = velneoCliente.Clifching,
-                Clifchegr = velneoCliente.Clifchegr,
+                Clifchnac = ParseVelneoDate(velneoCliente.Clifchnac),
+                Clifching = ParseVelneoDate(velneoCliente.Clifching),
+                Clifchegr = ParseVelneoDate(velneoCliente.Clifchegr),
                 Clicargo = velneoCliente.Clicargo,
                 Clicon = velneoCliente.Clicon,
                 Cliruc = velneoCliente.Cliruc,
@@ -30,8 +29,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers
                 Clitpo = velneoCliente.Clitpo,
                 Clidir = velneoCliente.Clidir,
                 Cliemail = velneoCliente.Cliemail,
-                Clivtoced = velneoCliente.Clivtoced,
-                Clivtolib = velneoCliente.Clivtolib,
+                Clivtoced = ParseVelneoDate(velneoCliente.Clivtoced),
+                Clivtolib = ParseVelneoDate(velneoCliente.Clivtolib),
                 Cliposcod = velneoCliente.Cliposcod,
                 Clitelcorr = velneoCliente.Clitelcorr,
                 Clidptnom = velneoCliente.Clidptnom,
@@ -55,13 +54,13 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers
                 Clidptcob = velneoCliente.Clidptcob,
                 Activo = velneoCliente.Activo,
                 Cli_s_cris = velneoCliente.Cli_s_cris,
-                Clifchnac1 = velneoCliente.Clifchnac1,
+                Clifchnac1 = ParseVelneoDate(velneoCliente.Clifchnac1),
                 Clilocnom = velneoCliente.Clilocnom,
                 Cliloccob = velneoCliente.Cliloccob,
                 Categorias_de_cliente = velneoCliente.Categorias_de_cliente,
                 Sc_departamentos = velneoCliente.Sc_departamentos,
                 Sc_localidades = velneoCliente.Sc_localidades,
-                Fch_ingreso = velneoCliente.Fch_ingreso,
+                Fch_ingreso = ParseVelneoDate(velneoCliente.Fch_ingreso),
                 Grupos_economicos = velneoCliente.Grupos_economicos,
                 Etiquetas = velneoCliente.Etiquetas,
                 Doc_digi = velneoCliente.Doc_digi,
@@ -87,10 +86,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers
                 Ing_siniestro_wap = velneoCliente.Ing_siniestro_wap,
                 Noti_obs_sini_mail = velneoCliente.Noti_obs_sini_mail,
                 Noti_obs_sini_wap = velneoCliente.Noti_obs_sini_wap,
-                Last_update = velneoCliente.Last_update,
+                Last_update = ParseVelneoDate(velneoCliente.Last_update),
                 App_id = velneoCliente.App_id,
-
-                Clinro = velneoCliente.Id,
 
                 Polizas = new List<PolizaResumidaDto>()
             };
@@ -111,9 +108,9 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers
                 Clinom = clienteDto.Clinom,
                 Telefono = clienteDto.Telefono,
                 Clitelcel = clienteDto.Clitelcel,
-                Clifchnac = clienteDto.Clifchnac,
-                Clifching = clienteDto.Clifching,
-                Clifchegr = clienteDto.Clifchegr,
+                Clifchnac = FormatDateForVelneo(clienteDto.Clifchnac),
+                Clifching = FormatDateForVelneo(clienteDto.Clifching),
+                Clifchegr = FormatDateForVelneo(clienteDto.Clifchegr),
                 Clicargo = clienteDto.Clicargo,
                 Clicon = clienteDto.Clicon,
                 Cliruc = clienteDto.Cliruc,
@@ -124,8 +121,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers
                 Clitpo = clienteDto.Clitpo,
                 Clidir = clienteDto.Clidir,
                 Cliemail = clienteDto.Cliemail,
-                Clivtoced = clienteDto.Clivtoced,
-                Clivtolib = clienteDto.Clivtolib,
+                Clivtoced = FormatDateForVelneo(clienteDto.Clivtoced),
+                Clivtolib = FormatDateForVelneo(clienteDto.Clivtolib),
                 Cliposcod = clienteDto.Cliposcod,
                 Clitelcorr = clienteDto.Clitelcorr,
                 Clidptnom = clienteDto.Clidptnom,
@@ -149,13 +146,13 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers
                 Clidptcob = clienteDto.Clidptcob,
                 Activo = clienteDto.Activo,
                 Cli_s_cris = clienteDto.Cli_s_cris,
-                Clifchnac1 = clienteDto.Clifchnac1,
+                Clifchnac1 = FormatDateForVelneo(clienteDto.Clifchnac1),
                 Clilocnom = clienteDto.Clilocnom,
                 Cliloccob = clienteDto.Cliloccob,
                 Categorias_de_cliente = clienteDto.Categorias_de_cliente,
                 Sc_departamentos = clienteDto.Sc_departamentos,
                 Sc_localidades = clienteDto.Sc_localidades,
-                Fch_ingreso = clienteDto.Fch_ingreso,
+                Fch_ingreso = FormatDateForVelneo(clienteDto.Fch_ingreso),
                 Grupos_economicos = clienteDto.Grupos_economicos,
                 Etiquetas = clienteDto.Etiquetas,
                 Doc_digi = clienteDto.Doc_digi,
@@ -181,7 +178,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers
                 Ing_siniestro_wap = clienteDto.Ing_siniestro_wap,
                 Noti_obs_sini_mail = clienteDto.Noti_obs_sini_mail,
                 Noti_obs_sini_wap = clienteDto.Noti_obs_sini_wap,
-                Last_update = clienteDto.Last_update,
+                Last_update = FormatDateForVelneo(clienteDto.Last_update),
                 App_id = clienteDto.App_id
             };
         }
@@ -213,6 +210,11 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers
                 return date;
 
             return null;
+        }
+
+        private static string? FormatDateForVelneo(DateTime? date)
+        {
+            return date?.ToString("yyyy-MM-dd") ?? null;
         }
     }
 }

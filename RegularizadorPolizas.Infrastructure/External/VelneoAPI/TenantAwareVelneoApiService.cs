@@ -118,31 +118,47 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             try
             {
                 var tenantId = _tenantService.GetCurrentTenantId();
-                _logger.LogDebug("Getting all clientes from Velneo API for tenant {TenantId}", tenantId);
+                _logger.LogInformation("🔍 INICIO: Getting clientes from Velneo API for tenant {TenantId}", tenantId);
 
                 using var httpClient = await GetConfiguredHttpClientAsync();
+
+                // ⏰ AUMENTAR timeout específicamente para clientes (muchos datos)
+                httpClient.Timeout = TimeSpan.FromMinutes(5); // 5 minutos en lugar de 30 segundos
+                _logger.LogInformation("⏰ Timeout aumentado a 5 minutos para clientes");
+
                 var url = await BuildVelneoUrlAsync("v1/clientes");
+                _logger.LogInformation("🌐 URL construida: {Url}", url);
+
                 var response = await httpClient.GetAsync(url);
+                _logger.LogInformation("📡 Respuesta recibida: Status {StatusCode}", response.StatusCode);
+
                 response.EnsureSuccessStatusCode();
 
+                var jsonContent = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("📄 JSON recibido - Length: {Length} caracteres", jsonContent.Length);
+
+                // INTENTAR deserializar
+                _logger.LogInformation("🔄 Iniciando deserialización...");
                 var velneoResponse = await response.Content.ReadFromJsonAsync<VelneoClientsResponse>(_jsonOptions);
+                _logger.LogInformation("✅ Deserialización exitosa - Count: {Count}, Total: {Total}",
+                    velneoResponse?.Total, velneoResponse?.TotalCount);
 
                 if (velneoResponse?.Clientes == null || !velneoResponse.Clientes.Any())
                 {
-                    _logger.LogWarning("No clientes received from Velneo API for tenant {TenantId}", tenantId);
+                    _logger.LogWarning("⚠️ No clientes received from Velneo API for tenant {TenantId}", tenantId);
                     return new List<ClientDto>();
                 }
 
+                // INTENTAR mapeo
+                _logger.LogInformation("🗺️ Iniciando mapeo de {Count} clientes...", velneoResponse.Clientes.Count);
                 var clientes = velneoResponse.Clientes.ToClienteDtos().ToList();
-
-                _logger.LogInformation("Successfully retrieved {Count} clientes from Velneo API (total: {Total})",
-                    clientes.Count, velneoResponse.TotalCount);
+                _logger.LogInformation("✅ Mapeo exitoso - Mapped: {Count} clientes", clientes.Count);
 
                 return clientes;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Error getting clientes from Velneo API");
+                _logger.LogError(ex, "❌ ERROR en GetClientesAsync: {Message}", ex.Message);
                 throw;
             }
         }

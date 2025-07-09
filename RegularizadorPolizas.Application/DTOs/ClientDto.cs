@@ -9,7 +9,7 @@
         public string Clinom { get; set; }
         public string Telefono { get; set; }
         public string Clitelcel { get; set; }
-        public string? Clifchnac { get; set; }
+        public DateTime? Clifchnac { get; set; }
         public DateTime? Clifching { get; set; }
         public DateTime? Clifchegr { get; set; }
         public string Clicargo { get; set; }
@@ -47,7 +47,7 @@
         public string Clidptcob { get; set; }
         public bool Activo { get; set; }
         public string Cli_s_cris { get; set; }
-        public string? Clifchnac1 { get; set; }
+        public DateTime? Clifchnac1 { get; set; }
         public string Clilocnom { get; set; }
         public string Cliloccob { get; set; }
         public int? Categorias_de_cliente { get; set; }
@@ -79,7 +79,7 @@
         public bool Ing_siniestro_wap { get; set; }
         public bool Noti_obs_sini_mail { get; set; }
         public bool Noti_obs_sini_wap { get; set; }
-        public string? Last_update { get; set; }
+        public DateTime? Last_update { get; set; }
         public int? App_id { get; set; }
 
         // Propiedades de navegación simplificadas

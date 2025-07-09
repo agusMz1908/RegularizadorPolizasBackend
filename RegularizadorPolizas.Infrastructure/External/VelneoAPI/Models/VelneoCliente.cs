@@ -23,10 +23,10 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models
         public string? Clifchnac { get; set; }
 
         [JsonPropertyName("clifching")]
-        public DateTime? Clifching { get; set; }
+        public string? Clifching { get; set; }
 
         [JsonPropertyName("clifchegr")]
-        public DateTime? Clifchegr { get; set; }
+        public string? Clifchegr { get; set; }
 
         [JsonPropertyName("clicargo")]
         public string Clicargo { get; set; } = string.Empty;
@@ -59,10 +59,10 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models
         public string Cliemail { get; set; } = string.Empty;
 
         [JsonPropertyName("clivtoced")]
-        public DateTime? Clivtoced { get; set; }
+        public string? Clivtoced { get; set; }
 
         [JsonPropertyName("clivtolib")]
-        public DateTime? Clivtolib { get; set; }
+        public string? Clivtolib { get; set; }
 
         [JsonPropertyName("cliposcod")]
         public int? Cliposcod { get; set; }
@@ -155,7 +155,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models
         public string Sc_localidades { get; set; } = string.Empty;
 
         [JsonPropertyName("fch_ingreso")]
-        public DateTime? Fch_ingreso { get; set; }
+        public string? Fch_ingreso { get; set; }
 
         [JsonPropertyName("grupos_economicos")]
         public int? Grupos_economicos { get; set; }
