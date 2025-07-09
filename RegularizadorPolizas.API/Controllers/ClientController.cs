@@ -22,34 +22,44 @@ namespace RegularizadorPolizas.API.Controllers
         }
 
         [HttpGet]
-        [ProducesResponseType(typeof(IEnumerable<ClientDto>), 200)]
-        [ProducesResponseType(404)]
+        [ProducesResponseType(typeof(PagedResult<ClientDto>), 200)]
         [ProducesResponseType(500)]
-        public async Task<ActionResult<IEnumerable<ClientDto>>> GetClients()
+        public async Task<ActionResult<PagedResult<ClientDto>>> GetClients(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50)
         {
             try
             {
-                _logger.LogInformation("Getting all clients via Velneo API");
+                _logger.LogInformation("Getting clients with pagination - Page: {Page}, PageSize: {PageSize}", page, pageSize);
 
-                var clients = await _velneoApiService.GetClientesAsync();
+                // Obtener TODOS los clientes de Velneo (tu paginación interna funciona perfecto)
+                var allClients = (await _velneoApiService.GetClientesAsync()).ToList();
 
-                if (clients == null || !clients.Any())
+                // Aplicar paginación para la respuesta HTTP
+                var totalCount = allClients.Count;
+                var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
+                var clientsPage = allClients
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToList();
+
+                var result = new PagedResult<ClientDto>
                 {
-                    _logger.LogWarning("No clients found in Velneo API");
-                    return Ok(new List<ClientDto>());
-                }
+                    Items = clientsPage,
+                    TotalCount = totalCount,
+                    PageNumber = page,
+                    PageSize = pageSize
+                };
 
-                _logger.LogInformation("Successfully retrieved {Count} clients from Velneo API", clients.Count());
-                return Ok(clients);
-            }
-            catch (NotImplementedException ex)
-            {
-                _logger.LogWarning("GetClientes not implemented in Velneo API: {Message}", ex.Message);
-                return StatusCode(501, new { message = "GetClientes no está implementado en Velneo API aún", error = ex.Message });
+                _logger.LogInformation("Successfully retrieved page {Page} of {TotalPages} - {Count} clients of {Total} total",
+                    page, totalPages, clientsPage.Count, totalCount);
+
+                return Ok(result);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting clients from Velneo API");
+                _logger.LogError(ex, "Error getting clients with pagination");
                 return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
             }
         }
@@ -88,6 +98,36 @@ namespace RegularizadorPolizas.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting client {ClientId} from Velneo API", id);
+                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
+            }
+        }
+
+        [HttpGet("count")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(500)]
+        public async Task<ActionResult> GetClientsCount()
+        {
+            try
+            {
+                _logger.LogInformation("Getting clients count from Velneo API");
+
+                var clients = await _velneoApiService.GetClientesAsync();
+                var count = clients.Count();
+
+                var result = new
+                {
+                    total_clients = count,
+                    timestamp = DateTime.UtcNow,
+                    source = "Velneo API",
+                    message = $"Total de {count} clientes obtenidos exitosamente"
+                };
+
+                _logger.LogInformation("Successfully counted {Count} clients from Velneo API", count);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error counting clients via Velneo API");
                 return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
             }
         }

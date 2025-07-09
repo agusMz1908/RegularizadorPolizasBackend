@@ -58,9 +58,11 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
 
             // Construir URL completa según formato Velneo
-            // https://app.uruguaycom.com/apid/Seguros_dat/v1/clientes?api_key=XXX
             var baseUrl = tenantConfig.BaseUrl.TrimEnd('/');
-            var fullUrl = $"{baseUrl}/{endpoint}?api_key={tenantConfig.Key}";
+
+            // Verificar si el endpoint ya contiene parámetros de query
+            var separator = endpoint.Contains('?') ? "&" : "?";
+            var fullUrl = $"{baseUrl}/{endpoint}{separator}api_key={tenantConfig.Key}";
 
             _logger.LogDebug("Built Velneo URL: {Url}", fullUrl);
             return fullUrl;
@@ -118,47 +120,71 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             try
             {
                 var tenantId = _tenantService.GetCurrentTenantId();
-                _logger.LogInformation("🔍 INICIO: Getting clientes from Velneo API for tenant {TenantId}", tenantId);
+                _logger.LogInformation("🔍 INICIO: Getting ALL clientes from Velneo API for tenant {TenantId}", tenantId);
 
-                using var httpClient = await GetConfiguredHttpClientAsync();
+                var allClientes = new List<ClientDto>();
+                var pageNumber = 1;
+                var pageSize = 1000; // Máximo permitido por Velneo
+                var hasMoreData = true;
 
-                // ⏰ AUMENTAR timeout específicamente para clientes (muchos datos)
-                httpClient.Timeout = TimeSpan.FromMinutes(5); // 5 minutos en lugar de 30 segundos
-                _logger.LogInformation("⏰ Timeout aumentado a 5 minutos para clientes");
-
-                var url = await BuildVelneoUrlAsync("v1/clientes");
-                _logger.LogInformation("🌐 URL construida: {Url}", url);
-
-                var response = await httpClient.GetAsync(url);
-                _logger.LogInformation("📡 Respuesta recibida: Status {StatusCode}", response.StatusCode);
-
-                response.EnsureSuccessStatusCode();
-
-                var jsonContent = await response.Content.ReadAsStringAsync();
-                _logger.LogInformation("📄 JSON recibido - Length: {Length} caracteres", jsonContent.Length);
-
-                // INTENTAR deserializar
-                _logger.LogInformation("🔄 Iniciando deserialización...");
-                var velneoResponse = await response.Content.ReadFromJsonAsync<VelneoClientsResponse>(_jsonOptions);
-                _logger.LogInformation("✅ Deserialización exitosa - Count: {Count}, Total: {Total}",
-                    velneoResponse?.Total, velneoResponse?.TotalCount);
-
-                if (velneoResponse?.Clientes == null || !velneoResponse.Clientes.Any())
+                while (hasMoreData)
                 {
-                    _logger.LogWarning("⚠️ No clientes received from Velneo API for tenant {TenantId}", tenantId);
-                    return new List<ClientDto>();
+                    _logger.LogInformation("📄 Obteniendo página {Page}...", pageNumber);
+
+                    using var httpClient = await GetConfiguredHttpClientAsync();
+                    httpClient.Timeout = TimeSpan.FromMinutes(5);
+
+                    // Usar paginación: page[number] y page[size]
+                    var url = await BuildVelneoUrlAsync($"v1/clientes?page[number]={pageNumber}&page[size]={pageSize}");
+                    _logger.LogInformation("🌐 URL página {Page}: {Url}", pageNumber, url);
+
+                    var response = await httpClient.GetAsync(url);
+                    _logger.LogInformation("📡 Respuesta página {Page}: Status {StatusCode}", pageNumber, response.StatusCode);
+                    response.EnsureSuccessStatusCode();
+
+                    var jsonContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogInformation("📄 JSON página {Page} - Length: {Length} caracteres", pageNumber, jsonContent.Length);
+
+                    _logger.LogInformation("🔄 Deserializando página {Page}...", pageNumber);
+                    var velneoResponse = await response.Content.ReadFromJsonAsync<VelneoClientsResponse>(_jsonOptions);
+
+                    if (velneoResponse?.Clientes != null && velneoResponse.Clientes.Any())
+                    {
+                        _logger.LogInformation("✅ Página {Page} - Count: {Count}, Total en DB: {Total}",
+                            pageNumber, velneoResponse.Clientes.Count, velneoResponse.TotalCount);
+
+                        var clientesPage = velneoResponse.Clientes.ToClienteDtos().ToList();
+                        allClientes.AddRange(clientesPage);
+
+                        _logger.LogInformation("🗺️ Mapeados {Count} clientes de página {Page}. Total acumulado: {TotalAccumulated}",
+                            clientesPage.Count, pageNumber, allClientes.Count);
+
+                        // Verificar si hay más páginas
+                        hasMoreData = velneoResponse.Clientes.Count == pageSize && allClientes.Count < velneoResponse.TotalCount;
+
+                        if (hasMoreData)
+                        {
+                            pageNumber++;
+                            _logger.LogInformation("➡️ Hay más datos. Continuando con página {NextPage}", pageNumber);
+                        }
+                        else
+                        {
+                            _logger.LogInformation("🏁 No hay más páginas. Proceso completado.");
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning("⚠️ Página {Page} vacía. Finalizando paginación.", pageNumber);
+                        hasMoreData = false;
+                    }
                 }
 
-                // INTENTAR mapeo
-                _logger.LogInformation("🗺️ Iniciando mapeo de {Count} clientes...", velneoResponse.Clientes.Count);
-                var clientes = velneoResponse.Clientes.ToClienteDtos().ToList();
-                _logger.LogInformation("✅ Mapeo exitoso - Mapped: {Count} clientes", clientes.Count);
-
-                return clientes;
+                _logger.LogInformation("✅ COMPLETADO: {TotalRetrieved} clientes obtenidos en total", allClientes.Count);
+                return allClientes;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ ERROR en GetClientesAsync: {Message}", ex.Message);
+                _logger.LogError(ex, "❌ ERROR en GetClientesAsync con paginación: {Message}", ex.Message);
                 throw;
             }
         }
