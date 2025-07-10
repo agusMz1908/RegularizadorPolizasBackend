@@ -657,11 +657,153 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 
         public async Task<PaginatedVelneoResponse<PolizaDto>> GetPolizasPaginatedAsync(int page = 1, int pageSize = 50, string? search = null)
         {
-            // ✅ Implementación temporal para que compile
-            // TODO: Implementar paginación real de pólizas después
-            await Task.Delay(0); // Para que sea realmente async
+            var stopwatch = Stopwatch.StartNew();
 
-            throw new NotImplementedException("GetPolizasPaginatedAsync será implementado después de que funcione la paginación de clientes");
+            try
+            {
+                var tenantId = _tenantService.GetCurrentTenantId();
+                _logger.LogInformation("🔍 PAGINACIÓN REAL PÓLIZAS: Getting polizas page {Page} (size: {PageSize}) from Velneo API for tenant {TenantId}",
+                    page, pageSize, tenantId);
+
+                using var httpClient = await GetConfiguredHttpClientAsync();
+
+                // ✅ Construir URL con paginación real de Velneo para pólizas
+                // Ajustar el endpoint según cómo se llamen las pólizas en Velneo API
+                var endpoint = $"v1/contratos?page[number]={page}&page[size]={pageSize}";
+                // O podría ser: $"v1/polizas?page[number]={page}&page[size]={pageSize}";
+
+                // ✅ Agregar búsqueda si existe
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    // TODO: Investigar cómo Velneo maneja búsquedas de pólizas
+                    _logger.LogInformation("🔍 Search requested for polizas but not yet implemented in Velneo endpoint: {Search}", search);
+                }
+
+                var url = await BuildVelneoUrlAsync(endpoint);
+                var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
+                var maskedUrl = url.Replace(tenantConfig.Key, "***");
+                _logger.LogInformation("🌐 Velneo Pólizas URL: {Url}", maskedUrl);
+
+                var response = await httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                var jsonContent = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("📡 Velneo pólizas response - Page {Page}: Status {Status}, JSON length: {Length} chars",
+                    page, response.StatusCode, jsonContent.Length);
+
+                // ✅ Deserializar respuesta de Velneo
+                List<PolizaDto> polizasPage = new List<PolizaDto>();
+                int totalCount = 0;
+                bool hasMoreData = false;
+
+                try
+                {
+                    // Intentar deserializar como array directo
+                    // NOTA: Ajustar según el modelo real de Velneo para pólizas
+                    var velneoPolizas = JsonSerializer.Deserialize<List<VelneoPoliza>>(jsonContent, _jsonOptions);
+                    // O podría ser: JsonSerializer.Deserialize<List<VelneoPoliza>>(jsonContent, _jsonOptions);
+
+                    if (velneoPolizas != null && velneoPolizas.Any())
+                    {
+                        // ✅ Mapear usando el mapper existente (ajustar según tu implementación)
+                        polizasPage = velneoPolizas.Select(vp => vp.ToPolizaDto()).ToList();
+
+                        // ✅ Verificar headers para total count
+                        if (response.Headers.Contains("X-Total-Count"))
+                        {
+                            var totalHeader = response.Headers.GetValues("X-Total-Count").FirstOrDefault();
+                            if (int.TryParse(totalHeader, out int headerTotal))
+                            {
+                                totalCount = headerTotal;
+                                _logger.LogInformation("📊 Pólizas total count from header: {Total}", totalCount);
+                            }
+                        }
+
+                        // Si no hay header, estimamos
+                        if (totalCount == 0)
+                        {
+                            totalCount = EstimateTotalCount(polizasPage.Count, page, pageSize);
+                            _logger.LogInformation("📊 Estimated pólizas total count: {Total}", totalCount);
+                        }
+
+                        hasMoreData = polizasPage.Count == pageSize;
+
+                        _logger.LogInformation("✅ Deserialized {Count} pólizas from Velneo page {Page}", polizasPage.Count, page);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("⚠️ Empty or null pólizas response from Velneo for page {Page}", page);
+                    }
+                }
+                catch (JsonException ex)
+                {
+                    _logger.LogWarning("⚠️ Error deserializing pólizas direct array, trying wrapped response: {Error}", ex.Message);
+
+                    try
+                    {
+                        var velneoResponse = JsonSerializer.Deserialize<VelneoPolizasResponse>(jsonContent, _jsonOptions);
+                        if (velneoResponse?.Polizas != null)
+                        {
+                            polizasPage = velneoResponse.Polizas.Select(vp => vp.ToPolizaDto()).ToList();
+                            if (velneoResponse.TotalCount.HasValue)
+                                totalCount = velneoResponse.TotalCount.Value;
+                            else
+                                totalCount = EstimateTotalCount(polizasPage.Count, page, pageSize);
+  
+                            if (velneoResponse.HasMoreData.HasValue)
+                                hasMoreData = velneoResponse.HasMoreData.Value;
+                            else
+                                hasMoreData = polizasPage.Count == pageSize;
+                            _logger.LogInformation("✅ Used wrapped pólizas response format");
+                        }
+                    }
+                    catch (JsonException ex2)
+                    {
+                        _logger.LogError(ex2, "❌ Failed to deserialize Velneo pólizas response in any known format");
+                        throw;
+                    }
+                }
+
+                stopwatch.Stop();
+
+                // ✅ Aplicar filtro de búsqueda local si Velneo no lo soporta nativamente
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    var originalCount = polizasPage.Count;
+                    polizasPage = polizasPage.Where(p =>
+                        // Ajustar campos según el PolizaDto real
+                        (p.Conpol?.Contains(search, StringComparison.OrdinalIgnoreCase) == true) ||
+                        (p.Ramo?.Contains(search, StringComparison.OrdinalIgnoreCase) == true) ||
+                        (p.Com_alias?.Contains(search, StringComparison.OrdinalIgnoreCase) == true)
+                    // Agregar más campos de búsqueda según necesites
+                    ).ToList();
+
+                    _logger.LogInformation("🔍 Client-side pólizas search filter applied: {FilteredCount} of {OriginalCount}",
+                        polizasPage.Count, originalCount);
+                }
+
+                var result = new PaginatedVelneoResponse<PolizaDto>
+                {
+                    Items = polizasPage,
+                    TotalCount = totalCount,
+                    PageNumber = page,
+                    PageSize = pageSize,
+                    VelneoHasMoreData = hasMoreData,
+                    RequestDuration = stopwatch.Elapsed
+                };
+
+                _logger.LogInformation("✅ PAGINACIÓN REAL PÓLIZAS COMPLETADA: Page {Page}/{EstimatedTotal} - {Count} pólizas retrieved in {Duration}ms",
+                    page, result.TotalPages, polizasPage.Count, stopwatch.ElapsedMilliseconds);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                _logger.LogError(ex, "❌ ERROR en GetPolizasPaginatedAsync - Page: {Page}, PageSize: {PageSize}, Duration: {Duration}ms",
+                    page, pageSize, stopwatch.ElapsedMilliseconds);
+                throw;
+            }
         }
 
         #endregion

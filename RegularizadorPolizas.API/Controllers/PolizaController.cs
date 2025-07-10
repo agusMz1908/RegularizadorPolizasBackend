@@ -55,43 +55,54 @@ namespace RegularizadorPolizas.API.Controllers
         }
 
         [HttpGet]
-        [ProducesResponseType(typeof(PagedResult<PolizaDto>), 200)]
+        [ProducesResponseType(typeof(object), 200)]
         [ProducesResponseType(500)]
-        public async Task<ActionResult<PagedResult<PolizaDto>>> GetPolizas(
+        [Authorize]
+        public async Task<ActionResult> GetPolizas(
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 50)
+            [FromQuery] int pageSize = 50,
+            [FromQuery] string? search = null)
         {
             try
             {
-                _logger.LogInformation("Getting polizas with pagination - Page: {Page}, PageSize: {PageSize}", page, pageSize);
+                _logger.LogInformation("🔄 REAL PAGINATION PÓLIZAS: Getting polizas - Page: {Page}, PageSize: {PageSize}, Search: {Search}",
+                    page, pageSize, search);
 
-                var allPolizas = (await _velneoApiService.GetPolizasAsync()).ToList();
+                var velneoResponse = await _velneoApiService.GetPolizasPaginatedAsync(page, pageSize, search);
 
-                var totalCount = allPolizas.Count;
-                var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
-
-                var polizasPage = allPolizas
-                    .Skip((page - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToList();
-
-                var result = new PagedResult<PolizaDto>
+                var result = new
                 {
-                    Items = polizasPage,
-                    TotalCount = totalCount,
-                    PageNumber = page,
-                    PageSize = pageSize
+                    items = velneoResponse.Items,
+                    totalCount = velneoResponse.TotalCount,
+                    currentPage = velneoResponse.PageNumber,
+                    pageNumber = velneoResponse.PageNumber,
+                    pageSize = velneoResponse.PageSize,
+                    totalPages = velneoResponse.TotalPages,
+                    hasNextPage = velneoResponse.HasNextPage,
+                    hasPreviousPage = velneoResponse.HasPreviousPage,
+
+                    startItem = velneoResponse.Items.Any() ? ((page - 1) * pageSize + 1) : 0,
+                    endItem = Math.Min(page * pageSize, velneoResponse.TotalCount),
+
+                    requestDuration = velneoResponse.RequestDuration.TotalMilliseconds,
+                    dataSource = "velneo_polizas_pagination",
+                    velneoHasMoreData = velneoResponse.VelneoHasMoreData
                 };
 
-                _logger.LogInformation("Successfully retrieved page {Page} of {TotalPages} - {Count} polizas of {Total} total",
-                    page, totalPages, polizasPage.Count, totalCount);
+                _logger.LogInformation("✅ REAL PAGINATION PÓLIZAS SUCCESS: Page {Page}/{TotalPages} - {Count} pólizas in {Duration}ms",
+                    page, velneoResponse.TotalPages, velneoResponse.Items.Count(), velneoResponse.RequestDuration.TotalMilliseconds);
 
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting polizas with pagination");
-                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
+                _logger.LogError(ex, "❌ Error with REAL PAGINATION PÓLIZAS - Page: {Page}, PageSize: {PageSize}", page, pageSize);
+                return StatusCode(500, new
+                {
+                    message = "Error obteniendo pólizas con paginación real",
+                    error = ex.Message,
+                    pagination = "real_polizas"
+                });
             }
         }
 
@@ -119,6 +130,57 @@ namespace RegularizadorPolizas.API.Controllers
             {
                 _logger.LogError(ex, "Error getting poliza {PolizaId} via Velneo API", id);
                 return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
+            }
+        }
+
+        [HttpGet("all")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(500)]
+        [Authorize]
+        public async Task<ActionResult> GetAllPolizas([FromQuery] string? search = null)
+        {
+            try
+            {
+                _logger.LogInformation("🔄 ALL PÓLIZAS: Getting all polizas (fallback to old method) - Search: {Search}", search);
+
+                var allPolizas = (await _velneoApiService.GetPolizasAsync()).ToList();
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    var originalCount = allPolizas.Count;
+                    allPolizas = allPolizas.Where(p =>
+                        (p.Conpol?.Contains(search, StringComparison.OrdinalIgnoreCase) == true) ||
+                        (p.Ramo?.Contains(search, StringComparison.OrdinalIgnoreCase) == true) ||
+                        (p.Com_alias?.Contains(search, StringComparison.OrdinalIgnoreCase) == true) ||
+                        (p.Clinom?.Contains(search, StringComparison.OrdinalIgnoreCase) == true) 
+                    ).ToList();
+
+                    _logger.LogInformation("Search filter applied to pólizas: {FilteredCount} of {OriginalCount} pólizas",
+                        allPolizas.Count, originalCount);
+                }
+
+                var result = new
+                {
+                    items = allPolizas,
+                    totalCount = allPolizas.Count,
+                    retrievedAt = DateTime.UtcNow,
+                    dataSource = "velneo_polizas_full_load", 
+                    filtered = !string.IsNullOrWhiteSpace(search),
+                    note = "This endpoint loads all polizas from Velneo for backwards compatibility"
+                };
+
+                _logger.LogInformation("✅ ALL PÓLIZAS SUCCESS: {Count} total pólizas returned", allPolizas.Count);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error getting all pólizas");
+                return StatusCode(500, new
+                {
+                    message = "Error obteniendo todas las pólizas",
+                    error = ex.Message,
+                    dataSource = "velneo_polizas_full_load"
+                });
             }
         }
 
