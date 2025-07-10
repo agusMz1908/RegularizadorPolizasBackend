@@ -1,11 +1,11 @@
-﻿using System.Net.Http.Json;
-using System.Text;
-using System.Text.Json;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers;
 using RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models;
+using System.Diagnostics;
+using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 {
@@ -67,7 +67,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
         }
 
         #region Métodos de Clientes
-
         public async Task<ClientDto> GetClienteAsync(int id)
         {
             try
@@ -206,6 +205,172 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             }
         }
 
+        // ✅ Métodos auxiliares
+        private int EstimateTotalCount(int currentPageCount, int currentPage, int pageSize)
+        {
+            // Si la página actual tiene menos elementos que el pageSize, probablemente es la última
+            if (currentPageCount < pageSize)
+            {
+                return ((currentPage - 1) * pageSize) + currentPageCount;
+            }
+
+            // Si tiene el máximo, estimamos que hay al menos una página más
+            return currentPage * pageSize + 1; // Estimación conservadora
+        }
+
+        private bool SupportsServerSideSearch()
+        {
+            // Por ahora asumimos que Velneo no soporta búsqueda server-side
+            // Cambiar a true cuando sepamos cómo implementar búsqueda en Velneo
+            return false;
+        }
+
+        public async Task<PaginatedVelneoResponse<ClientDto>> GetClientesPaginatedAsync(int page = 1, int pageSize = 50, string? search = null)
+        {
+            var stopwatch = Stopwatch.StartNew();
+
+            try
+            {
+                var tenantId = _tenantService.GetCurrentTenantId();
+                _logger.LogInformation("🔍 PAGINACIÓN REAL: Getting clients page {Page} (size: {PageSize}) from Velneo API for tenant {TenantId}",
+                    page, pageSize, tenantId);
+
+                using var httpClient = await GetConfiguredHttpClientAsync();
+
+                // ✅ Construir URL con paginación real de Velneo
+                var endpoint = $"v1/clientes?page[number]={page}&page[size]={pageSize}";
+
+                // ✅ Agregar búsqueda si existe (por ahora comentado hasta saber el formato exacto)
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    // TODO: Investigar cómo Velneo maneja búsquedas en el endpoint
+                    // endpoint += $"&search={Uri.EscapeDataString(search)}";
+                    _logger.LogInformation("🔍 Search requested but not yet implemented in Velneo endpoint: {Search}", search);
+                }
+
+                var url = await BuildVelneoUrlAsync(endpoint);
+                var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
+                var maskedUrl = url.Replace(tenantConfig.Key, "***");
+                _logger.LogInformation("🌐 Velneo URL: {Url}", maskedUrl);
+
+                var response = await httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                var jsonContent = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("📡 Velneo response - Page {Page}: Status {Status}, JSON length: {Length} chars",
+                    page, response.StatusCode, jsonContent.Length);
+
+                // ✅ Deserializar respuesta de Velneo
+                List<ClientDto> clientsPage = new List<ClientDto>();
+                int totalCount = 0;
+                bool hasMoreData = false;
+
+                try
+                {
+                    // Intentar deserializar como array directo (formato actual de Velneo)
+                    var velneoClientes = JsonSerializer.Deserialize<List<VelneoCliente>>(jsonContent, _jsonOptions);
+                    if (velneoClientes != null && velneoClientes.Any())
+                    {
+                        clientsPage = velneoClientes.Select(vc => vc.ToClienteDto()).ToList();
+
+                        // ✅ Verificar si hay headers con información total
+                        if (response.Headers.Contains("X-Total-Count"))
+                        {
+                            var totalHeader = response.Headers.GetValues("X-Total-Count").FirstOrDefault();
+                            if (int.TryParse(totalHeader, out int headerTotal))
+                            {
+                                totalCount = headerTotal;
+                                _logger.LogInformation("📊 Total count from header: {Total}", totalCount);
+                            }
+                        }
+
+                        // Si no hay header, estimamos basado en la respuesta
+                        if (totalCount == 0)
+                        {
+                            totalCount = EstimateTotalCount(clientsPage.Count, page, pageSize);
+                            _logger.LogInformation("📊 Estimated total count: {Total}", totalCount);
+                        }
+
+                        hasMoreData = clientsPage.Count == pageSize; // Si devolvió el máximo, probablemente hay más
+
+                        _logger.LogInformation("✅ Deserialized {Count} clients from Velneo page {Page}", clientsPage.Count, page);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("⚠️ Empty or null response from Velneo for page {Page}", page);
+                    }
+                }
+                catch (JsonException ex)
+                {
+                    _logger.LogWarning("⚠️ Error deserializing direct array, trying wrapped response: {Error}", ex.Message);
+
+                    // Intentar con wrapper si el formato es diferente
+                    try
+                    {
+                        var velneoResponse = JsonSerializer.Deserialize<VelneoClientesResponse>(jsonContent, _jsonOptions);
+                        if (velneoResponse?.Clientes != null)
+                        {
+                            clientsPage = velneoResponse.Clientes.Select(vc => vc.ToClienteDto()).ToList();
+                            totalCount = velneoResponse.TotalCount ?? EstimateTotalCount(clientsPage.Count, page, pageSize);
+                            hasMoreData = velneoResponse.HasMoreData ?? (clientsPage.Count == pageSize);
+                            _logger.LogInformation("✅ Used wrapped response format");
+                        }
+                    }
+                    catch (JsonException ex2)
+                    {
+                        _logger.LogError(ex2, "❌ Failed to deserialize Velneo response in any known format");
+                        throw;
+                    }
+                }
+
+                stopwatch.Stop();
+
+                // ✅ Aplicar filtro de búsqueda local si Velneo no lo soporta nativamente
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    var originalCount = clientsPage.Count;
+                    clientsPage = clientsPage.Where(c =>
+                        (c.Clinom?.Contains(search, StringComparison.OrdinalIgnoreCase) == true) ||
+                        (c.Cliemail?.Contains(search, StringComparison.OrdinalIgnoreCase) == true) ||
+                        (c.Cliced?.Contains(search, StringComparison.OrdinalIgnoreCase) == true) ||
+                        (c.Cliruc?.Contains(search, StringComparison.OrdinalIgnoreCase) == true)
+                    ).ToList();
+
+                    _logger.LogInformation("🔍 Client-side search filter applied: {FilteredCount} of {OriginalCount}",
+                        clientsPage.Count, originalCount);
+                }
+
+                var result = new PaginatedVelneoResponse<ClientDto>
+                {
+                    Items = clientsPage,
+                    TotalCount = totalCount,
+                    PageNumber = page,
+                    PageSize = pageSize,
+                    VelneoHasMoreData = hasMoreData,
+                    RequestDuration = stopwatch.Elapsed
+                };
+
+                _logger.LogInformation("✅ PAGINACIÓN REAL COMPLETADA: Page {Page}/{EstimatedTotal} - {Count} clients retrieved in {Duration}ms",
+                    page, result.TotalPages, clientsPage.Count, stopwatch.ElapsedMilliseconds);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                _logger.LogError(ex, "❌ ERROR en GetClientesPaginatedAsync - Page: {Page}, PageSize: {PageSize}, Duration: {Duration}ms",
+                    page, pageSize, stopwatch.ElapsedMilliseconds);
+                throw;
+            }
+        }
+
+        public class VelneoClientesResponse
+        {
+            public List<VelneoCliente>? Clientes { get; set; }
+            public int? TotalCount { get; set; }
+            public bool? HasMoreData { get; set; }
+            public int? CurrentPage { get; set; }
+        }
         #endregion
 
         #region Métodos de Compañías
@@ -488,6 +653,15 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 _logger.LogError(ex, "ERROR en GetPolizasByClientAsync para cliente {ClienteId}: {Message}", clienteId, ex.Message);
                 throw;
             }
+        }
+
+        public async Task<PaginatedVelneoResponse<PolizaDto>> GetPolizasPaginatedAsync(int page = 1, int pageSize = 50, string? search = null)
+        {
+            // ✅ Implementación temporal para que compile
+            // TODO: Implementar paginación real de pólizas después
+            await Task.Delay(0); // Para que sea realmente async
+
+            throw new NotImplementedException("GetPolizasPaginatedAsync será implementado después de que funcione la paginación de clientes");
         }
 
         #endregion

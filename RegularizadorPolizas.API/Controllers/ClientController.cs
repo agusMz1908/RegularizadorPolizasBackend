@@ -22,33 +22,112 @@ namespace RegularizadorPolizas.API.Controllers
         }
 
         [HttpGet]
-        [ProducesResponseType(typeof(PagedResult<ClientDto>), 200)]
+        [ProducesResponseType(typeof(object), 200)]
         [ProducesResponseType(500)]
         [Authorize]
-        public async Task<ActionResult<IEnumerable<ClientDto>>> GetClients(
+        public async Task<ActionResult> GetClientes(
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 50)
+            [FromQuery] int pageSize = 50,
+            [FromQuery] string? search = null)
         {
             try
             {
-                var allClients = (await _velneoApiService.GetClientesAsync()).ToList();
+                _logger.LogInformation("🔄 REAL PAGINATION: Getting clients - Page: {Page}, PageSize: {PageSize}, Search: {Search}",
+                    page, pageSize, search);
 
-                var clientsPage = allClients
-                    .Skip((page - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToList();
+                // ✅ USAR PAGINACIÓN REAL DE VELNEO
+                var velneoResponse = await _velneoApiService.GetClientesPaginatedAsync(page, pageSize, search);
 
-                Response.Headers.Add("X-Total-Count", allClients.Count.ToString());
-                Response.Headers.Add("X-Page", page.ToString());
-                Response.Headers.Add("X-Page-Size", pageSize.ToString());
-                Response.Headers.Add("X-Total-Pages", ((int)Math.Ceiling((double)allClients.Count / pageSize)).ToString());
+                var result = new
+                {
+                    items = velneoResponse.Items,
+                    totalCount = velneoResponse.TotalCount,
+                    currentPage = velneoResponse.PageNumber,
+                    pageNumber = velneoResponse.PageNumber,
+                    pageSize = velneoResponse.PageSize,
+                    totalPages = velneoResponse.TotalPages,
+                    hasNextPage = velneoResponse.HasNextPage,
+                    hasPreviousPage = velneoResponse.HasPreviousPage,
 
-                return Ok(clientsPage);
+                    // ✅ Metadatos útiles
+                    startItem = velneoResponse.Items.Any() ? ((page - 1) * pageSize + 1) : 0,
+                    endItem = Math.Min(page * pageSize, velneoResponse.TotalCount),
+
+                    // ✅ Info de performance
+                    requestDuration = velneoResponse.RequestDuration.TotalMilliseconds,
+                    dataSource = "velneo_real_pagination",
+                    velneoHasMoreData = velneoResponse.VelneoHasMoreData
+                };
+
+                _logger.LogInformation("✅ REAL PAGINATION SUCCESS: Page {Page}/{TotalPages} - {Count} clients in {Duration}ms",
+                    page, velneoResponse.TotalPages, velneoResponse.Items.Count(), velneoResponse.RequestDuration.TotalMilliseconds);
+
+                return Ok(result);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting clients with pagination");
-                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
+                _logger.LogError(ex, "❌ Error with REAL PAGINATION - Page: {Page}, PageSize: {PageSize}", page, pageSize);
+                return StatusCode(500, new
+                {
+                    message = "Error obteniendo clientes con paginación real",
+                    error = ex.Message,
+                    pagination = "real"
+                });
+            }
+        }
+
+        [HttpGet("all")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(500)]
+        [Authorize]
+        public async Task<ActionResult> GetAllClientes([FromQuery] string? search = null)
+        {
+            try
+            {
+                _logger.LogInformation("🔄 ALL CLIENTS: Getting all clients (fallback to old method) - Search: {Search}", search);
+
+                // ✅ Para "all", usamos el método anterior que ya funciona
+                // Porque obtener TODO con paginación real sería muchas llamadas a Velneo
+                var allClients = (await _velneoApiService.GetClientesAsync()).ToList();
+
+                // Aplicar búsqueda si existe
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    var originalCount = allClients.Count;
+                    allClients = allClients.Where(c =>
+                        (c.Clinom?.Contains(search, StringComparison.OrdinalIgnoreCase) == true) ||
+                        (c.Cliemail?.Contains(search, StringComparison.OrdinalIgnoreCase) == true) ||
+                        (c.Cliced?.Contains(search, StringComparison.OrdinalIgnoreCase) == true) ||
+                        (c.Cliruc?.Contains(search, StringComparison.OrdinalIgnoreCase) == true)
+                    ).ToList();
+
+                    _logger.LogInformation("Search filter applied: {FilteredCount} of {OriginalCount} clients",
+                        allClients.Count, originalCount);
+                }
+
+                var result = new
+                {
+                    items = allClients,
+                    totalCount = allClients.Count,
+                    retrievedAt = DateTime.UtcNow,
+                    dataSource = "velneo_full_load", 
+                    filtered = !string.IsNullOrWhiteSpace(search),
+                    note = "This endpoint loads all data from Velneo for backwards compatibility"
+                };
+
+                _logger.LogInformation("✅ ALL CLIENTS SUCCESS: {Count} total clients returned", allClients.Count);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error getting all clients");
+                return StatusCode(500, new
+                {
+                    message = "Error obteniendo todos los clientes",
+                    error = ex.Message,
+                    dataSource = "velneo_full_load"
+                });
             }
         }
 
@@ -251,36 +330,6 @@ namespace RegularizadorPolizas.API.Controllers
             {
                 _logger.LogError(ex, "Error deleting client {ClientId} via Velneo API", id);
                 return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
-            }
-        }
-
-
-        [HttpGet("test-connection")]
-        [ProducesResponseType(typeof(object), 200)]
-        [ProducesResponseType(500)]
-        [Authorize]
-        public async Task<ActionResult> TestConnection()
-        {
-            try
-            {
-                _logger.LogInformation("Testing connection to Velneo API");
-
-                var isConnected = await _velneoApiService.TestConnectionAsync();
-
-                var result = new
-                {
-                    connected = isConnected,
-                    message = isConnected ? "Conexión exitosa a Velneo API" : "No se pudo conectar a Velneo API",
-                    timestamp = DateTime.UtcNow
-                };
-
-                _logger.LogInformation("Velneo API connection test result: {IsConnected}", isConnected);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error testing connection to Velneo API");
-                return StatusCode(500, new { message = "Error probando conexión", error = ex.Message });
             }
         }
     }

@@ -4,15 +4,14 @@ namespace RegularizadorPolizas.Application.Interfaces
 {
     public interface IVelneoApiService
     {
-        // Métodos de Clientes 
+        Task<PaginatedVelneoResponse<ClientDto>> GetClientesPaginatedAsync(int page = 1, int pageSize = 50, string? search = null);
+        Task<PaginatedVelneoResponse<PolizaDto>> GetPolizasPaginatedAsync(int page = 1, int pageSize = 50, string? search = null);
         Task<ClientDto> GetClienteAsync(int id);
-        Task<IEnumerable<ClientDto>> GetClientesAsync();
+        Task<IEnumerable<ClientDto>> GetClientesAsync(); 
         Task<IEnumerable<ClientDto>> SearchClientesAsync(string searchTerm);
         Task<ClientDto> CreateClienteAsync(ClientDto clienteDto);
         Task UpdateClienteAsync(ClientDto clienteDto);
         Task DeleteClienteAsync(int id);
-
-        // Métodos de Pólizas 
         Task<PolizaDto> GetPolizaAsync(int id);
         Task<PolizaDto> GetPolizaByNumberAsync(string numeroPoliza);
         Task<IEnumerable<PolizaDto>> GetPolizasAsync();
@@ -22,12 +21,10 @@ namespace RegularizadorPolizas.Application.Interfaces
         Task UpdatePolizaAsync(PolizaDto polizaDto);
         Task DeletePolizaAsync(int id);
 
-        // Métodos de Compañías
         Task<IEnumerable<CompanyDto>> GetActiveCompaniesAsync();
         Task<IEnumerable<CompanyDto>> SearchCompaniesAsync(string searchTerm);
         Task<IEnumerable<CompanyLookupDto>> GetCompaniesForLookupAsync();
 
-        // Métodos de Secciones
         Task<SeccionDto> GetSeccionAsync(int id);
         Task<IEnumerable<SeccionDto>> GetActiveSeccionesAsync();
         Task<IEnumerable<SeccionDto>> GetSeccionesByCompanyAsync(int companyId);
@@ -37,7 +34,6 @@ namespace RegularizadorPolizas.Application.Interfaces
         Task UpdateSeccionAsync(SeccionDto seccionDto);
         Task DeleteSeccionAsync(int id);
 
-        // Métodos de Brokers
         Task<BrokerDto> GetBrokerAsync(int id);
         Task<IEnumerable<BrokerDto>> GetBrokersAsync();
         Task<IEnumerable<BrokerDto>> SearchBrokersAsync(string searchTerm);
@@ -45,7 +41,6 @@ namespace RegularizadorPolizas.Application.Interfaces
         Task UpdateBrokerAsync(BrokerDto brokerDto);
         Task DeleteBrokerAsync(int id);
 
-        // Métodos de Conectividad y Configuración
         Task<bool> TestConnectionAsync();
         Task<IEnumerable<CurrencyDto>> SearchCurrenciesAsync(string searchTerm);
         Task<CurrencyDto?> GetDefaultCurrencyAsync();
