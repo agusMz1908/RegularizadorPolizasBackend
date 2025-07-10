@@ -38,7 +38,7 @@ namespace RegularizadorPolizas.API.Controllers
 
                 var result = new
                 {
-                    total_polizas = count,
+                    total = count,  
                     timestamp = DateTime.UtcNow,
                     source = "Velneo API - Contratos",
                     message = $"Total de {count} contratos/pólizas obtenidos exitosamente"
@@ -126,49 +126,29 @@ namespace RegularizadorPolizas.API.Controllers
         [ProducesResponseType(typeof(PagedResult<PolizaDto>), 200)]
         [ProducesResponseType(404)]
         [ProducesResponseType(500)]
-        public async Task<ActionResult<PagedResult<PolizaDto>>> GetPolizasByCliente(
+        public async Task<ActionResult<IEnumerable<PolizaDto>>> GetPolizasByCliente(
             int clienteId,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 50)
         {
             try
             {
-                _logger.LogInformation("Getting polizas for client {ClienteId} with pagination - Page: {Page}, PageSize: {PageSize}",
-                    clienteId, page, pageSize);
-
-                var allPolizas = (await _velneoApiService.GetPolizasByClientAsync(clienteId)).ToList();
-
-                if (!allPolizas.Any())
-                {
-                    _logger.LogWarning("No policies found for client {ClienteId}", clienteId);
-                    return NotFound(new { message = $"No se encontraron pólizas para el cliente con ID {clienteId}" });
-                }
-
-                var totalCount = allPolizas.Count;
-                var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+                var allPolizas = (await _polizaService.GetPolizasByClienteAsync(clienteId)).ToList();
 
                 var polizasPage = allPolizas
                     .Skip((page - 1) * pageSize)
                     .Take(pageSize)
                     .ToList();
 
-                var result = new PagedResult<PolizaDto>
-                {
-                    Items = polizasPage,
-                    TotalCount = totalCount,
-                    PageNumber = page,
-                    PageSize = pageSize
-                };
+                Response.Headers.Add("X-Total-Count", allPolizas.Count.ToString());
+                Response.Headers.Add("X-Page", page.ToString());
+                Response.Headers.Add("X-Page-Size", pageSize.ToString());
 
-                _logger.LogInformation("Successfully retrieved page {Page} of {TotalPages} - {Count} polizas of {Total} total for client {ClienteId}",
-                    page, totalPages, polizasPage.Count, totalCount, clienteId);
-
-                return Ok(result);
+                return Ok(polizasPage);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting polizas for client {ClienteId} with pagination", clienteId);
-                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
+                return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
 
@@ -193,7 +173,7 @@ namespace RegularizadorPolizas.API.Controllers
                 var result = new
                 {
                     client_id = clienteId,
-                    total_polizas = count,
+                    total = count, 
                     timestamp = DateTime.UtcNow,
                     source = "Velneo API - Contratos filtrados por cliente"
                 };

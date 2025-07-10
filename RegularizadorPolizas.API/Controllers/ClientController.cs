@@ -24,36 +24,25 @@ namespace RegularizadorPolizas.API.Controllers
         [HttpGet]
         [ProducesResponseType(typeof(PagedResult<ClientDto>), 200)]
         [ProducesResponseType(500)]
-        public async Task<ActionResult<PagedResult<ClientDto>>> GetClients(
+        public async Task<ActionResult<IEnumerable<ClientDto>>> GetClients(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 50)
         {
             try
             {
-                _logger.LogInformation("Getting clients with pagination - Page: {Page}, PageSize: {PageSize}", page, pageSize);
-
                 var allClients = (await _velneoApiService.GetClientesAsync()).ToList();
-
-                var totalCount = allClients.Count;
-                var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
 
                 var clientsPage = allClients
                     .Skip((page - 1) * pageSize)
                     .Take(pageSize)
                     .ToList();
 
-                var result = new PagedResult<ClientDto>
-                {
-                    Items = clientsPage,
-                    TotalCount = totalCount,
-                    PageNumber = page,
-                    PageSize = pageSize
-                };
+                Response.Headers.Add("X-Total-Count", allClients.Count.ToString());
+                Response.Headers.Add("X-Page", page.ToString());
+                Response.Headers.Add("X-Page-Size", pageSize.ToString());
+                Response.Headers.Add("X-Total-Pages", ((int)Math.Ceiling((double)allClients.Count / pageSize)).ToString());
 
-                _logger.LogInformation("Successfully retrieved page {Page} of {TotalPages} - {Count} clients of {Total} total",
-                    page, totalPages, clientsPage.Count, totalCount);
-
-                return Ok(result);
+                return Ok(clientsPage);
             }
             catch (Exception ex)
             {
@@ -107,21 +96,10 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                _logger.LogInformation("Getting clients count from Velneo API");
-
                 var clients = await _velneoApiService.GetClientesAsync();
                 var count = clients.Count();
 
-                var result = new
-                {
-                    total_clients = count,
-                    timestamp = DateTime.UtcNow,
-                    source = "Velneo API",
-                    message = $"Total de {count} clientes obtenidos exitosamente"
-                };
-
-                _logger.LogInformation("Successfully counted {Count} clients from Velneo API", count);
-                return Ok(result);
+                return Ok(new { total = count });
             }
             catch (Exception ex)
             {
