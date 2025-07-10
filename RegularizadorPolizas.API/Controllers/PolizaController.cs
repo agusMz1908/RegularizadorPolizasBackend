@@ -185,32 +185,67 @@ namespace RegularizadorPolizas.API.Controllers
         }
 
         [HttpGet("cliente/{clienteId}")]
-        [ProducesResponseType(typeof(PagedResult<PolizaDto>), 200)]
+        [ProducesResponseType(typeof(object), 200)]
         [ProducesResponseType(404)]
         [ProducesResponseType(500)]
-        public async Task<ActionResult<IEnumerable<PolizaDto>>> GetPolizasByCliente(
+        [Authorize]
+        public async Task<ActionResult> GetPolizasByCliente(
             int clienteId,
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 50)
+            [FromQuery] int pageSize = 25,
+            [FromQuery] string? search = null)
         {
             try
             {
-                var allPolizas = (await _polizaService.GetPolizasByClienteAsync(clienteId)).ToList();
+                _logger.LogInformation("🔄 PÓLIZAS POR CLIENTE: Getting polizas for client {ClienteId} - Page: {Page}, PageSize: {PageSize}, Search: {Search}",
+                    clienteId, page, pageSize, search);
 
-                var polizasPage = allPolizas
-                    .Skip((page - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToList();
+                // ✅ USAR PAGINACIÓN REAL PARA PÓLIZAS POR CLIENTE
+                var velneoResponse = await _velneoApiService.GetPolizasByClientPaginatedAsync(clienteId, page, pageSize, search);
 
-                Response.Headers.Add("X-Total-Count", allPolizas.Count.ToString());
-                Response.Headers.Add("X-Page", page.ToString());
-                Response.Headers.Add("X-Page-Size", pageSize.ToString());
+                var result = new
+                {
+                    clienteId = clienteId,
+                    items = velneoResponse.Items,
+                    totalCount = velneoResponse.TotalCount,
+                    currentPage = velneoResponse.PageNumber,
+                    pageNumber = velneoResponse.PageNumber,
+                    pageSize = velneoResponse.PageSize,
+                    totalPages = velneoResponse.TotalPages,
+                    hasNextPage = velneoResponse.HasNextPage,
+                    hasPreviousPage = velneoResponse.HasPreviousPage,
 
-                return Ok(polizasPage);
+                    // ✅ Metadatos útiles para el frontend
+                    startItem = velneoResponse.Items.Any() ? ((page - 1) * pageSize + 1) : 0,
+                    endItem = Math.Min(page * pageSize, velneoResponse.TotalCount),
+                    isEmpty = !velneoResponse.Items.Any(),
+
+                    // ✅ Info de performance
+                    requestDuration = velneoResponse.RequestDuration.TotalMilliseconds,
+                    dataSource = "velneo_client_polizas_pagination",
+                    velneoHasMoreData = velneoResponse.VelneoHasMoreData,
+
+                    // ✅ Info para UI
+                    searchApplied = !string.IsNullOrWhiteSpace(search),
+                    searchTerm = search
+                };
+
+                _logger.LogInformation("✅ PÓLIZAS POR CLIENTE SUCCESS: Client {ClienteId}, Page {Page}/{TotalPages} - {Count} pólizas in {Duration}ms",
+                    clienteId, page, velneoResponse.TotalPages, velneoResponse.Items.Count(), velneoResponse.RequestDuration.TotalMilliseconds);
+
+                return Ok(result);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
+                _logger.LogError(ex, "❌ Error getting pólizas for client {ClienteId} - Page: {Page}, PageSize: {PageSize}",
+                    clienteId, page, pageSize);
+                return StatusCode(500, new
+                {
+                    message = $"Error obteniendo pólizas para cliente {clienteId}",
+                    error = ex.Message,
+                    clienteId = clienteId,
+                    pagination = "client_polizas"
+                });
             }
         }
 
