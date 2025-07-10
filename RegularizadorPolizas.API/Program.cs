@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -63,7 +63,7 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "RegularizadorPolizas API",
         Version = "v1",
-        Description = "API para gesti�n de p�lizas de seguro con sistema multi-tenant"
+        Description = "API para gestión de pólizas de seguro con sistema multi-tenant"
     });
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -108,7 +108,7 @@ builder.Services.AddCors(options =>
 {
     if (builder.Environment.IsDevelopment())
     {
-        // Configuraci�n permisiva para desarrollo
+        // Configuración permisiva para desarrollo
         options.AddPolicy("AllowAll", policy =>
         {
             policy.WithOrigins(
@@ -116,8 +116,8 @@ builder.Services.AddCors(options =>
                     "http://localhost:3001",
                     "https://localhost:3000",
                     "https://localhost:3001",
-                    "http://localhost:5173",           
-                    "https://localhost:5173"         
+                    "http://localhost:5173",
+                    "https://localhost:5173"
                 )
                 .AllowAnyMethod()
                 .AllowAnyHeader()
@@ -154,30 +154,77 @@ builder.Services.AddSession(options =>
 #endregion
 
 #region JWT Authentication
+var jwtSettings = builder.Configuration.GetSection("Jwt");
+var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]);
+
+Console.WriteLine("🔐 Configurando JWT Authentication...");
+Console.WriteLine($"🔐 JWT Issuer: {jwtSettings["Issuer"]}");
+Console.WriteLine($"🔐 JWT Audience: {jwtSettings["Audience"]}");
+Console.WriteLine($"🔐 JWT Key configurado: {!string.IsNullOrEmpty(jwtSettings["Key"])}");
+Console.WriteLine($"🔐 JWT Key length: {jwtSettings["Key"]?.Length} chars");
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
 })
 .AddJwtBearer(options =>
 {
+    options.RequireHttpsMetadata = false; 
+    options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidAudience = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        ValidateIssuer = true,
+        ValidIssuer = jwtSettings["Issuer"],
+        ValidateAudience = true,
+        ValidAudience = jwtSettings["Audience"],
+        ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero 
     };
 
-    if (builder.Environment.IsDevelopment())
+    options.Events = new JwtBearerEvents
     {
-        options.RequireHttpsMetadata = false;
-    }
+        OnAuthenticationFailed = context =>
+        {
+            Console.WriteLine($"🚨 JWT Authentication Failed: {context.Exception.Message}");
+            Console.WriteLine($"🚨 Request Path: {context.Request.Path}");
+            Console.WriteLine($"🚨 Token: {context.Request.Headers.Authorization.FirstOrDefault()}");
+            return Task.CompletedTask;
+        },
+        OnTokenValidated = context =>
+        {
+            var userName = context.Principal?.Identity?.Name ?? "Unknown";
+            var userId = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "Unknown";
+            Console.WriteLine($"✅ JWT Token Validated - User: {userName} (ID: {userId})");
+            Console.WriteLine($"✅ Request Path: {context.Request.Path}");
+            return Task.CompletedTask;
+        },
+        OnChallenge = context =>
+        {
+            Console.WriteLine($"⚠️ JWT Challenge triggered");
+            Console.WriteLine($"⚠️ Error: {context.Error}");
+            Console.WriteLine($"⚠️ Error Description: {context.ErrorDescription}");
+            Console.WriteLine($"⚠️ Request Path: {context.Request.Path}");
+            Console.WriteLine($"⚠️ Auth Header: {context.Request.Headers.Authorization.FirstOrDefault()}");
+            return Task.CompletedTask;
+        },
+        OnMessageReceived = context =>
+        {
+            var token = context.Request.Headers.Authorization.FirstOrDefault();
+            if (!string.IsNullOrEmpty(token))
+            {
+                Console.WriteLine($"📨 JWT Message Received for: {context.Request.Path}");
+                Console.WriteLine($"📨 Token starts with: {token.Substring(0, Math.Min(20, token.Length))}...");
+            }
+            return Task.CompletedTask;
+        }
+    };
 });
+
+builder.Services.AddAuthorization();
 #endregion
 
 var app = builder.Build();
@@ -222,7 +269,7 @@ if (app.Environment.IsDevelopment())
 else
 {
     app.UseExceptionHandler("/error");
-    app.UseHsts(); 
+    app.UseHsts();
 }
 #endregion
 
@@ -254,12 +301,9 @@ app.Map("/error", (HttpContext context) =>
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 app.UseSession();
-
-app.UseAuditMiddleware();
-
 app.UseAuthentication();
 app.UseAuthorization();
-
+app.UseAuditMiddleware();
 app.UseMiddleware<ApiKeyMiddleware>();
 #endregion
 
@@ -281,6 +325,7 @@ if (app.Environment.IsDevelopment())
             JwtIssuer = config["Jwt:Issuer"],
             JwtAudience = config["Jwt:Audience"],
             JwtKeyConfigured = !string.IsNullOrEmpty(config["Jwt:Key"]),
+            JwtKeyLength = config["Jwt:Key"]?.Length,
             Timestamp = DateTime.UtcNow
         };
         return Results.Json(settings);
@@ -291,8 +336,10 @@ if (app.Environment.IsDevelopment())
         return Results.Ok(new
         {
             IsAuthenticated = context.User.Identity?.IsAuthenticated,
+            UserName = context.User.Identity?.Name,
             Claims = context.User.Claims.Select(c => new { c.Type, c.Value }),
-            JwtKeyConfigured = !string.IsNullOrEmpty(context.RequestServices.GetService<IConfiguration>()?["Jwt:Key"])
+            JwtKeyConfigured = !string.IsNullOrEmpty(context.RequestServices.GetService<IConfiguration>()?["Jwt:Key"]),
+            AuthHeader = context.Request.Headers.Authorization.FirstOrDefault()
         });
     }).RequireAuthorization();
 
@@ -305,7 +352,31 @@ if (app.Environment.IsDevelopment())
             Environment = app.Environment.EnvironmentName
         });
     }).AllowAnonymous();
+
+    app.MapGet("/test-auth", (HttpContext context) =>
+    {
+        if (context.User.Identity?.IsAuthenticated == true)
+        {
+            return Results.Ok(new
+            {
+                Message = "🎉 JWT Authentication is working!",
+                User = context.User.Identity.Name,
+                UserId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
+                Tenant = context.User.FindFirst("tenant")?.Value,
+                Roles = context.User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value),
+                Timestamp = DateTime.UtcNow
+            });
+        }
+        else
+        {
+            return Results.Unauthorized();
+        }
+    }).RequireAuthorization();
 }
 #endregion
+
+Console.WriteLine("🚀 RegularizadorPolizas API iniciando...");
+Console.WriteLine($"🌍 Environment: {app.Environment.EnvironmentName}");
+Console.WriteLine($"🔐 JWT habilitado: {!string.IsNullOrEmpty(builder.Configuration["Jwt:Key"])}");
 
 app.Run();

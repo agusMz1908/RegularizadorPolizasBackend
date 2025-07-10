@@ -6,7 +6,7 @@ using RegularizadorPolizas.Application.Interfaces;
 namespace RegularizadorPolizas.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/clientes")]
     [Authorize]
     public class ClientsController : ControllerBase
     {
@@ -24,6 +24,7 @@ namespace RegularizadorPolizas.API.Controllers
         [HttpGet]
         [ProducesResponseType(typeof(PagedResult<ClientDto>), 200)]
         [ProducesResponseType(500)]
+        [Authorize]
         public async Task<ActionResult<IEnumerable<ClientDto>>> GetClients(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 50)
@@ -55,6 +56,7 @@ namespace RegularizadorPolizas.API.Controllers
         [ProducesResponseType(typeof(ClientDto), 200)]
         [ProducesResponseType(404)]
         [ProducesResponseType(500)]
+        [Authorize]
         public async Task<ActionResult<ClientDto>> GetClientById(int id)
         {
             try
@@ -92,6 +94,7 @@ namespace RegularizadorPolizas.API.Controllers
         [HttpGet("count")]
         [ProducesResponseType(typeof(object), 200)]
         [ProducesResponseType(500)]
+        [Authorize]
         public async Task<ActionResult> GetClientsCount()
         {
             try
@@ -112,6 +115,7 @@ namespace RegularizadorPolizas.API.Controllers
         [ProducesResponseType(typeof(IEnumerable<ClientDto>), 200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(500)]
+        [Authorize]
         public async Task<ActionResult<IEnumerable<ClientDto>>> SearchClients([FromQuery] string searchTerm)
         {
             try
@@ -144,6 +148,7 @@ namespace RegularizadorPolizas.API.Controllers
         [ProducesResponseType(typeof(ClientDto), 201)]
         [ProducesResponseType(400)]
         [ProducesResponseType(500)]
+        [Authorize]
         public async Task<ActionResult<ClientDto>> CreateClient([FromBody] ClientDto clientDto)
         {
             try
@@ -177,6 +182,7 @@ namespace RegularizadorPolizas.API.Controllers
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
         [ProducesResponseType(500)]
+        [Authorize]
         public async Task<ActionResult> UpdateClient(int id, [FromBody] ClientDto clientDto)
         {
             try
@@ -219,6 +225,7 @@ namespace RegularizadorPolizas.API.Controllers
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
         [ProducesResponseType(500)]
+        [Authorize]
         public async Task<ActionResult> DeleteClient(int id)
         {
             try
@@ -247,9 +254,11 @@ namespace RegularizadorPolizas.API.Controllers
             }
         }
 
+
         [HttpGet("test-connection")]
         [ProducesResponseType(typeof(object), 200)]
         [ProducesResponseType(500)]
+        [Authorize]
         public async Task<ActionResult> TestConnection()
         {
             try
