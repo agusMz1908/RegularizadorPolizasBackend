@@ -30,16 +30,19 @@ namespace RegularizadorPolizas.API.Middleware
                 "/api/permissions",
                 "/api/tenantswitch",
                 "/api/companies",
-                "/api/clients",      
-                "/api/clientes",      
+                "/api/clients",
+                "/api/clientes",
                 "/api/currencies",
                 "/api/brokers",
                 "/api/polizas",
                 "/error",
                 "/debug-config",
-                "/debug-jwt",       
-                "/test-auth",        
-                "/health"
+                "/debug-jwt",
+                "/test-auth",
+                "/health",
+
+                "/api/azure-document",         
+                "/api/azuredocument"          
             };
 
             Console.WriteLine($"🔍 ApiKeyMiddleware - Path: {path}");

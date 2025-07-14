@@ -418,20 +418,47 @@ namespace RegularizadorPolizas.Infrastructure.External
         {
             try
             {
-                // SOLUCION 3: Test de conexión simplificado
                 _logger.LogInformation("Testing connection to Azure Document Intelligence");
+                _logger.LogInformation("Using endpoint: {Endpoint}", _endpoint);
+                _logger.LogInformation("Using model: {ModelId}", _modelId);
+                _logger.LogInformation("API Key length: {KeyLength}", _apiKey?.Length);
 
-                // Crear un pequeño documento de prueba para validar la conexión
-                var testContent = "Test connection";
-                var testData = System.Text.Encoding.UTF8.GetBytes(testContent);
-                var binaryData = BinaryData.FromBytes(testData);
+                // Usar el cliente ya configurado en lugar de crear uno nuevo
+                // Y hacer una llamada real a la API para probar la conexión
 
-                // Si no falla la autenticación, la conexión está bien
-                // No necesitamos procesar el resultado, solo verificar que no arroje excepción
-                var client = new DocumentIntelligenceClient(new Uri(_endpoint), new AzureKeyCredential(_apiKey));
+                // Probar con una operación simple que valide la autenticación
+                // Crear un documento de prueba mínimo
+                var testText = "Test document for connection validation";
+                var testBytes = System.Text.Encoding.UTF8.GetBytes(testText);
+                var binaryData = BinaryData.FromBytes(testBytes);
 
-                _logger.LogInformation("Azure Document Intelligence connection test successful");
-                return true;
+                try
+                {
+                    // Intentar analizar un documento de prueba simple
+                    // Esto validará tanto la autenticación como la disponibilidad del modelo
+                    var operation = await _client.AnalyzeDocumentAsync(
+                        WaitUntil.Started, // Solo iniciar, no esperar a que termine
+                        _modelId,
+                        binaryData);
+
+                    _logger.LogInformation("Azure Document Intelligence connection test successful");
+                    return true;
+                }
+                catch (Azure.RequestFailedException ex) when (ex.Status == 401)
+                {
+                    _logger.LogError("Authentication failed: Invalid API key or expired subscription");
+                    return false;
+                }
+                catch (Azure.RequestFailedException ex) when (ex.Status == 404)
+                {
+                    _logger.LogError("Model '{ModelId}' not found or endpoint incorrect", _modelId);
+                    return false;
+                }
+                catch (Azure.RequestFailedException ex)
+                {
+                    _logger.LogError(ex, "Azure service error during connection test: {ErrorCode}", ex.ErrorCode);
+                    return false;
+                }
             }
             catch (Exception ex)
             {

@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
 using System.ComponentModel.DataAnnotations;
@@ -15,18 +17,24 @@ namespace RegularizadorPolizas.API.Controllers
         private readonly IAzureDocumentIntelligenceService _azureDocumentService;
         private readonly IProcessDocumentService _processDocumentService;
         private readonly IPolizaService _polizaService;
+        private readonly IConfiguration _configuration;
+        private readonly IWebHostEnvironment _hostEnvironment; // ✅ Agregar
         private readonly ILogger<AzureDocumentController> _logger;
 
         public AzureDocumentController(
             IAzureDocumentIntelligenceService azureDocumentService,
             IProcessDocumentService processDocumentService,
             IPolizaService polizaService,
+            IConfiguration configuration,
+            IWebHostEnvironment hostEnvironment, // ✅ Agregar
             ILogger<AzureDocumentController> logger)
         {
-            _azureDocumentService = azureDocumentService ?? throw new ArgumentNullException(nameof(azureDocumentService));
-            _processDocumentService = processDocumentService ?? throw new ArgumentNullException(nameof(processDocumentService));
-            _polizaService = polizaService ?? throw new ArgumentNullException(nameof(polizaService));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _azureDocumentService = azureDocumentService;
+            _processDocumentService = processDocumentService;
+            _polizaService = polizaService;
+            _configuration = configuration;
+            _hostEnvironment = hostEnvironment; // ✅ Agregar
+            _logger = logger;
         }
 
         [HttpPost("process")]
@@ -323,6 +331,153 @@ namespace RegularizadorPolizas.API.Controllers
             {
                 _logger.LogError(ex, "Error processing document batch");
                 return StatusCode(500, new { error = ex.Message });
+            }
+        }
+        /// <summary>
+        /// Test de conexión temporal sin autenticación (SOLO PARA DESARROLLO)
+        /// </summary>
+        [HttpGet("test-connection-no-auth")]
+        [Authorize] // ⚠️ TEMPORAL - Solo para testing inicial
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(500)]
+        public async Task<ActionResult> TestConnectionNoAuth()
+        {
+            try
+            {
+                _logger.LogInformation("Testing Azure Document Intelligence connection (no auth)");
+
+                var isConnected = await _azureDocumentService.TestConnectionAsync();
+
+                if (isConnected)
+                {
+                    return Ok(new
+                    {
+                        status = "success",
+                        message = "Conexión exitosa con Azure Document Intelligence",
+                        endpoint = "https://extraccion-polizas.cognitiveservices.azure.com/",
+                        modelId = "poliza-vehiculo-bse",
+                        timestamp = DateTime.UtcNow
+                    });
+                }
+                else
+                {
+                    return StatusCode(500, new
+                    {
+                        status = "error",
+                        message = "No se pudo conectar con Azure Document Intelligence"
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error testing Azure connection (no auth)");
+                return StatusCode(500, new
+                {
+                    status = "error",
+                    message = "Error al probar la conexión",
+                    details = ex.Message
+                });
+            }
+        }
+        /// <summary>
+        /// Debug: Verificar configuración de Azure (TEMPORAL)
+        /// </summary>
+        [HttpGet("debug-config")]
+        [AllowAnonymous]
+        public ActionResult DebugConfig()
+        {
+            try
+            {
+                var endpoint = _configuration["AzureDocumentIntelligence:Endpoint"];
+                var apiKey = _configuration["AzureDocumentIntelligence:ApiKey"];
+                var modelId = _configuration["AzureDocumentIntelligence:ModelId"];
+
+                return Ok(new
+                {
+                    hasEndpoint = !string.IsNullOrEmpty(endpoint),
+                    hasApiKey = !string.IsNullOrEmpty(apiKey),
+                    hasModelId = !string.IsNullOrEmpty(modelId),
+                    endpointValue = endpoint,
+                    apiKeyLength = apiKey?.Length ?? 0,
+                    modelIdValue = modelId,
+                    configurationKeys = _configuration.AsEnumerable()
+                        .Where(x => x.Key.StartsWith("AzureDocumentIntelligence"))
+                        .Select(x => new { x.Key, HasValue = !string.IsNullOrEmpty(x.Value) })
+                        .ToList()
+                });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new
+                {
+                    error = ex.Message,
+                    stackTrace = ex.StackTrace
+                });
+            }
+        }
+        /// <summary>
+        /// Debug detallado de configuración Azure
+        /// </summary>
+        [HttpGet("debug-azure-config")]
+        [AllowAnonymous]
+        public ActionResult DebugAzureConfig()
+        {
+            try
+            {
+                // Leer directamente de la configuración
+                var endpoint = _configuration["AzureDocumentIntelligence:Endpoint"];
+                var apiKey = _configuration["AzureDocumentIntelligence:ApiKey"];
+                var modelId = _configuration["AzureDocumentIntelligence:ModelId"];
+
+                return Ok(new
+                {
+                    timestamp = DateTime.UtcNow,
+                    configuration = new
+                    {
+                        endpoint = new
+                        {
+                            value = endpoint,
+                            hasValue = !string.IsNullOrEmpty(endpoint),
+                            length = endpoint?.Length ?? 0
+                        },
+                        apiKey = new
+                        {
+                            hasValue = !string.IsNullOrEmpty(apiKey),
+                            length = apiKey?.Length ?? 0,
+                            firstChars = apiKey?.Substring(0, Math.Min(10, apiKey?.Length ?? 0)) ?? "null",
+                            lastChars = apiKey?.Length > 10 ? apiKey.Substring(apiKey.Length - 10) : "N/A"
+                        },
+                        modelId = new
+                        {
+                            value = modelId,
+                            hasValue = !string.IsNullOrEmpty(modelId)
+                        }
+                    },
+                    allAzureKeys = _configuration.AsEnumerable()
+                        .Where(x => x.Key.Contains("Azure", StringComparison.OrdinalIgnoreCase))
+                        .Select(x => new {
+                            Key = x.Key,
+                            HasValue = !string.IsNullOrEmpty(x.Value),
+                            ValueLength = x.Value?.Length ?? 0
+                        })
+                        .ToList(),
+                    environmentInfo = new
+                    {
+                        environmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+                        contentRootPath = _hostEnvironment?.ContentRootPath,
+                        configFiles = Directory.Exists(_hostEnvironment?.ContentRootPath)
+                            ? Directory.GetFiles(_hostEnvironment.ContentRootPath, "appsettings*.json")
+                            : new string[0]
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new
+                {
+                    error = ex.Message,
+                    stackTrace = ex.StackTrace?.Split('\n').Take(10).ToArray()
+                });
             }
         }
     }
