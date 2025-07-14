@@ -218,13 +218,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             return currentPage * pageSize + 1; // Estimación conservadora
         }
 
-        private bool SupportsServerSideSearch()
-        {
-            // Por ahora asumimos que Velneo no soporta búsqueda server-side
-            // Cambiar a true cuando sepamos cómo implementar búsqueda en Velneo
-            return false;
-        }
-
         public async Task<PaginatedVelneoResponse<ClientDto>> GetClientesPaginatedAsync(int page = 1, int pageSize = 50, string? search = null)
         {
             var stopwatch = Stopwatch.StartNew();

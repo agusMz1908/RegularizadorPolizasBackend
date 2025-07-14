@@ -69,7 +69,7 @@ namespace RegularizadorPolizas.Infrastructure
                     client.BaseAddress = new Uri(baseUrl);
                 }
 
-                var timeoutSeconds = configuration.GetValue<int>("VelneoAPI:TimeoutSeconds", 30);
+                var timeoutSeconds = configuration.GetValue<int>("VelneoAPI:TimeoutSeconds", 120); 
                 client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
 
                 var apiKey = configuration["VelneoAPI:ApiKey"];

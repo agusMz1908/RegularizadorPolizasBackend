@@ -110,6 +110,7 @@ namespace RegularizadorPolizas.API.Controllers
         [ProducesResponseType(typeof(PolizaDto), 200)]
         [ProducesResponseType(404)]
         [ProducesResponseType(500)]
+        [Authorize]
         public async Task<ActionResult<PolizaDto>> GetPolizaById(int id)
         {
             try
