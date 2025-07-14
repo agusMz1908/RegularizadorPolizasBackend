@@ -1,11 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace RegularizadorPolizas.API.Controllers
 {
@@ -26,10 +22,10 @@ namespace RegularizadorPolizas.API.Controllers
         }
 
         [HttpGet]
-        [ProducesResponseType(typeof(IEnumerable<ProcessDocumentDto>), 200)]
+        [ProducesResponseType(typeof(IEnumerable<ProcessingDocumentDto>), 200)]
         [ProducesResponseType(404)]
         [ProducesResponseType(500)]
-        public async Task<ActionResult<IEnumerable<ProcessDocumentDto>>> GetAllDocuments()
+        public async Task<ActionResult<IEnumerable<ProcessingDocumentDto>>> GetAllDocuments()
         {
             try
             {
@@ -46,10 +42,10 @@ namespace RegularizadorPolizas.API.Controllers
         }
 
         [HttpGet("{id}")]
-        [ProducesResponseType(typeof(ProcessDocumentDto), 200)]
+        [ProducesResponseType(typeof(ProcessingDocumentDto), 200)]
         [ProducesResponseType(404)]
         [ProducesResponseType(500)]
-        public async Task<ActionResult<ProcessDocumentDto>> GetDocumentById(int id)
+        public async Task<ActionResult<ProcessingDocumentDto>> GetDocumentById(int id)
         {
             try
             {
@@ -66,10 +62,10 @@ namespace RegularizadorPolizas.API.Controllers
         }
 
         [HttpGet("status/{status}")]
-        [ProducesResponseType(typeof(IEnumerable<ProcessDocumentDto>), 200)]
+        [ProducesResponseType(typeof(IEnumerable<ProcessingDocumentDto>), 200)]
         [ProducesResponseType(404)]
         [ProducesResponseType(500)]
-        public async Task<ActionResult<IEnumerable<ProcessDocumentDto>>> GetDocumentsByStatus(string status)
+        public async Task<ActionResult<IEnumerable<ProcessingDocumentDto>>> GetDocumentsByStatus(string status)
         {
             try
             {
@@ -86,10 +82,10 @@ namespace RegularizadorPolizas.API.Controllers
         }
 
         [HttpGet("policy/{polizaId}")]
-        [ProducesResponseType(typeof(IEnumerable<ProcessDocumentDto>), 200)]
+        [ProducesResponseType(typeof(IEnumerable<ProcessingDocumentDto>), 200)]
         [ProducesResponseType(404)]
         [ProducesResponseType(500)]
-        public async Task<ActionResult<IEnumerable<ProcessDocumentDto>>> GetDocumentsByPolicy(int polizaId)
+        public async Task<ActionResult<IEnumerable<ProcessingDocumentDto>>> GetDocumentsByPolicy(int polizaId)
         {
             try
             {
@@ -180,10 +176,10 @@ namespace RegularizadorPolizas.API.Controllers
         }
 
         [HttpPost("{id}/link/{polizaId}")]
-        [ProducesResponseType(typeof(ProcessDocumentDto), 200)]
+        [ProducesResponseType(typeof(ProcessingDocumentDto), 200)]
         [ProducesResponseType(404)]
         [ProducesResponseType(500)]
-        public async Task<ActionResult<ProcessDocumentDto>> LinkDocumentToPolicy(int id, int polizaId)
+        public async Task<ActionResult<ProcessingDocumentDto>> LinkDocumentToPolicy(int id, int polizaId)
         {
             try
             {

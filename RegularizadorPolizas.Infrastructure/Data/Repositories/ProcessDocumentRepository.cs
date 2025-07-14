@@ -1,15 +1,20 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Polly;
+using AutoMapper;
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Domain.Entities;
 using RegularizadorPolizas.Infrastructure.Repositories;
+using RegularizadorPolizas.Application.DTOs.Dashboard;
+using RegularizadorPolizas.Application.DTOs;
 
 namespace RegularizadorPolizas.Infrastructure.Data.Repositories
 {
     public class ProcessDocumentRepository : GenericRepository<ProcessDocument>, IProcessDocumentRepository
     {
-        public ProcessDocumentRepository(ApplicationDbContext context) : base(context)
+        private readonly IMapper _mapper;
+
+        public ProcessDocumentRepository(ApplicationDbContext context, IMapper mapper) : base(context)
         {
+            _mapper = mapper;
         }
 
         // ================================
@@ -94,45 +99,53 @@ namespace RegularizadorPolizas.Infrastructure.Data.Repositories
                 .SumAsync(d => d.CostoProcessamiento.Value);
         }
 
-        // Documentos recientes
-        public async Task<List<ProcessDocument>> GetRecentDocumentsWithLimitAsync(int limit)
+        // Documentos recientes - CORREGIDO: Retorna ProcessingDocumentDto
+        public async Task<List<ProcessingDocumentDto>> GetRecentDocumentsWithLimitAsync(int limit)
         {
-            return await _context.ProcessDocuments
+            var documents = await _context.ProcessDocuments
                 .Include(d => d.Company)
                 .OrderByDescending(d => d.FechaCreacion)
                 .Take(limit)
                 .ToListAsync();
+
+            return _mapper.Map<List<ProcessingDocumentDto>>(documents);
         }
 
-        public async Task<List<ProcessDocument>> GetRecentDocumentsByStatusWithLimitAsync(string status, int limit)
+        public async Task<List<ProcessingDocumentDto>> GetRecentDocumentsByStatusWithLimitAsync(string status, int limit)
         {
-            return await _context.ProcessDocuments
+            var documents = await _context.ProcessDocuments
                 .Include(d => d.Company)
                 .Where(d => d.EstadoProcesamiento == status)
                 .OrderByDescending(d => d.FechaCreacion)
                 .Take(limit)
                 .ToListAsync();
+
+            return _mapper.Map<List<ProcessingDocumentDto>>(documents);
         }
 
-        // Por compañía
-        public async Task<List<ProcessDocument>> GetAllDocumentsByCompanyAsync(int companyId)
+        // Por compañía - CORREGIDO: Retorna ProcessingDocumentDto
+        public async Task<List<ProcessingDocumentDto>> GetAllDocumentsByCompanyAsync(int companyId)
         {
-            return await _context.ProcessDocuments
+            var documents = await _context.ProcessDocuments
                 .Include(d => d.Company)
                 .Where(d => d.CompaniaId == companyId)
                 .OrderByDescending(d => d.FechaCreacion)
                 .ToListAsync();
+
+            return _mapper.Map<List<ProcessingDocumentDto>>(documents);
         }
 
-        public async Task<List<ProcessDocument>> GetDocumentsByCompanyInRangeAsync(int companyId, DateTime fromDate, DateTime toDate)
+        public async Task<List<ProcessingDocumentDto>> GetDocumentsByCompanyInRangeAsync(int companyId, DateTime fromDate, DateTime toDate)
         {
-            return await _context.ProcessDocuments
+            var documents = await _context.ProcessDocuments
                 .Include(d => d.Company)
                 .Where(d => d.CompaniaId == companyId &&
                            d.FechaCreacion >= fromDate &&
                            d.FechaCreacion <= toDate)
                 .OrderByDescending(d => d.FechaCreacion)
                 .ToListAsync();
+
+            return _mapper.Map<List<ProcessingDocumentDto>>(documents);
         }
 
         // Tiempos de procesamiento
@@ -168,41 +181,49 @@ namespace RegularizadorPolizas.Infrastructure.Data.Repositories
             return times.Any() ? times.Average() : 0;
         }
 
-        // Estados específicos
-        public async Task<List<ProcessDocument>> GetProcessingDocumentsAsync()
+        // Estados específicos - CORREGIDO: Retorna ProcessingDocumentDto
+        public async Task<List<ProcessingDocumentDto>> GetProcessingDocumentsAsync()
         {
-            return await _context.ProcessDocuments
+            var documents = await _context.ProcessDocuments
                 .Include(d => d.Company)
                 .Where(d => d.EstadoProcesamiento == "PROCESANDO")
                 .OrderByDescending(d => d.FechaCreacion)
                 .ToListAsync();
+
+            return _mapper.Map<List<ProcessingDocumentDto>>(documents);
         }
 
-        public async Task<List<ProcessDocument>> GetPendingDocumentsAsync()
+        public async Task<List<ProcessingDocumentDto>> GetPendingDocumentsAsync()
         {
-            return await _context.ProcessDocuments
+            var documents = await _context.ProcessDocuments
                 .Include(d => d.Company)
                 .Where(d => d.EstadoProcesamiento == "PENDIENTE")
                 .OrderByDescending(d => d.FechaCreacion)
                 .ToListAsync();
+
+            return _mapper.Map<List<ProcessingDocumentDto>>(documents);
         }
 
-        public async Task<List<ProcessDocument>> GetCompletedDocumentsAsync()
+        public async Task<List<ProcessingDocumentDto>> GetCompletedDocumentsAsync()
         {
-            return await _context.ProcessDocuments
+            var documents = await _context.ProcessDocuments
                 .Include(d => d.Company)
                 .Where(d => d.EstadoProcesamiento == "COMPLETADO")
                 .OrderByDescending(d => d.FechaCreacion)
                 .ToListAsync();
+
+            return _mapper.Map<List<ProcessingDocumentDto>>(documents);
         }
 
-        public async Task<List<ProcessDocument>> GetErrorDocumentsAsync()
+        public async Task<List<ProcessingDocumentDto>> GetErrorDocumentsAsync()
         {
-            return await _context.ProcessDocuments
+            var documents = await _context.ProcessDocuments
                 .Include(d => d.Company)
                 .Where(d => d.EstadoProcesamiento == "ERROR")
                 .OrderByDescending(d => d.FechaCreacion)
                 .ToListAsync();
+
+            return _mapper.Map<List<ProcessingDocumentDto>>(documents);
         }
     }
 }

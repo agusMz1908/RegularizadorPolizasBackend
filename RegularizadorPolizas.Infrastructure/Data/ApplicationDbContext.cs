@@ -549,6 +549,33 @@ namespace RegularizadorPolizas.Infrastructure.Data
                     .HasForeignKey(e => e.GrantedBy)
                     .OnDelete(DeleteBehavior.SetNull);
             });
+
+            modelBuilder.Entity<ProcessDocument>(entity =>
+            {
+                entity.Property(e => e.ResultadoJson)
+                    .HasColumnType("TEXT");
+
+                entity.HasOne(pd => pd.Poliza)
+                      .WithMany(p => p.ProcessDocuments)
+                      .HasForeignKey(pd => pd.PolizaId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(pd => pd.User)
+                      .WithMany(u => u.ProcessDocuments)
+                      .HasForeignKey(pd => pd.UsuarioId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(pd => pd.Company)
+                      .WithMany()
+                      .HasForeignKey(pd => pd.CompaniaId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(e => e.EstadoProcesamiento);
+                entity.HasIndex(e => e.FechaCreacion);
+                entity.HasIndex(e => e.CompaniaId);
+                entity.HasIndex(e => e.PolizaId);
+                entity.HasIndex(e => e.UsuarioId);
+            });
         }
 
         private void ConfigureFase1Entities(ModelBuilder modelBuilder)

@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
+using RegularizadorPolizas.Application.DTOs; 
 using RegularizadorPolizas.Application.DTOs.Dashboard;
 using RegularizadorPolizas.Application.Interfaces;
-using RegularizadorPolizas.Domain.Entities;
 
 namespace RegularizadorPolizas.Application.Services
 {
@@ -34,7 +34,6 @@ namespace RegularizadorPolizas.Application.Services
                 var today = DateTime.Today;
                 var monthStart = new DateTime(today.Year, today.Month, 1);
 
-                // ✅ USAR NOMBRES CORRECTOS DE LA INTERFACE
                 var documentsToday = await _processDocumentRepository.CountAllDocumentsInRangeAsync(today, today.AddDays(1));
                 var documentsMonth = await _processDocumentRepository.CountAllDocumentsInRangeAsync(monthStart, DateTime.Now);
                 var documentsTotal = await _processDocumentRepository.CountAllDocumentsInRangeAsync(DateTime.MinValue, DateTime.MaxValue);
@@ -45,12 +44,10 @@ namespace RegularizadorPolizas.Application.Services
 
                 var avgProcessingTime = await _processDocumentRepository.GetAverageProcessingTimeForAllAsync();
 
-                // Calcular tasa de éxito
                 var totalDocs = await _processDocumentRepository.CountAllDocumentsInRangeAsync(monthStart, DateTime.Now);
                 var successDocs = await _processDocumentRepository.CountDocumentsByStatusInRangeAsync("COMPLETADO", monthStart, DateTime.Now);
                 var successRate = totalDocs > 0 ? (double)successDocs / totalDocs * 100 : 0;
 
-                // Contar compañías activas
                 var allCompanies = await _companyRepository.GetAllAsync();
                 var activeCompanies = allCompanies.Count();
 
@@ -87,18 +84,16 @@ namespace RegularizadorPolizas.Application.Services
 
                 foreach (var company in companies)
                 {
-                    // ✅ USAR NOMBRES CORRECTOS
-                    var docsToday = await _processDocumentRepository.CountAllDocumentsInRangeAsync(today, today.AddDays(1));
-                    var docsMonth = (await _processDocumentRepository.GetDocumentsByCompanyInRangeAsync(company.Id, monthStart, DateTime.Now)).Count;
+                    var docsToday = await _processDocumentRepository.GetDocumentsByCompanyInRangeAsync(company.Id, today, today.AddDays(1));
+                    var docsMonth = await _processDocumentRepository.GetDocumentsByCompanyInRangeAsync(company.Id, monthStart, DateTime.Now);
 
                     var costToday = await _processDocumentRepository.GetTotalCostInRangeAsync(today, today.AddDays(1));
                     var costMonth = await _processDocumentRepository.GetTotalCostInRangeAsync(monthStart, DateTime.Now);
 
                     var avgTime = await _processDocumentRepository.GetAverageProcessingTimeForCompanyAsync(company.Id);
 
-                    // Calcular tasa de éxito para esta compañía
                     var companyDocs = await _processDocumentRepository.GetDocumentsByCompanyInRangeAsync(company.Id, monthStart, DateTime.Now);
-                    var successfulDocs = companyDocs.Count(d => d.EsExitoso);
+                    var successfulDocs = companyDocs.Count(d => d.Status == "COMPLETADO"); 
                     var successRate = companyDocs.Count > 0 ? (double)successfulDocs / companyDocs.Count * 100 : 0;
 
                     result.Add(new CompanyStatsDto
@@ -106,13 +101,13 @@ namespace RegularizadorPolizas.Application.Services
                         CompanyId = company.Id.ToString(),
                         CompanyCode = company.Codigo ?? "",
                         CompanyName = company.Nombre ?? "",
-                        DocumentsToday = docsToday,
-                        DocumentsMonth = docsMonth,
-                        CostToday = costToday,
-                        CostMonth = costMonth,
+                        DocumentsToday = docsToday.Count,
+                        DocumentsMonth = docsMonth.Count,
+                        CostToday = costToday, 
+                        CostMonth = costMonth,  
                         SuccessRate = successRate,
                         AvgProcessingTime = avgTime,
-                        LastProcessed = companyDocs.OrderByDescending(d => d.FechaCreacion).FirstOrDefault()?.FechaCreacion,
+                        LastProcessed = companyDocs.OrderByDescending(d => d.CreationTime).FirstOrDefault()?.CreationTime, 
                         IsActive = true
                     });
                 }
@@ -132,7 +127,6 @@ namespace RegularizadorPolizas.Application.Services
             {
                 List<ProcessingDocumentDto> documents;
 
-                // ✅ USAR NOMBRES CORRECTOS
                 if (string.IsNullOrEmpty(status))
                 {
                     documents = await _processDocumentRepository.GetRecentDocumentsWithLimitAsync(limit);
@@ -144,16 +138,16 @@ namespace RegularizadorPolizas.Application.Services
 
                 return documents.Select(d => new RecentActivityDto
                 {
-                    Id = d.Id.ToString(),
-                    DocumentName = d.NombreArchivo,
-                    CompanyCode = d.CodigoCompania ?? "",
-                    CompanyName = d.Company?.Nombre ?? "",
-                    Status = d.EstadoActual,
-                    Timestamp = d.FechaCreacion,
-                    ProcessingTime = d.TiempoProcessamiento,
-                    ErrorMessage = d.MensajeError,
-                    Cost = d.CostoProcessamiento,
-                    PageCount = d.NumeroPaginas ?? 0
+                    Id = d.Id,
+                    DocumentName = d.FileName,                
+                    CompanyCode = d.CompanyCode ?? "",         
+                    CompanyName = d.CompanyName ?? "",        
+                    Status = d.CurrentStage,                
+                    Timestamp = d.CreationTime,                  
+                    ProcessingTime = d.ProcessingTime,         
+                    ErrorMessage = d.ErrorMessage,             
+                    Cost = d.Cost,                             
+                    PageCount = d.PageCount ?? 0              
                 }).ToList();
             }
             catch (Exception ex)
@@ -169,7 +163,6 @@ namespace RegularizadorPolizas.Application.Services
             {
                 var cutoffDate = DateTime.Today.AddDays(-days);
 
-                // ✅ USAR NOMBRES CORRECTOS
                 var avgTime = await _processDocumentRepository.GetAverageProcessingTimeInRangeAsync(cutoffDate, DateTime.Now);
                 var totalDocs = await _processDocumentRepository.CountAllDocumentsInRangeAsync(cutoffDate, DateTime.Now);
                 var successDocs = await _processDocumentRepository.CountDocumentsByStatusInRangeAsync("COMPLETADO", cutoffDate, DateTime.Now);
@@ -177,12 +170,12 @@ namespace RegularizadorPolizas.Application.Services
                 return new PerformanceMetricsDto
                 {
                     AvgProcessingTime = avgTime,
-                    MedianProcessingTime = avgTime, // Simplificado
+                    MedianProcessingTime = avgTime,
                     SuccessRate = totalDocs > 0 ? (double)successDocs / totalDocs * 100 : 0,
                     TotalDocuments = totalDocs,
                     SuccessfulDocuments = successDocs,
                     FailedDocuments = totalDocs - successDocs,
-                    DailyMetrics = new List<DailyMetricsDto>() // Simplificado por ahora
+                    DailyMetrics = new List<DailyMetricsDto>() 
                 };
             }
             catch (Exception ex)
@@ -196,7 +189,6 @@ namespace RegularizadorPolizas.Application.Services
         {
             try
             {
-                // ✅ USAR NOMBRES CORRECTOS
                 var processingDocs = await _processDocumentRepository.GetProcessingDocumentsAsync();
                 var pendingDocs = await _processDocumentRepository.GetPendingDocumentsAsync();
 
@@ -204,14 +196,7 @@ namespace RegularizadorPolizas.Application.Services
                 {
                     DocumentsProcessingNow = processingDocs.Count,
                     QueueLength = pendingDocs.Count,
-                    CurrentProcessing = processingDocs.Select(d => new ProcessingDocumentDto
-                    {
-                        Id = d.Id.ToString(),
-                        FileName = d.NombreArchivo,
-                        CompanyCode = d.CodigoCompania ?? "",
-                        StartTime = d.FechaInicioProcesamiento ?? d.FechaCreacion,
-                        CurrentStage = DetermineCurrentStage(d)
-                    }).ToList(),
+                    CurrentProcessing = processingDocs, 
                     LastUpdate = DateTime.UtcNow
                 };
             }
@@ -239,14 +224,14 @@ namespace RegularizadorPolizas.Application.Services
                     },
                     VelneoApi = new ServiceStatusDto
                     {
-                        IsHealthy = true,
+                        IsHealthy = true, 
                         Status = "healthy",
                         ResponseTime = 0,
                         LastCheck = DateTime.UtcNow
                     },
                     Database = new ServiceStatusDto
                     {
-                        IsHealthy = true,
+                        IsHealthy = true, 
                         Status = "healthy",
                         ResponseTime = 0,
                         LastCheck = DateTime.UtcNow
@@ -262,10 +247,6 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        // ================================
-        // MÉTODOS AUXILIARES PRIVADOS
-        // ================================
-
         private async Task<bool> TestAzureHealthAsync()
         {
             try
@@ -276,17 +257,6 @@ namespace RegularizadorPolizas.Application.Services
             {
                 return false;
             }
-        }
-
-        private string DetermineCurrentStage(ProcessDocument document)
-        {
-            if (document.FechaInicioProcesamiento.HasValue && !document.FechaFinProcesamiento.HasValue)
-                return "azure_processing";
-            if (document.EstadoProcesamiento == "COMPLETADO" && document.EnviadoVelneo != true)
-                return "data_mapping";
-            if (document.EnviadoVelneo == true)
-                return "velneo_sending";
-            return "pending";
         }
     }
 }

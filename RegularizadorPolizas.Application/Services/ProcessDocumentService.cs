@@ -171,32 +171,25 @@ namespace RegularizadorPolizas.Application.Services
                     throw new ArgumentException("Only PDF files are supported");
                 }
 
-                // Process document with Azure Document Intelligence
                 var processingResult = await _documentIntelligenceService.ProcessDocumentAsync(file);
-
-                // Create a unique filename
                 var fileName = $"{Guid.NewGuid()}-{file.FileName}";
                 var filePath = Path.Combine("Documents", fileName);
-
-                // Create directory if it doesn't exist
                 var directoryPath = Path.GetDirectoryName(filePath);
                 if (!Directory.Exists(directoryPath))
                 {
                     Directory.CreateDirectory(directoryPath);
                 }
 
-                // Save file to disk
                 using (var stream = new FileStream(filePath, FileMode.Create))
                 {
                     await file.CopyToAsync(stream);
                 }
 
-                // Create document entity
                 var document = new ProcessDocument
                 {
                     NombreArchivo = file.FileName,
                     RutaArchivo = filePath,
-                    TipoDocumento = "POLIZA", // Default document type
+                    TipoDocumento = "POLIZA",
                     EstadoProcesamiento = processingResult.EstadoProcesamiento,
                     ResultadoJson = JsonConvert.SerializeObject(processingResult.CamposExtraidos),
                     FechaProcesamiento = DateTime.Now,
@@ -204,10 +197,7 @@ namespace RegularizadorPolizas.Application.Services
                     FechaModificacion = DateTime.Now
                 };
 
-                // Save document to database
                 var savedDocument = await _processDocumentRepository.AddAsync(document);
-
-                // Update processing result with document ID
                 processingResult.DocumentoId = savedDocument.Id;
 
                 return processingResult;

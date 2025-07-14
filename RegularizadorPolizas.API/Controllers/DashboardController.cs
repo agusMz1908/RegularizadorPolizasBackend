@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RegularizadorPolizas.Application.DTOs.Dashboard;
+using RegularizadorPolizas.Application.Interfaces;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -16,9 +17,6 @@ public class DashboardController : ControllerBase
         _logger = logger;
     }
 
-    // ================================
-    // ESTADÍSTICAS GENERALES
-    // ================================
     [HttpGet("stats/overview")]
     public async Task<ActionResult<DashboardOverviewDto>> GetOverviewStats(
         [FromQuery] DateTime? fromDate = null,
@@ -36,9 +34,6 @@ public class DashboardController : ControllerBase
         }
     }
 
-    // ================================
-    // ESTADÍSTICAS POR COMPAÑÍA
-    // ================================
     [HttpGet("stats/companies")]
     public async Task<ActionResult<List<CompanyStatsDto>>> GetCompanyStats(
         [FromQuery] DateTime? fromDate = null,
@@ -56,9 +51,7 @@ public class DashboardController : ControllerBase
         }
     }
 
-    // ================================
-    // ACTIVIDAD RECIENTE
-    // ================================
+
     [HttpGet("activity/recent")]
     public async Task<ActionResult<List<RecentActivityDto>>> GetRecentActivity(
         [FromQuery] int limit = 10,
@@ -76,9 +69,6 @@ public class DashboardController : ControllerBase
         }
     }
 
-    // ================================
-    // MÉTRICAS DE PERFORMANCE
-    // ================================
     [HttpGet("metrics/performance")]
     public async Task<ActionResult<PerformanceMetricsDto>> GetPerformanceMetrics(
         [FromQuery] int days = 30)
@@ -95,9 +85,6 @@ public class DashboardController : ControllerBase
         }
     }
 
-    // ================================
-    // ESTADÍSTICAS EN TIEMPO REAL
-    // ================================
     [HttpGet("realtime/processing")]
     public async Task<ActionResult<RealTimeStatsDto>> GetRealTimeProcessingStats()
     {
@@ -113,9 +100,6 @@ public class DashboardController : ControllerBase
         }
     }
 
-    // ================================
-    // HEALTH CHECK PARA SERVICIOS
-    // ================================
     [HttpGet("health/services")]
     public async Task<ActionResult<ServiceHealthDto>> GetServicesHealth()
     {

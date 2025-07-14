@@ -67,17 +67,8 @@
     {
         public int DocumentsProcessingNow { get; set; }
         public int QueueLength { get; set; }
-        public List<ProcessingDocumentDto> CurrentProcessing { get; set; } = new List<ProcessingDocumentDto>();
+        public List<ProcessingDocumentDto> CurrentProcessing { get; set; } = new List<ProcessingDocumentDto>(); // ✅ Usa la versión importada
         public DateTime LastUpdate { get; set; }
-    }
-
-    public class ProcessingDocumentDto
-    {
-        public string Id { get; set; }
-        public string FileName { get; set; }
-        public string CompanyCode { get; set; }
-        public DateTime StartTime { get; set; }
-        public string CurrentStage { get; set; }
     }
 
     public class ServiceHealthDto

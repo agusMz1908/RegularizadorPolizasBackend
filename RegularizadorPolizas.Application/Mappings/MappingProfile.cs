@@ -26,7 +26,7 @@ namespace RegularizadorPolizas.Application.Mappings
                 .ForMember(dest => dest.RenovacionesOrigen, opt => opt.Ignore())
                 .ForMember(dest => dest.RenovacionesDestino, opt => opt.Ignore());
 
-            CreateMap<ProcessDocument, ProcessDocumentDto>()
+            CreateMap<ProcessDocument, ProcessingDocumentDto>()
                 .ReverseMap();
 
             CreateMap<Renovation, RenovationDto>()

@@ -78,7 +78,7 @@ namespace RegularizadorPolizas.Application.Services
                 var createdPermission = await _permissionRepository.AddAsync(permission);
 
                 await _auditService.LogAsync(
-                    AuditEventType.ClientCreated, // Cambiar por PermissionCreated cuando esté disponible
+                    AuditEventType.ClientCreated, 
                     $"Permiso creado: {createdPermission.Name}",
                     new { PermissionId = createdPermission.Id, PermissionName = createdPermission.Name });
 
@@ -112,7 +112,7 @@ namespace RegularizadorPolizas.Application.Services
                 await _permissionRepository.UpdateAsync(existingPermission);
 
                 await _auditService.LogAsync(
-                    AuditEventType.ClientUpdated, // Cambiar por PermissionUpdated cuando esté disponible
+                    AuditEventType.ClientUpdated, 
                     $"Permiso actualizado: {existingPermission.Name}",
                     new { PermissionId = existingPermission.Id, OldData = oldData, NewData = permissionDto });
             }
@@ -138,7 +138,7 @@ namespace RegularizadorPolizas.Application.Services
                 await _permissionRepository.UpdateAsync(permission);
 
                 await _auditService.LogAsync(
-                    AuditEventType.ClientDeleted, // Cambiar por PermissionDeleted cuando esté disponible
+                    AuditEventType.ClientDeleted, 
                     $"Permiso eliminado: {permission.Name}",
                     new { PermissionId = id, PermissionName = permission.Name });
             }
