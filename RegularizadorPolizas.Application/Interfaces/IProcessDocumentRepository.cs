@@ -4,17 +4,41 @@ namespace RegularizadorPolizas.Application.Interfaces
 {
     public interface IProcessDocumentRepository : IGenericRepository<ProcessDocument>
     {
-        Task<IEnumerable<ProcessDocument>> GetDocumentsByStatusAsync(string status);
+        // ================================
+        // MÉTODOS BÁSICOS PARA ProcessDocumentService
+        // ================================
+        Task<ProcessDocument> GetDocumentWithDetailsAsync(int documentId);
         Task<IEnumerable<ProcessDocument>> GetDocumentsByPolizaAsync(int polizaId);
-        Task<ProcessDocument> GetDocumentWithDetailsAsync(int id);
-        Task<DashboardOverviewDto> GetOverviewStatsAsync(DateTime? fromDate = null, DateTime? toDate = null);
-        Task<List<CompanyStatsDto>> GetCompanyStatsAsync(DateTime? fromDate = null, DateTime? toDate = null);
-        Task<List<RecentActivityDto>> GetRecentActivityAsync(int limit = 10, string status = null);
-        Task<PerformanceMetricsDto> GetPerformanceMetricsAsync(int days = 30);
-        Task<List<ProcessingDocumentDto>> GetCurrentlyProcessingAsync();
-        Task<int> CountDocumentsByStatusAndDateAsync(string status, DateTime fromDate, DateTime toDate);
-        Task<decimal> GetTotalCostAsync(DateTime fromDate, DateTime toDate);
-        Task<double> GetAverageProcessingTimeAsync(DateTime? fromDate = null, DateTime? toDate = null);
-        Task<double> GetSuccessRateAsync(DateTime? fromDate = null, DateTime? toDate = null);
+        Task<IEnumerable<ProcessDocument>> GetDocumentsByStatusAsync(string status);
+
+        // ================================
+        // MÉTODOS ESPECÍFICOS PARA DASHBOARD (nombres únicos)
+        // ================================
+
+        // Contadores básicos
+        Task<int> CountAllDocumentsInRangeAsync(DateTime fromDate, DateTime toDate);
+        Task<int> CountDocumentsByStatusInRangeAsync(string status, DateTime fromDate, DateTime toDate);
+
+        // Costos
+        Task<decimal> GetTotalCostInRangeAsync(DateTime fromDate, DateTime toDate);
+
+        // Documentos recientes
+        Task<List<ProcessDocument>> GetRecentDocumentsWithLimitAsync(int limit);
+        Task<List<ProcessDocument>> GetRecentDocumentsByStatusWithLimitAsync(string status, int limit);
+
+        // Por compañía
+        Task<List<ProcessDocument>> GetAllDocumentsByCompanyAsync(int companyId);
+        Task<List<ProcessDocument>> GetDocumentsByCompanyInRangeAsync(int companyId, DateTime fromDate, DateTime toDate);
+
+        // Tiempos de procesamiento
+        Task<double> GetAverageProcessingTimeForAllAsync();
+        Task<double> GetAverageProcessingTimeInRangeAsync(DateTime fromDate, DateTime toDate);
+        Task<double> GetAverageProcessingTimeForCompanyAsync(int companyId);
+
+        // Estados específicos
+        Task<List<ProcessDocument>> GetProcessingDocumentsAsync();
+        Task<List<ProcessDocument>> GetPendingDocumentsAsync();
+        Task<List<ProcessDocument>> GetCompletedDocumentsAsync();
+        Task<List<ProcessDocument>> GetErrorDocumentsAsync();
     }
 }

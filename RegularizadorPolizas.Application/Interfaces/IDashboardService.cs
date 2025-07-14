@@ -1,4 +1,6 @@
-﻿public interface IDashboardService
+﻿using RegularizadorPolizas.Application.DTOs.Dashboard;
+
+public interface IDashboardService
 {
     Task<DashboardOverviewDto> GetOverviewStatsAsync(DateTime? fromDate, DateTime? toDate);
     Task<List<CompanyStatsDto>> GetCompanyStatsAsync(DateTime? fromDate, DateTime? toDate);

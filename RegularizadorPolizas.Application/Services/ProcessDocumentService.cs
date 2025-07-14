@@ -59,12 +59,12 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        public async Task<IEnumerable<ProcessDocumentDto>> GetAllProcessedDocumentsAsync()
+        public async Task<IEnumerable<ProcessingDocumentDto>> GetAllProcessedDocumentsAsync()
         {
             try
             {
                 var documents = await _processDocumentRepository.GetAllAsync();
-                return _mapper.Map<IEnumerable<ProcessDocumentDto>>(documents);
+                return _mapper.Map<IEnumerable<ProcessingDocumentDto>>(documents);
             }
             catch (Exception ex)
             {
@@ -101,12 +101,12 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        public async Task<IEnumerable<ProcessDocumentDto>> GetDocumentsByPolizaAsync(int polizaId)
+        public async Task<IEnumerable<ProcessingDocumentDto>> GetDocumentsByPolizaAsync(int polizaId)
         {
             try
             {
                 var documents = await _processDocumentRepository.GetDocumentsByPolizaAsync(polizaId);
-                return _mapper.Map<IEnumerable<ProcessDocumentDto>>(documents);
+                return _mapper.Map<IEnumerable<ProcessingDocumentDto>>(documents);
             }
             catch (Exception ex)
             {
@@ -114,12 +114,12 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        public async Task<IEnumerable<ProcessDocumentDto>> GetDocumentsByStatusAsync(string status)
+        public async Task<IEnumerable<ProcessingDocumentDto>> GetDocumentsByStatusAsync(string status)
         {
             try
             {
                 var documents = await _processDocumentRepository.GetDocumentsByStatusAsync(status);
-                return _mapper.Map<IEnumerable<ProcessDocumentDto>>(documents);
+                return _mapper.Map<IEnumerable<ProcessingDocumentDto>>(documents);
             }
             catch (Exception ex)
             {
@@ -127,7 +127,7 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        public async Task<ProcessDocumentDto> LinkDocumentToPolizaAsync(int documentId, int polizaId)
+        public async Task<ProcessingDocumentDto> LinkDocumentToPolizaAsync(int documentId, int polizaId)
         {
             try
             {
@@ -148,7 +148,7 @@ namespace RegularizadorPolizas.Application.Services
 
                 await _processDocumentRepository.UpdateAsync(document);
 
-                return _mapper.Map<ProcessDocumentDto>(document);
+                return _mapper.Map<ProcessingDocumentDto>(document);
             }
             catch (Exception ex)
             {
