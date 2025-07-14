@@ -4,5 +4,6 @@
     public string FileName { get; set; }
     public string CompanyCode { get; set; }
     public DateTime StartTime { get; set; }
-    public string CurrentStage { get; set; } 
+    public DateTime CreationTime { get; set; }
+    public string CurrentStage { get; set; }
 }

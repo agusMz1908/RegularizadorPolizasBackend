@@ -3,7 +3,7 @@ using RegularizadorPolizas.Application.DTOs.Dashboard;
 
 namespace RegularizadorPolizas.Application.Interfaces
 {
-    public interface IProcessDocumentRepository : IGenericRepository<ProcessDocument>
+    public interface IProcessDocumentService
     {
         // ================================
         // MÉTODOS EXISTENTES QUE USA ProcessDocumentService

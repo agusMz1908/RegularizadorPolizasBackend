@@ -1,14 +1,15 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Azure.Storage.Blobs;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Azure.Storage.Blobs;
 using RegularizadorPolizas.Application.Interfaces;
+using RegularizadorPolizas.Application.Services;
 using RegularizadorPolizas.Infrastructure.Data;
 using RegularizadorPolizas.Infrastructure.Data.Repositories;
-using RegularizadorPolizas.Infrastructure.Repositories;
-using RegularizadorPolizas.Infrastructure.Services;
 using RegularizadorPolizas.Infrastructure.External;
 using RegularizadorPolizas.Infrastructure.External.VelneoAPI;
+using RegularizadorPolizas.Infrastructure.Repositories;
+using RegularizadorPolizas.Infrastructure.Services;
 
 namespace RegularizadorPolizas.Infrastructure
 {
@@ -50,6 +51,7 @@ namespace RegularizadorPolizas.Infrastructure
             services.AddScoped<IAzureDocumentIntelligenceService, AzureDocumentIntelligenceService>();
             services.AddScoped<IFileStorageService, AzureBlobStorageService>();
             services.AddScoped<IVelneoApiService, TenantAwareVelneoApiService>();
+            services.AddScoped<IDashboardService, DashboardService>();
 
             services.AddSingleton(provider =>
             {

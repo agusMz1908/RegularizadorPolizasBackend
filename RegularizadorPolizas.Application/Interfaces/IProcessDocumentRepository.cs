@@ -1,16 +1,7 @@
-﻿using RegularizadorPolizas.Domain.Entities;
-
-namespace RegularizadorPolizas.Application.Interfaces
+﻿namespace RegularizadorPolizas.Application.Interfaces
 {
-    public interface IProcessDocumentRepository : IGenericRepository<ProcessDocument>
+    public interface IProcessDocumentRepository : IGenericRepository<ProcessingDocumentDto>
     {
-        // ================================
-        // MÉTODOS BÁSICOS PARA ProcessDocumentService
-        // ================================
-        Task<ProcessDocument> GetDocumentWithDetailsAsync(int documentId);
-        Task<IEnumerable<ProcessDocument>> GetDocumentsByPolizaAsync(int polizaId);
-        Task<IEnumerable<ProcessDocument>> GetDocumentsByStatusAsync(string status);
-
         // ================================
         // MÉTODOS ESPECÍFICOS PARA DASHBOARD (nombres únicos)
         // ================================
@@ -23,12 +14,12 @@ namespace RegularizadorPolizas.Application.Interfaces
         Task<decimal> GetTotalCostInRangeAsync(DateTime fromDate, DateTime toDate);
 
         // Documentos recientes
-        Task<List<ProcessDocument>> GetRecentDocumentsWithLimitAsync(int limit);
-        Task<List<ProcessDocument>> GetRecentDocumentsByStatusWithLimitAsync(string status, int limit);
+        Task<List<ProcessingDocumentDto>> GetRecentDocumentsWithLimitAsync(int limit);
+        Task<List<ProcessingDocumentDto>> GetRecentDocumentsByStatusWithLimitAsync(string status, int limit);
 
         // Por compañía
-        Task<List<ProcessDocument>> GetAllDocumentsByCompanyAsync(int companyId);
-        Task<List<ProcessDocument>> GetDocumentsByCompanyInRangeAsync(int companyId, DateTime fromDate, DateTime toDate);
+        Task<List<ProcessingDocumentDto>> GetAllDocumentsByCompanyAsync(int companyId);
+        Task<List<ProcessingDocumentDto>> GetDocumentsByCompanyInRangeAsync(int companyId, DateTime fromDate, DateTime toDate);
 
         // Tiempos de procesamiento
         Task<double> GetAverageProcessingTimeForAllAsync();
@@ -36,9 +27,9 @@ namespace RegularizadorPolizas.Application.Interfaces
         Task<double> GetAverageProcessingTimeForCompanyAsync(int companyId);
 
         // Estados específicos
-        Task<List<ProcessDocument>> GetProcessingDocumentsAsync();
-        Task<List<ProcessDocument>> GetPendingDocumentsAsync();
-        Task<List<ProcessDocument>> GetCompletedDocumentsAsync();
-        Task<List<ProcessDocument>> GetErrorDocumentsAsync();
+        Task<List<ProcessingDocumentDto>> GetProcessingDocumentsAsync();
+        Task<List<ProcessingDocumentDto>> GetPendingDocumentsAsync();
+        Task<List<ProcessingDocumentDto>> GetCompletedDocumentsAsync();
+        Task<List<ProcessingDocumentDto>> GetErrorDocumentsAsync();
     }
 }
