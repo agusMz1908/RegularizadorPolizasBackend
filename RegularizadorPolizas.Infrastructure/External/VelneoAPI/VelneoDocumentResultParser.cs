@@ -2,6 +2,7 @@
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
+using RegularizadorPolizas.Application.DTOs;
 
 namespace RegularizadorPolizas.Application.Services
 {
@@ -13,6 +14,93 @@ namespace RegularizadorPolizas.Application.Services
         {
             _logger = logger;
         }
+
+        /// <summary>
+        /// Método principal para parsear hacia PolizaDto (para compatibilidad)
+        /// </summary>
+        public PolizaDto ParseToPolizaDto(JObject azureResult)
+        {
+            try
+            {
+                var poliza = new PolizaDto
+                {
+                    // Campos básicos por defecto
+                    Comcod = 1,
+                    Seccod = 4,
+                    Moncod = 1,
+                    Convig = "1",
+                    Consta = "1",
+                    Contra = "2",
+                    Ramo = "AUTOMOVILES",
+                    Last_update = DateTime.Now,
+                    Ingresado = DateTime.Now,
+                    Activo = true,
+                    Procesado = true
+                };
+
+                var analyzeResult = azureResult["analyzeResult"];
+                if (analyzeResult == null) return poliza;
+
+                // Extraer desde content como fallback
+                var content = analyzeResult["content"]?.ToString();
+                if (!string.IsNullOrEmpty(content))
+                {
+                    ExtractFromContentToPolizaDto(poliza, content);
+                }
+
+                // Agregar observaciones
+                poliza.Observaciones = $"Procesado automáticamente - {DateTime.Now:yyyy-MM-dd HH:mm}";
+
+                _logger?.LogInformation("Successfully parsed document to PolizaDto: Policy={PolicyNumber}, Client={ClientName}",
+                    poliza.Conpol, poliza.Clinom);
+
+                return poliza;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error parsing Azure Document Intelligence result");
+
+                return new PolizaDto
+                {
+                    Observaciones = $"Error en parsing: {ex.Message}",
+                    Activo = true,
+                    Procesado = false
+                };
+            }
+        }
+
+        #region Métodos de extracción desde content
+
+        private void ExtractFromContentToPolizaDto(PolizaDto poliza, string content)
+        {
+            // Datos básicos de la póliza
+            poliza.Conpol = ExtraerNumeroPoliza(content);
+            poliza.Clinom = ExtraerAsegurado(content);
+            poliza.Conmaraut = ExtraerDescripcionVehiculo(content);
+
+            // Montos
+            poliza.Conpremio = ExtraerPrimaComercial(content);
+            poliza.Contot = ExtraerPremioTotal(content);
+
+            // Fechas de vigencia
+            var (fechaDesde, fechaHasta) = ExtraerVigencia(content);
+            poliza.Confchdes = fechaDesde;
+            poliza.Confchhas = fechaHasta;
+
+            // Motor y chasis (si están disponibles)
+            poliza.Conmotor = ExtraerMotor(content);
+            poliza.Conchasis = ExtraerChasis(content);
+
+            // Completar campos calculados
+            if (poliza.Contot == 0 && poliza.Conpremio > 0)
+            {
+                poliza.Contot = (int)(poliza.Conpremio * 1.22m); // Prima + ~22% impuestos
+            }
+        }
+
+        #endregion
+
+        #region Métodos de limpieza y utilidad
 
         public string LimpiarTexto(string texto)
         {
@@ -97,6 +185,10 @@ namespace RegularizadorPolizas.Application.Services
 
             return 1;
         }
+
+        #endregion
+
+        #region Extractores específicos por regex
 
         public string ExtraerNumeroPoliza(string content)
         {
@@ -212,5 +304,49 @@ namespace RegularizadorPolizas.Application.Services
 
             return (null, null);
         }
+
+        public string ExtraerMotor(string content)
+        {
+            var patrones = new[]
+            {
+                @"Motor\s*[:#]\s*([A-Z0-9]+)",
+                @"MOTOR\s*[:#]\s*([A-Z0-9]+)",
+                @"Nº Motor\s*[:#]\s*([A-Z0-9]+)"
+            };
+
+            foreach (var patron in patrones)
+            {
+                var match = Regex.Match(content, patron, RegexOptions.IgnoreCase);
+                if (match.Success)
+                {
+                    return match.Groups[1].Value.Trim();
+                }
+            }
+
+            return "";
+        }
+
+        public string ExtraerChasis(string content)
+        {
+            var patrones = new[]
+            {
+                @"Chasis\s*[:#]\s*([A-Z0-9]+)",
+                @"CHASIS\s*[:#]\s*([A-Z0-9]+)",
+                @"Nº Chasis\s*[:#]\s*([A-Z0-9]+)"
+            };
+
+            foreach (var patron in patrones)
+            {
+                var match = Regex.Match(content, patron, RegexOptions.IgnoreCase);
+                if (match.Success)
+                {
+                    return match.Groups[1].Value.Trim();
+                }
+            }
+
+            return "";
+        }
+
+        #endregion
     }
 }

@@ -11,12 +11,12 @@ namespace RegularizadorPolizas.Application.Services
     {
         private readonly IAzureDocumentIntelligenceService _azureService;
         private readonly VelneoDocumentResultParser _parser;
-        private readonly ITenantAwareVelneoApiService _velneoService;
+        private readonly IVelneoApiService _velneoService;
         private readonly ILogger<DocumentExtractionService> _logger;
 
         public DocumentExtractionService(
             IAzureDocumentIntelligenceService azureService,
-            ITenantAwareVelneoApiService velneoService,
+            IVelneoApiService velneoService,
             VelneoDocumentResultParser parser,
             ILogger<DocumentExtractionService> logger)
         {

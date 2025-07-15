@@ -8,11 +8,11 @@ namespace RegularizadorPolizas.Application.Services
 {
     public class ClienteMatchingService : IClienteMatchingService
     {
-        private readonly ITenantAwareVelneoApiService _velneoService;
+        private readonly IVelneoApiService _velneoService;
         private readonly ILogger<ClienteMatchingService> _logger;
 
         public ClienteMatchingService(
-            ITenantAwareVelneoApiService velneoService,
+            IVelneoApiService velneoService,
             ILogger<ClienteMatchingService> logger)
         {
             _velneoService = velneoService;
@@ -56,7 +56,7 @@ namespace RegularizadorPolizas.Application.Services
 
                 return new ClienteMatchResult
                 {
-                    TipoResultado = TipoResultadoCliente.SinCoincidencias,
+                    TipoResultado = ClienteMatchResult.TipoResultadoCliente.SinCoincidencias,
                     MensajeUsuario = "Error en la búsqueda. Intente búsqueda manual.",
                     RequiereIntervencionManual = true,
                     DatosOriginales = datosExtraidos
@@ -94,19 +94,19 @@ namespace RegularizadorPolizas.Application.Services
 
             if (!matches.Any())
             {
-                resultado.TipoResultado = TipoResultadoCliente.SinCoincidencias;
+                resultado.TipoResultado = ClienteMatchResult.TipoResultadoCliente.SinCoincidencias;
                 resultado.MensajeUsuario = "No se encontraron clientes coincidentes.";
                 resultado.RequiereIntervencionManual = true;
             }
             else if (matches.Count == 1 && matches[0].Score >= 95)
             {
-                resultado.TipoResultado = TipoResultadoCliente.MatchExacto;
+                resultado.TipoResultado = ClienteMatchResult.TipoResultadoCliente.MatchExacto;
                 resultado.MensajeUsuario = $"Cliente encontrado: {matches[0].Cliente.Clinom}";
                 resultado.RequiereIntervencionManual = false;
             }
             else
             {
-                resultado.TipoResultado = TipoResultadoCliente.MultiplesMatches;
+                resultado.TipoResultado = ClienteMatchResult.TipoResultadoCliente.MultiplesMatches;
                 resultado.MensajeUsuario = "Se encontraron coincidencias. Revise.";
                 resultado.RequiereIntervencionManual = true;
             }

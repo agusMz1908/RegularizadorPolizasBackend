@@ -1,7 +1,6 @@
 ﻿// RegularizadorPolizas.API/Controllers/VerificationController.cs
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RegularizadorPolizas.Application.DTOs.Frontend;
 using RegularizadorPolizas.Application.DTOs.Verification;
 using RegularizadorPolizas.Application.Interfaces;
 using System.Security.Claims;
@@ -92,46 +91,6 @@ namespace RegularizadorPolizas.API.Controllers
             {
                 _logger.LogError(ex, "Error retrieving verification status for poliza {PolizaId}", polizaId);
                 return StatusCode(500, $"Error obteniendo estado de verificación: {ex.Message}");
-            }
-        }
-
-        [HttpPost("apply-corrections")]
-        [ProducesResponseType(typeof(VelneoSendResultDto), 200)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(500)]
-        public async Task<ActionResult<VelneoSendResultDto>> ApplyCorrections([FromBody] PolizaCorrectionDto corrections)
-        {
-            try
-            {
-                if (corrections == null)
-                    return BadRequest("Datos de corrección son requeridos");
-
-                if (string.IsNullOrEmpty(corrections.PolizaId))
-                    return BadRequest("ID de póliza es requerido");
-
-                if (corrections.CamposCorregidos == null || corrections.CamposCorregidos.Count == 0)
-                    return BadRequest("Al menos un campo corregido es requerido");
-
-                if (corrections.UserId <= 0)
-                {
-                    corrections.UserId = GetCurrentUserId();
-                }
-
-                _logger.LogInformation("Applying corrections for poliza {PolizaId} by user {UserId}. Fields: {FieldCount}",
-                    corrections.PolizaId, corrections.UserId, corrections.CamposCorregidos.Count);
-
-                var result = await _verificationService.ApplyCorrectionsAsync(corrections);
-
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error applying corrections for poliza {PolizaId}", corrections?.PolizaId);
-                return StatusCode(500, new VelneoSendResultDto
-                {
-                    Success = false,
-                    ErrorMessage = $"Error aplicando correcciones: {ex.Message}"
-                });
             }
         }
 
