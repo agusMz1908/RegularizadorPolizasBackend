@@ -44,6 +44,7 @@ builder.Services.AddScoped<IUserRoleService, UserRoleService>();
 
 builder.Services.AddScoped<IVelneoApiService, TenantAwareVelneoApiService>();
 
+
 builder.Services.AddHttpClient();
 #endregion
 
