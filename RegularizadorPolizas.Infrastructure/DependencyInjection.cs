@@ -46,8 +46,6 @@ namespace RegularizadorPolizas.Infrastructure
             services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
             services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
             services.AddScoped<IVerificationRepository, VerificationRepository>();
-
-            services.AddScoped<IVerificationRepository, VerificationRepository>();
             services.AddScoped<IAzureDocumentIntelligenceService, AzureDocumentIntelligenceService>();
             services.AddScoped<IFileStorageService, AzureBlobStorageService>();
             services.AddScoped<IVelneoApiService, TenantAwareVelneoApiService>();

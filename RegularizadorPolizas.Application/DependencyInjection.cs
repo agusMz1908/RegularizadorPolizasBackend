@@ -29,7 +29,6 @@ namespace RegularizadorPolizas.Application
 
             services.AddScoped<IFileStorageService, AzureBlobStorageService>();
             services.AddScoped<IVerificationService, VerificationService>();
-            services.AddScoped<IVerificationService, VerificationService>();
 
             services.AddAutoMapper(Assembly.GetExecutingAssembly());
 

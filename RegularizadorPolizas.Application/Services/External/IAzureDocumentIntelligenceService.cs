@@ -7,9 +7,10 @@ namespace RegularizadorPolizas.Application.Interfaces
     {
         Task<DocumentResultDto> ProcessDocumentAsync(IFormFile file);
         Task<DocumentResultDto> ProcessDocumentAsync(IFormFile file, string modelId);
-
         PolizaDto MapDocumentToPoliza(DocumentResultDto documento);
         Task<string> GetModelInfoAsync();
         Task<bool> TestConnectionAsync();
+        Task<bool> TestConnectionWithDocumentAsync();
+        Task<string> DebugAllModelsAsync();
     }
 }

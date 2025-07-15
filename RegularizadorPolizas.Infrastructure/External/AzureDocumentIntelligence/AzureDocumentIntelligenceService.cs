@@ -5,7 +5,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
-using RegularizadorPolizas.Infrastructure.External;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -39,7 +38,15 @@ namespace RegularizadorPolizas.Infrastructure.External
                 new AzureKeyCredential(_apiKey));
 
             _parser = new VelneoDocumentResultParser(null);
+
+            _logger.LogInformation("Azure Document Intelligence Service initialized:");
+            _logger.LogInformation("- Endpoint: {Endpoint}", _endpoint);
+            _logger.LogInformation("- Model ID: {ModelId}", _modelId);
+            _logger.LogInformation("- API Key configured: {HasKey}", !string.IsNullOrEmpty(_apiKey));
+            _logger.LogInformation("- API Key length: {KeyLength}", _apiKey?.Length ?? 0);
         }
+
+        #region Métodos Principales de Procesamiento
 
         public async Task<DocumentResultDto> ProcessDocumentAsync(IFormFile file)
         {
@@ -130,16 +137,17 @@ namespace RegularizadorPolizas.Infrastructure.External
 
             try
             {
-                _logger.LogInformation("Starting document processing for file: {FileName}, Size: {FileSize} bytes",
-                    file.FileName, file.Length);
+                _logger.LogInformation("Starting document processing for file: {FileName}, Size: {FileSize} bytes with model: {ModelId}",
+                    file.FileName, file.Length, modelId);
 
                 using var stream = file.OpenReadStream();
 
                 var binaryData = BinaryData.FromStream(stream);
 
+                // Usar el modelId pasado como parámetro en lugar del predeterminado
                 var operation = await _client.AnalyzeDocumentAsync(
                     WaitUntil.Completed,
-                    _modelId,
+                    modelId,
                     binaryData);
 
                 var analyzeResult = operation.Value;
@@ -235,6 +243,8 @@ namespace RegularizadorPolizas.Infrastructure.External
                 };
             }
         }
+
+        #endregion
 
         #region Métodos de Conversión y Utilidades
 
@@ -387,30 +397,96 @@ namespace RegularizadorPolizas.Infrastructure.External
 
         #endregion
 
-        #region Métodos de Diagnóstico - SIMPLIFICADOS
+        #region Métodos de Diagnóstico - CORREGIDOS
 
         public async Task<string> GetModelInfoAsync()
         {
             try
             {
-                // SOLUCION 2: Usar método simplificado que funciona
                 _logger.LogInformation("Getting model information for model: {ModelId}", _modelId);
 
-                // Para Document Intelligence, simplemente retornamos información básica
-                var info = new
+                // Usar HttpClient directo con las URLs correctas
+                using var httpClient = new HttpClient();
+                httpClient.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", _apiKey);
+
+                // PROBAR MÚLTIPLES ENDPOINTS HASTA ENCONTRAR EL CORRECTO
+                var endpointsToTry = new[]
+                {
+                    // Document Intelligence v3.1 (más nuevo)
+                    $"{_endpoint.TrimEnd('/')}/documentintelligence/documentModels/{_modelId}?api-version=2023-07-31",
+                    
+                    // Document Intelligence v3.0  
+                    $"{_endpoint.TrimEnd('/')}/formrecognizer/documentModels/{_modelId}?api-version=2022-08-31",
+                    
+                    // Document Intelligence v2.1 (legacy)
+                    $"{_endpoint.TrimEnd('/')}/formrecognizer/v2.1/custom/models/{_modelId}",
+                    
+                    // Nuevo endpoint 2024
+                    $"{_endpoint.TrimEnd('/')}/documentintelligence/documentModels/{_modelId}?api-version=2024-02-29-preview"
+                };
+
+                foreach (var url in endpointsToTry)
+                {
+                    try
+                    {
+                        _logger.LogInformation("Trying endpoint: {Url}", url);
+                        var response = await httpClient.GetAsync(url);
+
+                        if (response.IsSuccessStatusCode)
+                        {
+                            var content = await response.Content.ReadAsStringAsync();
+                            _logger.LogInformation("✅ SUCCESS with endpoint: {Url}", url);
+
+                            var result = new
+                            {
+                                ModelId = _modelId,
+                                Endpoint = _endpoint,
+                                Status = "Model Found",
+                                WorkingApiUrl = url,
+                                HttpStatus = response.StatusCode,
+                                Timestamp = DateTime.UtcNow,
+                                ModelDetails = content.Substring(0, Math.Min(500, content.Length)) + "..."
+                            };
+
+                            return JsonConvert.SerializeObject(result, Formatting.Indented);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("❌ Failed with {Url}: {Status}", url, response.StatusCode);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning("❌ Exception with {Url}: {Message}", url, ex.Message);
+                    }
+                }
+
+                // Si ningún endpoint funciona
+                var failInfo = new
                 {
                     ModelId = _modelId,
                     Endpoint = _endpoint,
-                    Status = "Connected",
+                    Status = "Model Not Found",
+                    Message = "Tried multiple API versions, none worked",
                     Timestamp = DateTime.UtcNow
                 };
 
-                return JsonConvert.SerializeObject(info, Formatting.Indented);
+                return JsonConvert.SerializeObject(failInfo, Formatting.Indented);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting model info for {ModelId}", _modelId);
-                return $"Error: {ex.Message}";
+
+                var errorInfo = new
+                {
+                    ModelId = _modelId,
+                    Endpoint = _endpoint,
+                    Status = "Error",
+                    Error = ex.Message,
+                    Timestamp = DateTime.UtcNow
+                };
+
+                return JsonConvert.SerializeObject(errorInfo, Formatting.Indented);
             }
         }
 
@@ -418,53 +494,271 @@ namespace RegularizadorPolizas.Infrastructure.External
         {
             try
             {
-                _logger.LogInformation("Testing connection to Azure Document Intelligence");
-                _logger.LogInformation("Using endpoint: {Endpoint}", _endpoint);
-                _logger.LogInformation("Using model: {ModelId}", _modelId);
-                _logger.LogInformation("API Key length: {KeyLength}", _apiKey?.Length);
+                _logger.LogInformation("Testing Azure Document Intelligence connection");
 
-                // Usar el cliente ya configurado en lugar de crear uno nuevo
-                // Y hacer una llamada real a la API para probar la conexión
+                // MÉTODO 1: Probar listando todos los modelos disponibles
+                using var httpClient = new HttpClient();
+                httpClient.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", _apiKey);
 
-                // Probar con una operación simple que valide la autenticación
-                // Crear un documento de prueba mínimo
-                var testText = "Test document for connection validation";
-                var testBytes = System.Text.Encoding.UTF8.GetBytes(testText);
-                var binaryData = BinaryData.FromBytes(testBytes);
+                var listEndpoints = new[]
+                {
+                    $"{_endpoint.TrimEnd('/')}/documentintelligence/documentModels?api-version=2023-07-31",
+                    $"{_endpoint.TrimEnd('/')}/formrecognizer/documentModels?api-version=2022-08-31",
+                    $"{_endpoint.TrimEnd('/')}/documentintelligence/documentModels?api-version=2024-02-29-preview"
+                };
 
-                try
+                foreach (var listUrl in listEndpoints)
                 {
-                    // Intentar analizar un documento de prueba simple
-                    // Esto validará tanto la autenticación como la disponibilidad del modelo
-                    var operation = await _client.AnalyzeDocumentAsync(
-                        WaitUntil.Started, // Solo iniciar, no esperar a que termine
-                        _modelId,
-                        binaryData);
+                    try
+                    {
+                        _logger.LogInformation("Testing models list with: {Url}", listUrl);
+                        var response = await httpClient.GetAsync(listUrl);
 
-                    _logger.LogInformation("Azure Document Intelligence connection test successful");
-                    return true;
+                        if (response.IsSuccessStatusCode)
+                        {
+                            var content = await response.Content.ReadAsStringAsync();
+                            _logger.LogInformation("✅ Successfully connected! Found models list.");
+
+                            // Verificar si nuestro modelo está en la lista
+                            if (content.Contains(_modelId))
+                            {
+                                _logger.LogInformation("✅ Model '{ModelId}' found in models list!", _modelId);
+                                return true;
+                            }
+                            else
+                            {
+                                _logger.LogWarning("⚠️ Connected but model '{ModelId}' not found in list", _modelId);
+                                _logger.LogInformation("Available models: {Content}", content.Substring(0, Math.Min(1000, content.Length)));
+                                return false; // Conexión OK, pero modelo no existe
+                            }
+                        }
+                        else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                        {
+                            _logger.LogError("❌ Authentication failed: Invalid API key");
+                            return false;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning("Failed with {Url}: {Message}", listUrl, ex.Message);
+                    }
                 }
-                catch (Azure.RequestFailedException ex) when (ex.Status == 401)
-                {
-                    _logger.LogError("Authentication failed: Invalid API key or expired subscription");
-                    return false;
-                }
-                catch (Azure.RequestFailedException ex) when (ex.Status == 404)
-                {
-                    _logger.LogError("Model '{ModelId}' not found or endpoint incorrect", _modelId);
-                    return false;
-                }
-                catch (Azure.RequestFailedException ex)
-                {
-                    _logger.LogError(ex, "Azure service error during connection test: {ErrorCode}", ex.ErrorCode);
-                    return false;
-                }
+
+                // MÉTODO 2: Si falla el listado, probar con documento mínimo
+                _logger.LogInformation("Models list failed, trying with minimal document test...");
+                return await TestConnectionWithDocumentAsync();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Connection test failed for Azure Document Intelligence");
                 return false;
             }
+        }
+
+        public async Task<bool> TestConnectionWithDocumentAsync()
+        {
+            try
+            {
+                _logger.LogInformation("Testing connection with minimal document (fallback method)");
+
+                var minimalPdf = CreateMinimalPdf();
+                var binaryData = BinaryData.FromBytes(minimalPdf);
+
+                var operation = await _client.AnalyzeDocumentAsync(
+                    WaitUntil.Started,
+                    _modelId,
+                    binaryData);
+
+                if (operation != null && !string.IsNullOrEmpty(operation.Id))
+                {
+                    _logger.LogInformation("Connection successful - Operation started with ID: {OperationId}", operation.Id);
+                    return true;
+                }
+
+                return false;
+            }
+            catch (Azure.RequestFailedException ex) when (ex.Status == 401)
+            {
+                _logger.LogError("Authentication failed: {Message}", ex.Message);
+                return false;
+            }
+            catch (Azure.RequestFailedException ex) when (ex.Status == 404)
+            {
+                _logger.LogError("Model not found: {Message}", ex.Message);
+                return false;
+            }
+            catch (Azure.RequestFailedException ex) when (ex.Status == 400)
+            {
+                _logger.LogWarning("Document format issue but authentication works: {Message}", ex.Message);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during document connection test");
+                return false;
+            }
+        }
+
+        public async Task<string> DebugAllModelsAsync()
+        {
+            var results = new List<string>();
+
+            try
+            {
+                results.Add("=== AZURE DOCUMENT INTELLIGENCE COMPLETE DEBUG ===");
+                results.Add($"Timestamp: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
+                results.Add($"Configured Endpoint: {_endpoint}");
+                results.Add($"Configured Model ID: {_modelId}");
+                results.Add($"API Key Length: {_apiKey?.Length ?? 0}");
+                results.Add("");
+
+                using var httpClient = new HttpClient();
+                httpClient.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", _apiKey);
+
+                // PASO 1: Listar todos los modelos con diferentes APIs
+                var listEndpoints = new[]
+                {
+                    ($"{_endpoint.TrimEnd('/')}/documentintelligence/documentModels?api-version=2023-07-31", "Document Intelligence v3.1"),
+                    ($"{_endpoint.TrimEnd('/')}/formrecognizer/documentModels?api-version=2022-08-31", "Form Recognizer v3.0"),
+                    ($"{_endpoint.TrimEnd('/')}/documentintelligence/documentModels?api-version=2024-02-29-preview", "Document Intelligence Preview"),
+                    ($"{_endpoint.TrimEnd('/')}/formrecognizer/v2.1/custom/models", "Form Recognizer v2.1 (Legacy)")
+                };
+
+                foreach (var (url, name) in listEndpoints)
+                {
+                    results.Add($"--- Testing {name} ---");
+                    try
+                    {
+                        var response = await httpClient.GetAsync(url);
+                        if (response.IsSuccessStatusCode)
+                        {
+                            var content = await response.Content.ReadAsStringAsync();
+                            results.Add($"✅ SUCCESS with {name}");
+
+                            // Parsear y mostrar modelos disponibles
+                            try
+                            {
+                                var jsonResponse = JsonConvert.DeserializeObject<dynamic>(content);
+
+                                // Diferentes estructuras según la API
+                                var models = jsonResponse?.value ?? jsonResponse?.modelList;
+
+                                if (models != null)
+                                {
+                                    results.Add("Available models:");
+                                    foreach (var model in models)
+                                    {
+                                        var modelIdFound = model?.modelId?.ToString() ?? model?.modelInfo?.modelId?.ToString();
+                                        var description = model?.description?.ToString() ?? model?.modelInfo?.description?.ToString() ?? "No description";
+                                        var status = model?.status?.ToString() ?? model?.modelInfo?.status?.ToString() ?? "Unknown";
+
+                                        results.Add($"  - {modelIdFound} | Status: {status} | Desc: {description}");
+
+                                        // Marcar si es nuestro modelo
+                                        if (modelIdFound == _modelId)
+                                        {
+                                            results.Add($"    ⭐ THIS IS YOUR MODEL! Use API: {name}");
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    results.Add($"No 'value' or 'modelList' property found. Raw structure:");
+                                    results.Add($"{content.Substring(0, Math.Min(500, content.Length))}...");
+                                }
+                            }
+                            catch (Exception parseEx)
+                            {
+                                results.Add($"Parse error: {parseEx.Message}");
+                                results.Add($"Raw response: {content.Substring(0, Math.Min(500, content.Length))}...");
+                            }
+                        }
+                        else
+                        {
+                            results.Add($"❌ {name}: {response.StatusCode} - {response.ReasonPhrase}");
+                            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                            {
+                                results.Add("   → Check your API key");
+                            }
+                            else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                            {
+                                results.Add("   → This API version/endpoint is not available");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        results.Add($"❌ {name}: ERROR - {ex.Message}");
+                    }
+                    results.Add("");
+                }
+
+                // PASO 2: Probar acceso directo al modelo específico
+                results.Add("--- TESTING DIRECT MODEL ACCESS ---");
+                var modelEndpoints = new[]
+                {
+                    ($"{_endpoint.TrimEnd('/')}/documentintelligence/documentModels/{_modelId}?api-version=2023-07-31", "Document Intelligence v3.1"),
+                    ($"{_endpoint.TrimEnd('/')}/formrecognizer/documentModels/{_modelId}?api-version=2022-08-31", "Form Recognizer v3.0"),
+                    ($"{_endpoint.TrimEnd('/')}/documentintelligence/documentModels/{_modelId}?api-version=2024-02-29-preview", "Document Intelligence Preview"),
+                    ($"{_endpoint.TrimEnd('/')}/formrecognizer/v2.1/custom/models/{_modelId}", "Form Recognizer v2.1 (Legacy)")
+                };
+
+                foreach (var (url, name) in modelEndpoints)
+                {
+                    try
+                    {
+                        var response = await httpClient.GetAsync(url);
+                        if (response.IsSuccessStatusCode)
+                        {
+                            results.Add($"✅ DIRECT ACCESS SUCCESS: {name}");
+                            results.Add($"   URL: {url}");
+
+                            var content = await response.Content.ReadAsStringAsync();
+                            results.Add($"   Response preview: {content.Substring(0, Math.Min(200, content.Length))}...");
+                        }
+                        else
+                        {
+                            results.Add($"❌ DIRECT ACCESS FAILED: {name} - {response.StatusCode}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        results.Add($"❌ DIRECT ACCESS ERROR: {name} - {ex.Message}");
+                    }
+                }
+
+                return string.Join("\n", results);
+            }
+            catch (Exception ex)
+            {
+                results.Add($"CRITICAL ERROR: {ex.Message}");
+                return string.Join("\n", results);
+            }
+        }
+
+        // Método auxiliar para crear un PDF mínimo válido
+        private byte[] CreateMinimalPdf()
+        {
+            var pdfContent = "%PDF-1.4\n" +
+                            "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n" +
+                            "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n" +
+                            "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj\n" +
+                            "4 0 obj << /Length 44 >> stream\n" +
+                            "BT /F1 12 Tf 100 700 Td (Test Document) Tj ET\n" +
+                            "endstream endobj\n" +
+                            "xref\n" +
+                            "0 5\n" +
+                            "0000000000 65535 f \n" +
+                            "0000000009 00000 n \n" +
+                            "0000000058 00000 n \n" +
+                            "0000000115 00000 n \n" +
+                            "0000000205 00000 n \n" +
+                            "trailer << /Size 5 /Root 1 0 R >>\n" +
+                            "startxref\n" +
+                            "284\n" +
+                            "%%EOF";
+
+            return System.Text.Encoding.ASCII.GetBytes(pdfContent);
         }
 
         #endregion
