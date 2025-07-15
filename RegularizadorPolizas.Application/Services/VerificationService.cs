@@ -1,6 +1,5 @@
 ﻿using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using RegularizadorPolizas.Application.DTOs.Frontend;
 using RegularizadorPolizas.Application.DTOs.Verification;
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Domain.Entities;
@@ -107,60 +106,6 @@ namespace RegularizadorPolizas.Application.Services
             {
                 _logger.LogError(ex, "Error getting verification status for poliza {PolizaId}", polizaId);
                 throw;
-            }
-        }
-
-        public async Task<VelneoSendResultDto> ApplyCorrectionsAsync(PolizaCorrectionDto corrections)
-        {
-            try
-            {
-                _logger.LogInformation("Applying corrections for poliza {PolizaId} by user {UserId}",
-                    corrections.PolizaId, corrections.UserId);
-
-                // Obtener la póliza original (implementar según tu lógica)
-                // var polizaOriginal = await _polizaService.GetPolizaByNumberAsync(corrections.PolizaId);
-
-                // Por ahora, simulamos la aplicación de correcciones
-                var result = new VelneoSendResultDto
-                {
-                    Success = true,
-                    Message = "Correcciones aplicadas exitosamente",
-                    ProcessedAt = DateTime.Now
-                };
-
-                if (corrections.ReenviarAVelneo)
-                {
-                    try
-                    {
-                        // Aquí aplicarías las correcciones y reenviarías a Velneo
-                        // var polizaCorregida = ApplyCorrectionsToPoliza(polizaOriginal, corrections);
-                        // var velneoResult = await _velneoApiService.UpdatePolizaAsync(polizaCorregida);
-
-                        result.Message += " y reenviada a Velneo";
-                        _logger.LogInformation("Poliza {PolizaId} corrections applied and resent to Velneo", corrections.PolizaId);
-                    }
-                    catch (Exception velneoEx)
-                    {
-                        _logger.LogError(velneoEx, "Error resending corrected poliza {PolizaId} to Velneo", corrections.PolizaId);
-                        result.Success = false;
-                        result.ErrorMessage = $"Error reenviando a Velneo: {velneoEx.Message}";
-                    }
-                }
-
-                // Actualizar estado de verificación
-                await MarkAsVerifiedAsync(corrections.PolizaId, corrections.UserId,
-                    $"Correcciones aplicadas: {corrections.MotivoCorreccion}");
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error applying corrections for poliza {PolizaId}", corrections.PolizaId);
-                return new VelneoSendResultDto
-                {
-                    Success = false,
-                    ErrorMessage = $"Error aplicando correcciones: {ex.Message}"
-                };
             }
         }
 

@@ -43,7 +43,9 @@ builder.Services.AddScoped<ITenantService, TenantService>();
 builder.Services.AddScoped<IUserRoleService, UserRoleService>();
 
 builder.Services.AddScoped<IVelneoApiService, TenantAwareVelneoApiService>();
-
+builder.Services.AddScoped<IDocumentExtractionService, DocumentExtractionService>();
+builder.Services.AddScoped<IClienteMatchingService, ClienteMatchingService>();
+builder.Services.AddScoped<VelneoDocumentResultParser>();
 
 builder.Services.AddHttpClient();
 #endregion

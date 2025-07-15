@@ -2,6 +2,7 @@
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Application.Services;
 using RegularizadorPolizas.Infrastructure.Services;
+
 using System.Reflection;
 
 namespace RegularizadorPolizas.Application
@@ -23,12 +24,14 @@ namespace RegularizadorPolizas.Application
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IRoleService, RoleService>();
             services.AddScoped<IPermissionService, PermissionService>();
-
             services.AddScoped<ITenantService, TenantService>();
             services.AddScoped<IHybridApiService, TenantAwareHybridService>();
-
             services.AddScoped<IFileStorageService, AzureBlobStorageService>();
             services.AddScoped<IVerificationService, VerificationService>();
+
+            services.AddScoped<IDocumentExtractionService, DocumentExtractionService>();
+            services.AddScoped<IClienteMatchingService, ClienteMatchingService>();
+            services.AddScoped<VelneoDocumentResultParser>();
 
             services.AddAutoMapper(Assembly.GetExecutingAssembly());
 

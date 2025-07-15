@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RegularizadorPolizas.Application.DTOs;
-using RegularizadorPolizas.Application.Services;
+using RegularizadorPolizas.Application.Interfaces;
 using System.ComponentModel.DataAnnotations;
 using static ClienteMatchResult;
 
@@ -131,13 +131,13 @@ namespace RegularizadorPolizas.API.Controllers
         }
 
         /// <summary>
-        /// FLUJO COMPLETO: Procesar documento completo (para casos automáticos)
+        /// FLUJO SIMPLIFICADO: Solo extracción y búsqueda
         /// </summary>
-        [HttpPost("process-complete")]
-        [ProducesResponseType(typeof(ProcessCompleteResponse), 200)]
+        [HttpPost("process-basic")]
+        [ProducesResponseType(typeof(ProcessBasicResponse), 200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(500)]
-        public async Task<ActionResult<ProcessCompleteResponse>> ProcessComplete([Required] IFormFile file)
+        public async Task<ActionResult<ProcessBasicResponse>> ProcessBasic([Required] IFormFile file)
         {
             try
             {
@@ -146,16 +146,15 @@ namespace RegularizadorPolizas.API.Controllers
                     return BadRequest(new { error = "No se ha proporcionado un archivo válido" });
                 }
 
-                _logger.LogInformation("🔄 FLUJO COMPLETO: Procesando {FileName}", file.FileName);
+                _logger.LogInformation("🔄 FLUJO BÁSICO: Procesando {FileName}", file.FileName);
 
-                var response = new ProcessCompleteResponse
+                var response = new ProcessBasicResponse
                 {
                     NombreArchivo = file.FileName,
                     FechaInicio = DateTime.Now
                 };
 
                 // PASO 1: Extraer datos
-                _logger.LogInformation("📄 Extrayendo datos del documento...");
                 var extractResult = await _documentService.ProcessDocumentAsync(file);
                 response.ExtraccionCompletada = true;
                 response.DatosExtraidos = extractResult;
@@ -168,86 +167,55 @@ namespace RegularizadorPolizas.API.Controllers
                 }
 
                 // PASO 2: Buscar cliente automáticamente
-                _logger.LogInformation("🔍 Buscando cliente automáticamente...");
                 var clienteMatch = await _clienteMatchingService.BuscarClienteAsync(extractResult.DatosClienteBusqueda);
                 response.BusquedaCompletada = true;
                 response.ResultadoBusqueda = clienteMatch;
 
-                // PASO 3: Decidir siguiente acción basado en resultado
+                // Determinar siguiente paso
                 switch (clienteMatch.TipoResultado)
                 {
                     case TipoResultadoCliente.MatchExacto:
-                        // Crear automáticamente si hay match exacto
-                        _logger.LogInformation("✅ Match exacto encontrado, creando póliza automáticamente...");
-                        var polizaRequest = new CrearPolizaConClienteRequest
-                        {
-                            ClienteId = clienteMatch.Matches[0].Cliente.Id,
-                            DatosPoliza = extractResult.DatosPoliza,
-                            ArchivoOriginal = file.FileName,
-                            ConfirmadoPorUsuario = false,
-                            ObservacionesUsuario = "Creación automática por match exacto"
-                        };
-
-                        var polizaResult = await _documentService.CrearPolizaConClienteAsync(polizaRequest);
-                        response.PolizaCreada = polizaResult.Success;
-                        response.ResultadoPoliza = polizaResult;
-
-                        if (polizaResult.Success)
-                        {
-                            response.Success = true;
-                            response.Message = $"Póliza creada automáticamente para {clienteMatch.Matches[0].Cliente.Clinom}";
-                            response.RequiereIntervencion = false;
-                        }
-                        else
-                        {
-                            response.Success = false;
-                            response.Message = $"Error creando póliza: {polizaResult.Message}";
-                            response.RequiereIntervencion = true;
-                        }
+                        response.Success = true;
+                        response.Message = $"Cliente encontrado automáticamente: {clienteMatch.Matches[0].Cliente.Clinom}";
+                        response.RequiereIntervencion = false;
+                        response.SiguientePaso = "crear_poliza_automatico";
                         break;
 
                     case TipoResultadoCliente.MatchMuyProbable:
                         response.Success = true;
-                        response.Message = $"Cliente muy probable encontrado: {clienteMatch.Matches[0].Cliente.Clinom}. Requiere confirmación.";
+                        response.Message = $"Cliente probable: {clienteMatch.Matches[0].Cliente.Clinom}. Requiere confirmación.";
                         response.RequiereIntervencion = true;
                         response.SiguientePaso = "confirmar_cliente";
                         break;
 
                     case TipoResultadoCliente.MultiplesMatches:
                         response.Success = true;
-                        response.Message = $"Se encontraron {clienteMatch.Matches.Count} clientes similares. Seleccione el correcto.";
+                        response.Message = $"Se encontraron {clienteMatch.Matches.Count} clientes similares.";
                         response.RequiereIntervencion = true;
                         response.SiguientePaso = "seleccionar_cliente";
                         break;
 
-                    case TipoResultadoCliente.SinCoincidencias:
-                        response.Success = true;
-                        response.Message = "No se encontraron clientes coincidentes. Considere crear un cliente nuevo.";
-                        response.RequiereIntervencion = true;
-                        response.SiguientePaso = "crear_cliente";
-                        break;
-
                     default:
                         response.Success = true;
-                        response.Message = "Se encontraron coincidencias parciales. Revise cuidadosamente.";
+                        response.Message = "No se encontraron coincidencias automáticas.";
                         response.RequiereIntervencion = true;
-                        response.SiguientePaso = "revisar_coincidencias";
+                        response.SiguientePaso = "busqueda_manual";
                         break;
                 }
 
                 response.FechaFin = DateTime.Now;
                 response.TiempoTotal = (response.FechaFin - response.FechaInicio).TotalMilliseconds;
 
-                _logger.LogInformation("✅ FLUJO COMPLETO FINALIZADO: {FileName} - {Message}",
+                _logger.LogInformation("✅ FLUJO BÁSICO COMPLETADO: {FileName} - {Message}",
                     file.FileName, response.Message);
 
                 return Ok(response);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Error en flujo completo");
+                _logger.LogError(ex, "❌ Error en flujo básico");
 
-                return Ok(new ProcessCompleteResponse
+                return Ok(new ProcessBasicResponse
                 {
                     NombreArchivo = file.FileName,
                     Success = false,
@@ -260,64 +228,7 @@ namespace RegularizadorPolizas.API.Controllers
         }
 
         /// <summary>
-        /// Obtener información de un cliente específico para confirmación
-        /// </summary>
-        [HttpGet("client/{clienteId}")]
-        [ProducesResponseType(typeof(ClientDto), 200)]
-        [ProducesResponseType(404)]
-        [ProducesResponseType(500)]
-        public async Task<ActionResult<ClientDto>> GetClientInfo(int clienteId)
-        {
-            try
-            {
-                // Esto debería usar tu servicio de clientes existente
-                // Para este ejemplo, asumo que tienes acceso al servicio de Velneo
-                _logger.LogInformation("🔍 Obteniendo información del cliente {ClienteId}", clienteId);
-
-                // Aquí necesitarías inyectar ITenantAwareVelneoApiService
-                // var cliente = await _velneoService.GetClienteAsync(clienteId);
-
-                // Por ahora retorno un placeholder
-                return StatusCode(501, new { message = "Implementar obtención de cliente" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "❌ Error obteniendo cliente {ClienteId}", clienteId);
-                return StatusCode(500, new { error = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Buscar clientes manualmente (para casos donde la búsqueda automática falla)
-        /// </summary>
-        [HttpGet("search-clients-manual")]
-        [ProducesResponseType(typeof(IEnumerable<ClientDto>), 200)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(500)]
-        public async Task<ActionResult> SearchClientsManual([FromQuery] string searchTerm)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(searchTerm))
-                {
-                    return BadRequest(new { error = "Término de búsqueda requerido" });
-                }
-
-                _logger.LogInformation("🔍 Búsqueda manual de clientes: '{SearchTerm}'", searchTerm);
-
-                // Esto debería usar tu controlador de clientes existente
-                // Por ahora retorno un placeholder
-                return StatusCode(501, new { message = "Implementar búsqueda manual" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "❌ Error en búsqueda manual");
-                return StatusCode(500, new { error = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Endpoint para debug - ver datos extraídos en detalle
+        /// Debug - ver datos extraídos en detalle
         /// </summary>
         [HttpPost("debug-extraction")]
         [ProducesResponseType(typeof(object), 200)]
@@ -364,9 +275,9 @@ namespace RegularizadorPolizas.API.Controllers
         }
     }
 
-    // ===== MODELOS DE RESPONSE =====
+    // ===== MODELO DE RESPONSE SIMPLIFICADO =====
 
-    public class ProcessCompleteResponse
+    public class ProcessBasicResponse
     {
         public string NombreArchivo { get; set; } = string.Empty;
         public bool Success { get; set; }
@@ -374,31 +285,18 @@ namespace RegularizadorPolizas.API.Controllers
         public bool RequiereIntervencion { get; set; }
         public string SiguientePaso { get; set; } = string.Empty;
 
-        // Pasos del proceso
         public bool ExtraccionCompletada { get; set; }
         public bool BusquedaCompletada { get; set; }
-        public bool PolizaCreada { get; set; }
 
-        // Resultados de cada paso
         public DocumentExtractResult? DatosExtraidos { get; set; }
         public ClienteMatchResult? ResultadoBusqueda { get; set; }
-        public CrearPolizaResponse? ResultadoPoliza { get; set; }
 
-        // Metadatos
         public DateTime FechaInicio { get; set; }
         public DateTime FechaFin { get; set; }
-        public double TiempoTotal { get; set; } // en millisegundos
-
-        // Información para el usuario
-        public List<string> PasosCompletados => new()
-        {
-            ExtraccionCompletada ? "✅ Extracción de datos" : "⏳ Extracción de datos",
-            BusquedaCompletada ? "✅ Búsqueda de cliente" : "⏳ Búsqueda de cliente",
-            PolizaCreada ? "✅ Creación de póliza" : "⏳ Creación de póliza"
-        };
+        public double TiempoTotal { get; set; }
 
         public string EstadoGeneral => Success
-            ? (RequiereIntervencion ? "🟡 Requiere intervención manual" : "🟢 Completado automáticamente")
+            ? (RequiereIntervencion ? "🟡 Requiere intervención manual" : "🟢 Listo para automatizar")
             : "🔴 Error en procesamiento";
     }
 }

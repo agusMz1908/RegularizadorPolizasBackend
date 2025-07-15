@@ -1,5 +1,4 @@
-﻿using RegularizadorPolizas.Application.DTOs.Frontend;
-using RegularizadorPolizas.Application.DTOs.Verification;
+﻿using RegularizadorPolizas.Application.DTOs.Verification;
 
 namespace RegularizadorPolizas.Application.Interfaces
 {
@@ -7,7 +6,6 @@ namespace RegularizadorPolizas.Application.Interfaces
     {
         Task SaveVerificationStatusAsync(VerificationStatusDto status);
         Task<VerificationStatusDto> GetVerificationStatusAsync(string polizaId);
-        Task<VelneoSendResultDto> ApplyCorrectionsAsync(PolizaCorrectionDto corrections);
         Task<List<VerificationStatusDto>> GetPendingVerificationsAsync();
         Task<List<VerificationStatusDto>> GetUserVerificationsAsync(int userId);
         Task<int> GetPendingCountAsync();
