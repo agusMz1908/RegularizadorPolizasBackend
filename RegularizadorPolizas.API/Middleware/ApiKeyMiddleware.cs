@@ -23,6 +23,7 @@ namespace RegularizadorPolizas.API.Middleware
             var excludedPaths = new[]
             {
                 "/api/auth",
+                "/api/azuredocument",
                 "/swagger",
                 "/api/apikeys",
                 "/api/users",
@@ -39,10 +40,7 @@ namespace RegularizadorPolizas.API.Middleware
                 "/debug-config",
                 "/debug-jwt",
                 "/test-auth",
-                "/health",
-
-                "/api/azure-document",         
-                "/api/azuredocument"          
+                "/health",        
             };
 
             Console.WriteLine($"🔍 ApiKeyMiddleware - Path: {path}");
