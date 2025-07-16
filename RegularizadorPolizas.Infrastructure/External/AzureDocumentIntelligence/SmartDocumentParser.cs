@@ -79,7 +79,7 @@ namespace RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence
                 Nombre = datos.Asegurado,
                 Documento = datos.Documento,
                 Email = datos.Email,
-                Telefono = "", // No extraído de este PDF
+                Telefono = "", 
                 Direccion = datos.Direccion,
                 Localidad = datos.Localidad,
                 Departamento = datos.Departamento,
