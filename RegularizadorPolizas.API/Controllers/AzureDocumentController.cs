@@ -6,6 +6,7 @@ using Newtonsoft.Json;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Application.Services;
+using RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence;
 using System.ComponentModel.DataAnnotations;
 using static ClienteMatchResult;
 
@@ -24,6 +25,7 @@ namespace RegularizadorPolizas.API.Controllers
         private readonly ILogger<AzureDocumentController> _logger;
         private readonly IDocumentExtractionService _documentExtractionService;
         private readonly IClienteMatchingService _clienteMatchingService;
+        private readonly SmartDocumentParser _smartParser;
 
         public AzureDocumentController(
             IAzureDocumentIntelligenceService azureDocumentService,
@@ -33,7 +35,8 @@ namespace RegularizadorPolizas.API.Controllers
             IWebHostEnvironment hostEnvironment, 
             ILogger<AzureDocumentController> logger,
             IDocumentExtractionService documentExtractionService,
-            IClienteMatchingService clienteMatchingService)
+            IClienteMatchingService clienteMatchingService,
+            SmartDocumentParser smartParser)
         {
             _azureDocumentService = azureDocumentService;
             _processDocumentService = processDocumentService;
@@ -43,6 +46,7 @@ namespace RegularizadorPolizas.API.Controllers
             _logger = logger;
             _documentExtractionService = documentExtractionService;
             _clienteMatchingService = clienteMatchingService;
+            _smartParser = smartParser;
         }
 
         [HttpPost("process")]
@@ -737,9 +741,6 @@ namespace RegularizadorPolizas.API.Controllers
             }
         }
 
-        /// <summary>
-        /// NUEVO: Flujo completo - Extraction + Client Search (CORREGIDO)
-        /// </summary>
         [HttpPost("process-complete-v2")]
         [ProducesResponseType(typeof(object), 200)]
         [ProducesResponseType(400)]
@@ -889,60 +890,12 @@ namespace RegularizadorPolizas.API.Controllers
             }
         }
 
-        /// <summary>
-        /// NUEVO: Endpoint para crear póliza con cliente seleccionado
-        /// </summary>
-        [HttpPost("create-poliza-with-client")]
-        [ProducesResponseType(typeof(object), 200)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(500)]
-        public async Task<ActionResult> CreatePolizaWithClient([FromBody] CrearPolizaConClienteRequest request)
+        [HttpPost("improved-parser-with-client-search")]
+        [AllowAnonymous]
+        public async Task<ActionResult> ImprovedParserWithClientSearch([Required] IFormFile file)
         {
-            try
-            {
-                if (request == null || request.ClienteId <= 0 || request.DatosPoliza == null)
-                {
-                    return BadRequest(new { error = "Datos de solicitud inválidos" });
-                }
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
-                _logger.LogInformation("🔄 CREANDO PÓLIZA: {NumeroPoliza} para cliente {ClienteId}",
-                    request.DatosPoliza.NumeroPoliza, request.ClienteId);
-
-                var result = await _documentExtractionService.CrearPolizaConClienteAsync(request);
-
-                return Ok(new
-                {
-                    timestamp = DateTime.Now,
-                    request = new
-                    {
-                        clienteId = request.ClienteId,
-                        numeroPoliza = request.DatosPoliza.NumeroPoliza,
-                        archivoOriginal = request.ArchivoOriginal,
-                        confirmadoPorUsuario = request.ConfirmadoPorUsuario
-                    },
-                    resultado = result,
-                    status = result.Success ? "✅ ÉXITO" : "❌ ERROR",
-                    message = result.Message
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "❌ Error creando póliza con cliente");
-                return StatusCode(500, new { error = ex.Message });
-            }
-        }
-
-        // *** ENDPOINT PARA TESTEAR INMEDIATAMENTE ***
-
-        /// <summary>
-        /// COMPARACIÓN: Antiguo vs Nuevo sistema
-        /// </summary>
-        [HttpPost("compare-old-vs-new")]
-        [ProducesResponseType(typeof(object), 200)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(500)]
-        public async Task<ActionResult> CompareOldVsNew([Required] IFormFile file)
-        {
             try
             {
                 if (file == null || file.Length == 0)
@@ -950,107 +903,451 @@ namespace RegularizadorPolizas.API.Controllers
                     return BadRequest(new { error = "No se ha proporcionado un archivo válido" });
                 }
 
-                _logger.LogInformation("⚔️ COMPARACIÓN: Sistema antiguo vs nuevo para {FileName}", file.FileName);
+                _logger.LogInformation("🔄 IMPROVED PARSER + BÚSQUEDA: Procesando {FileName}", file.FileName);
 
-                var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+                var endpoint = _configuration["AzureDocumentIntelligence:Endpoint"];
+                var apiKey = _configuration["AzureDocumentIntelligence:ApiKey"];
+                var modelId = _configuration["AzureDocumentIntelligence:ModelId"];
 
-                // Test sistema ANTIGUO
-                object resultadoAntiguo;
-                long tiempoAntiguo;
-                try
+                var client = new DocumentIntelligenceClient(
+                    new Uri(endpoint),
+                    new AzureKeyCredential(apiKey));
+
+                using var stream = file.OpenReadStream();
+                var binaryData = BinaryData.FromStream(stream);
+
+                // PASO 1: Extraer datos del documento
+                _logger.LogInformation("📄 PASO 1: Extrayendo datos del PDF...");
+                var operation = await client.AnalyzeDocumentAsync(
+                    WaitUntil.Completed,
+                    modelId,
+                    binaryData);
+
+                var analyzeResult = operation.Value;
+
+                // Extraer y limpiar campos
+                var cleanedData = new Dictionary<string, string>();
+                var datosExtraidos = new
                 {
-                    var sw1 = System.Diagnostics.Stopwatch.StartNew();
-                    var oldResult = await _azureDocumentService.ProcessDocumentAsync(file);
-                    sw1.Stop();
-                    tiempoAntiguo = sw1.ElapsedMilliseconds;
+                    numeroPoliza = "",
+                    asegurado = "",
+                    documento = "",
+                    vehiculo = "",
+                    marca = "",
+                    modelo = "",
+                    matricula = "",
+                    motor = "",
+                    chasis = "",
+                    primaComercial = 0m,
+                    premioTotal = 0m,
+                    vigenciaDesde = (DateTime?)null,
+                    vigenciaHasta = (DateTime?)null,
+                    corredor = "",
+                    plan = "",
+                    ramo = "AUTOMOVILES"
+                };
 
-                    resultadoAntiguo = new
-                    {
-                        success = true,
-                        estado = oldResult.EstadoProcesamiento,
-                        confianza = oldResult.ConfianzaExtraccion,
-                        camposExtraidos = oldResult.CamposExtraidos?.Count ?? 0,
-                        polizaCompleta = oldResult.PolizaProcesada != null,
-                        tiempoProcesamiento = tiempoAntiguo
-                    };
-                }
-                catch (Exception ex)
+                if (analyzeResult.Documents?.Count > 0)
                 {
-                    tiempoAntiguo = 0;
-                    resultadoAntiguo = new
-                    {
-                        success = false,
-                        error = ex.Message,
-                        tiempoProcesamiento = tiempoAntiguo
-                    };
-                }
+                    var document = analyzeResult.Documents[0];
 
-                // Test sistema NUEVO
-                object resultadoNuevo;
-                long tiempoNuevo;
-                try
-                {
-                    var sw2 = System.Diagnostics.Stopwatch.StartNew();
-                    var newResult = await _documentExtractionService.ProcessDocumentAsync(file);
-                    sw2.Stop();
-                    tiempoNuevo = sw2.ElapsedMilliseconds;
-
-                    resultadoNuevo = new
+                    foreach (var field in document.Fields)
                     {
-                        success = true,
-                        estado = newResult.EstadoProcesamiento,
-                        confianza = newResult.ConfianzaExtraccion,
-                        datosExtraidos = new
+                        var fieldName = field.Key;
+                        var fieldValue = field.Value;
+
+                        // Obtener valor limpio
+                        string rawValue = fieldValue.ValueString ?? fieldValue.Content ?? "";
+                        string cleanValue = LimpiarTexto(rawValue);
+                        cleanedData[fieldName] = cleanValue;
+
+                        // Mapear campos críticos para búsqueda de cliente
+                        switch (fieldName.ToLowerInvariant())
                         {
-                            numeroPoliza = newResult.DatosPoliza.NumeroPoliza,
-                            cliente = newResult.DatosClienteBusqueda.Nombre,
-                            vehiculo = newResult.DatosPoliza.DescripcionVehiculo,
-                            prima = newResult.DatosPoliza.PrimaComercial,
-                            vigencia = newResult.DatosPoliza.VigenciaDesde
-                        },
-                        advertencias = newResult.Advertencias.Count,
-                        tiempoProcesamiento = tiempoNuevo
+                            case "numero_poliza":
+                            case "numeroPoliza":
+                            case "poliza":
+                                datosExtraidos = datosExtraidos with { numeroPoliza = cleanValue };
+                                break;
+                            case "asegurado":
+                            case "nombre_asegurado":
+                            case "cliente":
+                                datosExtraidos = datosExtraidos with { asegurado = cleanValue };
+                                break;
+                            case "documento":
+                            case "cedula":
+                            case "ruc":
+                                datosExtraidos = datosExtraidos with { documento = cleanValue };
+                                break;
+                            case "vehiculo":
+                            case "descripcion_vehiculo":
+                                datosExtraidos = datosExtraidos with { vehiculo = cleanValue };
+                                break;
+                            case "marca":
+                                datosExtraidos = datosExtraidos with { marca = cleanValue };
+                                break;
+                            case "modelo":
+                                datosExtraidos = datosExtraidos with { modelo = cleanValue };
+                                break;
+                            case "matricula":
+                            case "padron":
+                                datosExtraidos = datosExtraidos with { matricula = cleanValue };
+                                break;
+                            case "motor":
+                                datosExtraidos = datosExtraidos with { motor = cleanValue };
+                                break;
+                            case "chasis":
+                                datosExtraidos = datosExtraidos with { chasis = cleanValue };
+                                break;
+                            case "prima_comercial":
+                            case "prima":
+                                if (decimal.TryParse(LimpiarNumero(cleanValue), out var prima))
+                                    datosExtraidos = datosExtraidos with { primaComercial = prima };
+                                break;
+                            case "premio_total":
+                            case "total":
+                                if (decimal.TryParse(LimpiarNumero(cleanValue), out var total))
+                                    datosExtraidos = datosExtraidos with { premioTotal = total };
+                                break;
+                            case "vigencia_desde":
+                            case "fecha_desde":
+                                if (DateTime.TryParse(cleanValue, out var fechaDesde))
+                                    datosExtraidos = datosExtraidos with { vigenciaDesde = fechaDesde };
+                                break;
+                            case "vigencia_hasta":
+                            case "fecha_hasta":
+                                if (DateTime.TryParse(cleanValue, out var fechaHasta))
+                                    datosExtraidos = datosExtraidos with { vigenciaHasta = fechaHasta };
+                                break;
+                            case "corredor":
+                                datosExtraidos = datosExtraidos with { corredor = cleanValue };
+                                break;
+                            case "plan":
+                                datosExtraidos = datosExtraidos with { plan = cleanValue };
+                                break;
+                        }
+                    }
+                }
+
+                _logger.LogInformation("✅ PASO 1 COMPLETADO: {CamposCount} campos extraídos", cleanedData.Count);
+
+                // PASO 2: Buscar cliente automáticamente
+                _logger.LogInformation("🔍 PASO 2: Buscando cliente automáticamente...");
+
+                ClienteMatchResult? resultadoBusqueda = null;
+
+                try
+                {
+                    // Inyectar el servicio de búsqueda - necesitarás agregarlo al constructor
+                    var clienteMatchingService = HttpContext.RequestServices.GetRequiredService<IClienteMatchingService>();
+
+                    var datosParaBusqueda = new DatosClienteExtraidos
+                    {
+                        Nombre = datosExtraidos.asegurado,
+                        Documento = datosExtraidos.documento,
+                        Email = "", // No extraído por ahora
+                        Telefono = "", // No extraído por ahora
+                        Direccion = "", // No extraído por ahora
+                        ConfidenceScore = (float)(double)(analyzeResult.Documents?.FirstOrDefault()?.Confidence ?? 0.99)
                     };
+
+                    resultadoBusqueda = await clienteMatchingService.BuscarClienteAsync(datosParaBusqueda);
+                    _logger.LogInformation("✅ PASO 2 COMPLETADO: {TipoResultado} - {MatchCount} clientes encontrados",
+                        resultadoBusqueda.TipoResultado, resultadoBusqueda.Matches.Count);
                 }
                 catch (Exception ex)
                 {
-                    tiempoNuevo = 0;
-                    resultadoNuevo = new
+                    _logger.LogError(ex, "❌ Error en búsqueda de cliente");
+                    resultadoBusqueda = new ClienteMatchResult
                     {
-                        success = false,
-                        error = ex.Message,
-                        tiempoProcesamiento = tiempoNuevo
+                        TipoResultado = TipoResultadoCliente.SinCoincidencias,
+                        MensajeUsuario = $"Error en búsqueda: {ex.Message}",
+                        RequiereIntervencionManual = true,
+                        Matches = new List<ClienteMatch>()
                     };
                 }
 
                 stopwatch.Stop();
 
-                return Ok(new
+                // RESPUESTA COMPLETA
+                var response = new
                 {
+                    // Información del procesamiento
                     archivo = file.FileName,
-                    timestamp = DateTime.Now,
-                    tiempoTotalComparacion = stopwatch.ElapsedMilliseconds,
+                    timestamp = DateTime.UtcNow,
+                    tiempoProcesamiento = stopwatch.ElapsedMilliseconds,
+                    estado = "PROCESADO_CON_BUSQUEDA",
 
-                    sistemaAntiguo = resultadoAntiguo,
-                    sistemaNuevo = resultadoNuevo,
-
-                    comparacion = new
+                    // Datos extraídos del documento
+                    extraccion = new
                     {
-                        mejorExtraccion = ((dynamic)resultadoNuevo).success && !string.IsNullOrEmpty(((dynamic)resultadoNuevo).datosExtraidos?.numeroPoliza),
-                        masFuncionalidad = true, // Nuevo tiene búsqueda de clientes
-                        mayorPrecision = ((dynamic)resultadoNuevo).success && ((dynamic)resultadoNuevo).advertencias < 5,
-                        rendimiento = tiempoNuevo <= tiempoAntiguo ? "Nuevo es más rápido o igual" : "Antiguo es más rápido"
+                        camposExtraidos = cleanedData,
+                        camposLimpios = cleanedData.Count,
+                        confianzaExtraccion = analyzeResult.Documents?.FirstOrDefault()?.Confidence ?? 0,
+
+                        // Datos estructurados de la póliza
+                        datosPoliza = new
+                        {
+                            numeroPoliza = datosExtraidos.numeroPoliza,
+                            asegurado = datosExtraidos.asegurado,
+                            documento = datosExtraidos.documento,
+                            vehiculo = datosExtraidos.vehiculo,
+                            marca = datosExtraidos.marca,
+                            modelo = datosExtraidos.modelo,
+                            matricula = datosExtraidos.matricula,
+                            motor = datosExtraidos.motor,
+                            chasis = datosExtraidos.chasis,
+                            primaComercial = datosExtraidos.primaComercial,
+                            premioTotal = datosExtraidos.premioTotal,
+                            vigenciaDesde = datosExtraidos.vigenciaDesde,
+                            vigenciaHasta = datosExtraidos.vigenciaHasta,
+                            corredor = datosExtraidos.corredor,
+                            plan = datosExtraidos.plan,
+                            ramo = datosExtraidos.ramo
+                        }
                     },
 
-                    recomendacion = ((dynamic)resultadoNuevo).success ?
-                        "✅ Usar sistema NUEVO - Mejor extracción y funcionalidad completa" :
-                        "⚠️ Revisar configuración del sistema nuevo"
-                });
+                    // Resultado de búsqueda de cliente
+                    busquedaCliente = new
+                    {
+                        tipoResultado = resultadoBusqueda?.TipoResultado.ToString(),
+                        mensaje = resultadoBusqueda?.MensajeUsuario,
+                        requiereIntervencion = resultadoBusqueda?.RequiereIntervencionManual ?? true,
+                        clientesEncontrados = resultadoBusqueda?.Matches.Count ?? 0,
+                        matches = resultadoBusqueda?.Matches.Select(m => new
+                        {
+                            cliente = new
+                            {
+                                id = m.Cliente.Clinro,
+                                nombre = m.Cliente.Clinom,
+                                documento = m.Cliente.Cliruc,
+                                telefono = m.Cliente.Clitelcel,
+                                email = m.Cliente.Cliemail,
+                                direccion = m.Cliente.Clidir
+                            },
+                            score = m.Score,
+                            criterio = m.Criterio,
+                            coincidencias = m.Coincidencias
+                        }).ToList()
+                    },
+
+                    // Próximos pasos sugeridos
+                    siguientePaso = DeterminarSiguientePaso(resultadoBusqueda),
+
+                    // Información adicional
+                    resumen = new
+                    {
+                        procesamientoExitoso = true,
+                        extraccionCompleta = !string.IsNullOrEmpty(datosExtraidos.numeroPoliza) &&
+                                            !string.IsNullOrEmpty(datosExtraidos.asegurado),
+                        clienteEncontrado = resultadoBusqueda?.TipoResultado == TipoResultadoCliente.MatchExacto,
+                        listoParaVelneo = resultadoBusqueda?.TipoResultado == TipoResultadoCliente.MatchExacto &&
+                                         !string.IsNullOrEmpty(datosExtraidos.numeroPoliza)
+                    }
+                };
+
+                return Ok(response);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Error en comparación old vs new");
-                return StatusCode(500, new { error = ex.Message });
+                _logger.LogError(ex, "❌ Error en improved parser con búsqueda de cliente");
+
+                return StatusCode(500, new
+                {
+                    error = ex.Message,
+                    archivo = file?.FileName,
+                    timestamp = DateTime.UtcNow,
+                    tiempoProcesamiento = stopwatch.ElapsedMilliseconds,
+                    estado = "ERROR"
+                });
+            }
+        }
+
+        // Métodos auxiliares que necesitarás agregar
+        private string LimpiarTexto(string texto)
+        {
+            if (string.IsNullOrWhiteSpace(texto)) return "";
+
+            return texto.Trim()
+                        .Replace("\n", " ")
+                        .Replace("\r", " ")
+                        .Replace("  ", " ")
+                        .Trim();
+        }
+
+        private string LimpiarNumero(string numero)
+        {
+            if (string.IsNullOrWhiteSpace(numero)) return "0";
+
+            return System.Text.RegularExpressions.Regex.Replace(numero, @"[^\d,.]", "")
+                                                          .Replace(",", "");
+        }
+
+        private string DeterminarSiguientePaso(ClienteMatchResult? resultado)
+        {
+            if (resultado == null) return "buscar_cliente_manualmente";
+
+            return resultado.TipoResultado switch
+            {
+                TipoResultadoCliente.MatchExacto => "crear_poliza_automatico",
+                TipoResultadoCliente.MatchMuyProbable => "confirmar_cliente",
+                TipoResultadoCliente.MultiplesMatches => "seleccionar_cliente",
+                _ => "buscar_cliente_manualmente"
+            };
+        }
+
+
+        // 2. El endpoint simplificado
+        /// <summary>
+        /// IMPROVED PARSER + BÚSQUEDA DE CLIENTES + PARSER INTELIGENTE
+        /// </summary>
+        [HttpPost("improved-parser-with-smart-extraction")]
+        [AllowAnonymous]
+        public async Task<ActionResult> ImprovedParserWithSmartExtraction([Required] IFormFile file)
+        {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+            try
+            {
+                if (file == null || file.Length == 0)
+                {
+                    return BadRequest(new { error = "No se ha proporcionado un archivo válido" });
+                }
+
+                _logger.LogInformation("🔄 IMPROVED PARSER + SMART EXTRACTION: Procesando {FileName}", file.FileName);
+
+                var endpoint = _configuration["AzureDocumentIntelligence:Endpoint"];
+                var apiKey = _configuration["AzureDocumentIntelligence:ApiKey"];
+                var modelId = _configuration["AzureDocumentIntelligence:ModelId"];
+
+                var client = new DocumentIntelligenceClient(
+                    new Uri(endpoint),
+                    new AzureKeyCredential(apiKey));
+
+                using var stream = file.OpenReadStream();
+                var binaryData = BinaryData.FromStream(stream);
+
+                // PASO 1: Extraer campos raw de Azure
+                _logger.LogInformation("📄 PASO 1: Extrayendo campos raw del PDF...");
+                var operation = await client.AnalyzeDocumentAsync(
+                    WaitUntil.Completed,
+                    modelId,
+                    binaryData);
+
+                var analyzeResult = operation.Value;
+                var camposRaw = new Dictionary<string, string>();
+
+                if (analyzeResult.Documents?.Count > 0)
+                {
+                    var document = analyzeResult.Documents[0];
+                    foreach (var field in document.Fields)
+                    {
+                        string rawValue = field.Value.ValueString ?? field.Value.Content ?? "";
+                        camposRaw[field.Key] = rawValue.Trim();
+                    }
+                }
+
+                _logger.LogInformation("✅ PASO 1 COMPLETADO: {CamposCount} campos raw extraídos", camposRaw.Count);
+
+                // PASO 2: Procesar inteligentemente los datos
+                _logger.LogInformation("🧠 PASO 2: Procesando datos inteligentemente...");
+                var datosFormateados = _smartParser.ExtraerDatosInteligente(camposRaw);
+
+                _logger.LogInformation("✅ PASO 2 COMPLETADO: Datos formateados exitosamente");
+
+                // PASO 3: Buscar cliente automáticamente
+                _logger.LogInformation("🔍 PASO 3: Buscando cliente automáticamente...");
+
+                ClienteMatchResult? resultadoBusqueda = null;
+
+                try
+                {
+                    var datosParaBusqueda = _smartParser.CrearDatosClienteBusqueda(datosFormateados);
+                    resultadoBusqueda = await _clienteMatchingService.BuscarClienteAsync(datosParaBusqueda);
+
+                    _logger.LogInformation("✅ PASO 3 COMPLETADO: {TipoResultado} - {MatchCount} clientes encontrados",
+                        resultadoBusqueda.TipoResultado, resultadoBusqueda.Matches.Count);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "❌ Error en búsqueda de cliente");
+                    resultadoBusqueda = new ClienteMatchResult
+                    {
+                        TipoResultado = TipoResultadoCliente.SinCoincidencias,
+                        MensajeUsuario = $"Error en búsqueda: {ex.Message}",
+                        RequiereIntervencionManual = true,
+                        Matches = new List<ClienteMatch>()
+                    };
+                }
+
+                stopwatch.Stop();
+
+                // RESPUESTA COMPLETA
+                var response = new
+                {
+                    archivo = file.FileName,
+                    timestamp = DateTime.UtcNow,
+                    tiempoProcesamiento = stopwatch.ElapsedMilliseconds,
+                    estado = "PROCESADO_CON_SMART_EXTRACTION",
+
+                    // Datos inteligentemente procesados
+                    datosFormateados = datosFormateados,
+
+                    // Resultado de búsqueda de cliente
+                    busquedaCliente = new
+                    {
+                        tipoResultado = resultadoBusqueda?.TipoResultado.ToString(),
+                        mensaje = resultadoBusqueda?.MensajeUsuario,
+                        requiereIntervencion = resultadoBusqueda?.RequiereIntervencionManual ?? true,
+                        clientesEncontrados = resultadoBusqueda?.Matches.Count ?? 0,
+                        matches = resultadoBusqueda?.Matches.Select(m => new
+                        {
+                            cliente = new
+                            {
+                                id = m.Cliente.Clinro,
+                                nombre = m.Cliente.Clinom,
+                                documento = m.Cliente.Cliruc,
+                                telefono = m.Cliente.Clitelcel,
+                                email = m.Cliente.Cliemail,
+                                direccion = m.Cliente.Clidir
+                            },
+                            score = m.Score,
+                            criterio = m.Criterio,
+                            coincidencias = m.Coincidencias
+                        }).ToList()
+                    },
+
+                    // Próximos pasos
+                    siguientePaso = DeterminarSiguientePaso(resultadoBusqueda),
+
+                    // Resumen
+                    resumen = new
+                    {
+                        procesamientoExitoso = true,
+                        numeroPolizaExtraido = datosFormateados.NumeroPoliza,
+                        clienteExtraido = datosFormateados.Asegurado,
+                        documentoExtraido = datosFormateados.Documento,
+                        vehiculoExtraido = datosFormateados.Vehiculo,
+                        clienteEncontrado = resultadoBusqueda?.TipoResultado == TipoResultadoCliente.MatchExacto,
+                        listoParaVelneo = resultadoBusqueda?.TipoResultado == TipoResultadoCliente.MatchExacto &&
+                                         !string.IsNullOrEmpty(datosFormateados.NumeroPoliza)
+                    }
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error en improved parser con smart extraction");
+
+                return StatusCode(500, new
+                {
+                    error = ex.Message,
+                    archivo = file?.FileName,
+                    timestamp = DateTime.UtcNow,
+                    tiempoProcesamiento = stopwatch.ElapsedMilliseconds,
+                    estado = "ERROR"
+                });
             }
         }
 

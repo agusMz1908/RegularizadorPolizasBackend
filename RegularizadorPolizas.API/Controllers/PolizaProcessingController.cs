@@ -2,6 +2,8 @@
 using Microsoft.AspNetCore.Mvc;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
+using RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence;
+using RegularizadorPolizas.Infrastructure.External.VelneoAPI;
 using System.ComponentModel.DataAnnotations;
 using static ClienteMatchResult;
 
@@ -273,6 +275,127 @@ namespace RegularizadorPolizas.API.Controllers
                 return StatusCode(500, new { error = ex.Message });
             }
         }
+    
+
+        /// <summary>
+        /// CONFIRMAR CLIENTE - Confirmar cliente seleccionado y preparar datos para Velneo
+        /// </summary>
+        [HttpPost("confirm-client-for-poliza")]
+            [ProducesResponseType(typeof(object), 200)]
+            [ProducesResponseType(400)]
+            [ProducesResponseType(500)]
+            public async Task<ActionResult> ConfirmClientForPoliza([FromBody] ConfirmClientRequest request)
+            {
+                try
+                {
+                    if (request == null)
+                    {
+                        return BadRequest(new { error = "Request requerido" });
+                    }
+        
+                    if (request.ClienteId <= 0)
+                    {
+                        return BadRequest(new { error = "ID de cliente válido requerido" });
+                    }
+        
+                    if (request.DatosPoliza == null)
+                    {
+                        return BadRequest(new { error = "Datos de póliza requeridos" });
+                    }
+        
+                    _logger.LogInformation("✅ CONFIRMANDO CLIENTE: {ClienteId} para póliza {NumeroPoliza}",
+                        request.ClienteId, request.DatosPoliza.NumeroPoliza);
+        
+                    // Obtener datos completos del cliente confirmado
+                    var velneoService = HttpContext.RequestServices.GetRequiredService<IVelneoApiService>();
+                    var cliente = await velneoService.GetClienteAsync(request.ClienteId);
+        
+                    if (cliente == null)
+                    {
+                        return BadRequest(new { error = $"Cliente {request.ClienteId} no encontrado" });
+                    }
+        
+                    // Preparar datos completos para envío a Velneo
+                    var polizaParaVelneo = new
+                    {
+                        // Datos del cliente confirmado
+                        cliente = new
+                        {
+                            id = cliente.Clinro,
+                            nombre = cliente.Clinom,
+                            documento = cliente.Cliruc,
+                            direccion = cliente.Clidir,
+                            telefono = cliente.Clitelcel,
+                            email = cliente.Cliemail,
+                            localidad = cliente.Clilocnom,
+                            activo = cliente.Activo
+                        },
+        
+                        // Datos de la póliza extraídos del documento
+                        poliza = new
+                        {
+                            numeroPoliza = request.DatosPoliza.NumeroPoliza,
+                            asegurado = request.DatosPoliza.Asegurado,
+                            vehiculo = request.DatosPoliza.Vehiculo,
+                            marca = request.DatosPoliza.Marca,
+                            modelo = request.DatosPoliza.Modelo,
+                            motor = request.DatosPoliza.Motor,
+                            chasis = request.DatosPoliza.Chasis,
+                            primaComercial = request.DatosPoliza.PrimaComercial,
+                            premioTotal = request.DatosPoliza.PremioTotal,
+                            vigenciaDesde = request.DatosPoliza.VigenciaDesde,
+                            vigenciaHasta = request.DatosPoliza.VigenciaHasta,
+                            corredor = request.DatosPoliza.Corredor,
+                            plan = request.DatosPoliza.Plan,
+                            ramo = request.DatosPoliza.Ramo
+                        },
+        
+                        // Metadatos del proceso
+                        confirmacion = new
+                        {
+                            fechaConfirmacion = DateTime.UtcNow,
+                            clienteSeleccionadoManualmente = request.SeleccionManual,
+                            observaciones = request.Observaciones ?? "",
+                            usuarioConfirmacion = User?.Identity?.Name ?? "Sistema"
+                        }
+                    };
+        
+                    _logger.LogInformation("✅ CLIENTE CONFIRMADO: {ClienteNombre} para póliza {NumeroPoliza}",
+                        cliente.Clinom, request.DatosPoliza.NumeroPoliza);
+        
+                    return Ok(new
+                    {
+                        estado = "CLIENTE_CONFIRMADO",
+                        mensaje = $"Cliente {cliente.Clinom} confirmado para póliza {request.DatosPoliza.NumeroPoliza}",
+                        datosCompletos = polizaParaVelneo,
+                        siguientePaso = "enviar_a_velneo",
+                        listoParaVelneo = true,
+                        resumen = new
+                        {
+                            cliente = $"{cliente.Clinom} ({cliente.Cliruc})",
+                            poliza = request.DatosPoliza.NumeroPoliza,
+                            vehiculo = request.DatosPoliza.Vehiculo,
+                            prima = request.DatosPoliza.PrimaComercial,
+                            procesoCompleto = true
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "❌ Error confirmando cliente para póliza");
+                    return StatusCode(500, new { error = ex.Message });
+                }
+            }
+         }
+    }
+
+
+    public class ConfirmClientRequest
+    {
+        public int ClienteId { get; set; }
+        public SmartExtractedData DatosPoliza { get; set; } = new();
+        public bool SeleccionManual { get; set; } = true;
+        public string? Observaciones { get; set; }
     }
 
     // ===== MODELO DE RESPONSE SIMPLIFICADO =====
@@ -296,7 +419,6 @@ namespace RegularizadorPolizas.API.Controllers
         public double TiempoTotal { get; set; }
 
         public string EstadoGeneral => Success
-            ? (RequiereIntervencion ? "🟡 Requiere intervención manual" : "🟢 Listo para automatizar")
-            : "🔴 Error en procesamiento";
+            ? (RequiereIntervencion ? "Requiere intervención manual" : "Listo para automatizar")
+            : "Error en procesamiento";
     }
-}

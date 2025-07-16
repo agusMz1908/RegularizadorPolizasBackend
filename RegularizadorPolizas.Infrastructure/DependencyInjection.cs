@@ -7,6 +7,7 @@ using RegularizadorPolizas.Application.Services;
 using RegularizadorPolizas.Infrastructure.Data;
 using RegularizadorPolizas.Infrastructure.Data.Repositories;
 using RegularizadorPolizas.Infrastructure.External;
+using RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence;
 using RegularizadorPolizas.Infrastructure.External.VelneoAPI;
 using RegularizadorPolizas.Infrastructure.Repositories;
 using RegularizadorPolizas.Infrastructure.Services;
@@ -50,6 +51,7 @@ namespace RegularizadorPolizas.Infrastructure
             services.AddScoped<IFileStorageService, AzureBlobStorageService>();
             services.AddScoped<IVelneoApiService, TenantAwareVelneoApiService>();
             services.AddScoped<IDashboardService, DashboardService>();
+            services.AddScoped<SmartDocumentParser>();
 
             services.AddSingleton(provider =>
             {
