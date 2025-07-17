@@ -30,7 +30,6 @@ namespace RegularizadorPolizas.Application
             services.AddScoped<IVerificationService, VerificationService>();
 
             services.AddScoped<IDocumentExtractionService, DocumentExtractionService>();
-            services.AddScoped<IClienteMatchingService, ClienteMatchingService>();
             services.AddScoped<VelneoDocumentResultParser>();
 
             services.AddAutoMapper(Assembly.GetExecutingAssembly());

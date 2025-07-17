@@ -44,7 +44,6 @@ namespace RegularizadorPolizas.Application.Services
 
                 // 2. Extraer datos usando el parser
                 var azureResultJson = ConvertToJObject(azureResult);
-                var datosExtraidos = ExtractAllData(azureResultJson);
 
                 stopwatch.Stop();
 
@@ -52,8 +51,6 @@ namespace RegularizadorPolizas.Application.Services
                 {
                     NombreArchivo = file.FileName,
                     EstadoProcesamiento = "EXTRAIDO",
-                    DatosPoliza = datosExtraidos.DatosPoliza,
-                    DatosClienteBusqueda = datosExtraidos.DatosCliente,
                     ConfianzaExtraccion = azureResult.ConfianzaExtraccion,
                     TiempoProcesamiento = stopwatch.ElapsedMilliseconds,
                     FechaProcesamiento = DateTime.Now,
@@ -112,33 +109,6 @@ namespace RegularizadorPolizas.Application.Services
 
         #region Métodos Privados Simplificados
 
-        private (DatosPolizaExtraidos DatosPoliza, DatosClienteExtraidos DatosCliente) ExtractAllData(JObject azureResult)
-        {
-            var datosPoliza = new DatosPolizaExtraidos();
-            var datosCliente = new DatosClienteExtraidos();
-
-            // Implementación básica usando content
-            var content = azureResult["analyzeResult"]?["content"]?.ToString() ?? "";
-
-            if (!string.IsNullOrEmpty(content))
-            {
-                // Extraer datos básicos
-                datosPoliza.NumeroPoliza = _parser.ExtraerNumeroPoliza(content);
-                datosPoliza.DescripcionVehiculo = _parser.ExtraerDescripcionVehiculo(content);
-                datosPoliza.PrimaComercial = _parser.ExtraerPrimaComercial(content);
-                datosPoliza.PremioTotal = _parser.ExtraerPremioTotal(content);
-
-                var (fechaDesde, fechaHasta) = _parser.ExtraerVigencia(content);
-                datosPoliza.VigenciaDesde = fechaDesde;
-                datosPoliza.VigenciaHasta = fechaHasta;
-
-                datosCliente.Nombre = _parser.ExtraerAsegurado(content);
-                datosCliente.ConfidenceScore = string.IsNullOrEmpty(datosCliente.Nombre) ? 0 : 75;
-            }
-
-            return (datosPoliza, datosCliente);
-        }
-
         private JObject ConvertToJObject(DocumentResultDto azureResult)
         {
             var json = JsonSerializer.Serialize(azureResult);
@@ -157,9 +127,6 @@ namespace RegularizadorPolizas.Application.Services
 
             if (result.DatosPoliza.PrimaComercial == 0)
                 advertencias.Add("⚠️ Prima comercial no encontrada");
-
-            if (string.IsNullOrEmpty(result.DatosClienteBusqueda.Nombre))
-                advertencias.Add("⚠️ Nombre del asegurado no encontrado");
 
             result.Advertencias = advertencias;
 

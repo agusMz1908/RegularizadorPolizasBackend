@@ -7,11 +7,9 @@
         public long TiempoProcesamiento { get; set; }
         public string Estado { get; set; } = string.Empty;
         public AzureDatosFormateadosDto DatosFormateados { get; set; } = new();
-        public AzureBusquedaClienteDto BusquedaCliente { get; set; } = new();
         public string SiguientePaso { get; set; } = string.Empty;
         public AzureResumenDto Resumen { get; set; } = new();
         public bool ProcesamientoExitoso => Estado == "PROCESADO_CON_SMART_EXTRACTION";
-        public bool RequiereIntervencion => BusquedaCliente.RequiereIntervencion;
         public bool ListoParaVelneo => Resumen.ListoParaVelneo;
     }
     public class AzureDatosFormateadosDto
@@ -43,42 +41,6 @@
 
         public int CamposCompletos => GetType().GetProperties()
             .Count(p => p.PropertyType == typeof(string) && !string.IsNullOrEmpty((string?)p.GetValue(this)));
-    }
-
-    public class AzureBusquedaClienteDto
-    {
-        public string TipoResultado { get; set; } = string.Empty;
-        public string Mensaje { get; set; } = string.Empty;
-        public bool RequiereIntervencion { get; set; } = true;
-        public int ClientesEncontrados { get; set; }
-        public List<AzureClienteMatchDto> Matches { get; set; } = new();
-        public bool TieneMatches => ClientesEncontrados > 0;
-        public bool EsMatchExacto => TipoResultado == "MatchExacto";
-        public bool SonMultiplesMatches => TipoResultado == "MultiplesMatches";
-        public AzureClienteMatchDto? MejorMatch => Matches.OrderByDescending(m => m.Score).FirstOrDefault();
-    }
-
-    public class AzureClienteMatchDto
-    {
-        public AzureClienteInfoDto Cliente { get; set; } = new();
-        public float Score { get; set; }
-        public string Criterio { get; set; } = string.Empty;
-        public List<string> Coincidencias { get; set; } = new();
-        public bool EsAltaConfianza => Score >= 95;
-        public bool EsMediaConfianza => Score >= 70 && Score < 95;
-        public bool EsBajaConfianza => Score < 70;
-        public string NivelConfianza => EsAltaConfianza ? "Alto" : EsMediaConfianza ? "Medio" : "Bajo";
-    }
-    public class AzureClienteInfoDto
-    {
-        public int? Id { get; set; }  
-        public string Nombre { get; set; } = string.Empty;
-        public string Documento { get; set; } = string.Empty;
-        public string? Telefono { get; set; }
-        public string? Email { get; set; }
-        public string? Direccion { get; set; }
-        public bool TieneContacto => !string.IsNullOrEmpty(Telefono) || !string.IsNullOrEmpty(Email);
-        public string ContactoPrincipal => !string.IsNullOrEmpty(Email) ? Email : Telefono ?? "Sin contacto";
     }
 
     public class AzureResumenDto

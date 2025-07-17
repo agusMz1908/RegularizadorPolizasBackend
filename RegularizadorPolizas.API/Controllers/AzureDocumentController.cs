@@ -3,10 +3,8 @@ using Azure.AI.DocumentIntelligence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RegularizadorPolizas.Application.DTOs.Azure;
-using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence;
 using System.ComponentModel.DataAnnotations;
-using static ClienteMatchResult;
 
 namespace RegularizadorPolizas.API.Controllers
 {
@@ -17,18 +15,15 @@ namespace RegularizadorPolizas.API.Controllers
     {
         private readonly IConfiguration _configuration;
         private readonly ILogger<AzureDocumentController> _logger;
-        private readonly IClienteMatchingService _clienteMatchingService;
         private readonly SmartDocumentParser _smartParser;
 
         public AzureDocumentController(
             IConfiguration configuration,
             ILogger<AzureDocumentController> logger,
-            IClienteMatchingService clienteMatchingService,
             SmartDocumentParser smartParser)
         {
             _configuration = configuration;
             _logger = logger;
-            _clienteMatchingService = clienteMatchingService;
             _smartParser = smartParser;
         }
 
@@ -79,34 +74,12 @@ namespace RegularizadorPolizas.API.Controllers
                     }
                 }
 
-                _logger.LogInformation("✅PASO 1 COMPLETADO: {CamposCount} campos raw extraídos", camposRaw.Count);
+                _logger.LogInformation("✅ PASO 1 COMPLETADO: {CamposCount} campos raw extraídos", camposRaw.Count);
                 _logger.LogInformation("🧠 PASO 2: Procesando datos...");
+
                 var datosFormateados = _smartParser.ExtraerDatosInteligente(camposRaw);
 
                 _logger.LogInformation("✅ PASO 2 COMPLETADO: Datos formateados exitosamente");
-                _logger.LogInformation("🔍 PASO 3: Buscando cliente automáticamente...");
-
-                ClienteMatchResult? resultadoBusqueda = null;
-
-                try
-                {
-                    var datosParaBusqueda = _smartParser.CrearDatosClienteBusqueda(datosFormateados);
-                    resultadoBusqueda = await _clienteMatchingService.BuscarClienteAsync(datosParaBusqueda);
-
-                    _logger.LogInformation("✅ PASO 3 COMPLETADO: {TipoResultado} - {MatchCount} clientes encontrados",
-                        resultadoBusqueda.TipoResultado, resultadoBusqueda.Matches.Count);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "❌ Error en búsqueda de cliente");
-                    resultadoBusqueda = new ClienteMatchResult
-                    {
-                        TipoResultado = TipoResultadoCliente.SinCoincidencias,
-                        MensajeUsuario = $"Error en búsqueda: {ex.Message}",
-                        RequiereIntervencionManual = true,
-                        Matches = new List<ClienteMatch>()
-                    };
-                }
 
                 stopwatch.Stop();
 
@@ -142,30 +115,7 @@ namespace RegularizadorPolizas.API.Controllers
                         Localidad = datosFormateados.Localidad
                     },
 
-                    BusquedaCliente = new AzureBusquedaClienteDto
-                    {
-                        TipoResultado = resultadoBusqueda?.TipoResultado.ToString() ?? "SinCoincidencias",
-                        Mensaje = resultadoBusqueda?.MensajeUsuario ?? "No se pudo realizar búsqueda",
-                        RequiereIntervencion = resultadoBusqueda?.RequiereIntervencionManual ?? true,
-                        ClientesEncontrados = resultadoBusqueda?.Matches.Count ?? 0,
-                        Matches = resultadoBusqueda?.Matches.Select(m => new AzureClienteMatchDto
-                        {
-                            Cliente = new AzureClienteInfoDto
-                            {
-                                Id = m.Cliente.Clinro,
-                                Nombre = m.Cliente.Clinom,
-                                Documento = m.Cliente.Cliruc,
-                                Telefono = m.Cliente.Clitelcel,
-                                Email = m.Cliente.Cliemail,
-                                Direccion = m.Cliente.Clidir
-                            },
-                            Score = m.Score,
-                            Criterio = m.Criterio,
-                            Coincidencias = m.Coincidencias
-                        }).ToList() ?? new List<AzureClienteMatchDto>()
-                    },
-
-                    SiguientePaso = DeterminarSiguientePaso(resultadoBusqueda),
+                    SiguientePaso = "completar_formulario", 
 
                     Resumen = new AzureResumenDto
                     {
@@ -174,9 +124,9 @@ namespace RegularizadorPolizas.API.Controllers
                         ClienteExtraido = datosFormateados.Asegurado,
                         DocumentoExtraido = datosFormateados.Documento,
                         VehiculoExtraido = datosFormateados.Vehiculo,
-                        ClienteEncontrado = resultadoBusqueda?.TipoResultado == TipoResultadoCliente.MatchExacto,
-                        ListoParaVelneo = resultadoBusqueda?.TipoResultado == TipoResultadoCliente.MatchExacto &&
-                                         !string.IsNullOrEmpty(datosFormateados.NumeroPoliza)
+                        ClienteEncontrado = false, 
+                        ListoParaVelneo = !string.IsNullOrEmpty(datosFormateados.NumeroPoliza) &&
+                                         !string.IsNullOrEmpty(datosFormateados.Asegurado)
                     }
                 };
 
@@ -185,7 +135,6 @@ namespace RegularizadorPolizas.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ Error en procesamiento principal");
-
                 return StatusCode(500, AzureErrorResponseDto.ErrorGeneral(ex.Message, file?.FileName));
             }
         }
@@ -248,36 +197,6 @@ namespace RegularizadorPolizas.API.Controllers
             {
                 _logger.LogError(ex, "Error en procesamiento en lote");
                 return StatusCode(500, AzureErrorResponseDto.ErrorGeneral(ex.Message, "Procesamiento en lote"));
-            }
-        }
-
-        [HttpPost("search-client")]
-        [ProducesResponseType(typeof(ClienteMatchResult), 200)]
-        [ProducesResponseType(typeof(AzureErrorResponseDto), 400)]
-        [ProducesResponseType(typeof(AzureErrorResponseDto), 500)]
-        public async Task<ActionResult> SearchClient([FromBody] DatosClienteExtraidos datosExtraidos)
-        {
-            try
-            {
-                if (datosExtraidos == null)
-                {
-                    return BadRequest(AzureErrorResponseDto.ErrorGeneral("Datos del cliente requeridos"));
-                }
-
-                _logger.LogInformation("🔍 BÚSQUEDA MANUAL: Nombre='{Nombre}', Doc='{Documento}'",
-                    datosExtraidos.Nombre, datosExtraidos.Documento);
-
-                var resultado = await _clienteMatchingService.BuscarClienteAsync(datosExtraidos);
-
-                _logger.LogInformation("✅ BÚSQUEDA COMPLETADA: {TipoResultado} - {Count} matches",
-                    resultado.TipoResultado, resultado.Matches.Count);
-
-                return Ok(resultado);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "❌ Error en búsqueda manual de cliente");
-                return StatusCode(500, AzureErrorResponseDto.ErrorBusquedaCliente(ex.Message));
             }
         }
 
@@ -392,25 +311,9 @@ namespace RegularizadorPolizas.API.Controllers
 
             var datosFormateados = _smartParser.ExtraerDatosInteligente(camposRaw);
 
-            ClienteMatchResult? resultadoBusqueda = null;
-            try
-            {
-                var datosParaBusqueda = _smartParser.CrearDatosClienteBusqueda(datosFormateados);
-                resultadoBusqueda = await _clienteMatchingService.BuscarClienteAsync(datosParaBusqueda);
-            }
-            catch (Exception ex)
-            {
-                resultadoBusqueda = new ClienteMatchResult
-                {
-                    TipoResultado = TipoResultadoCliente.SinCoincidencias,
-                    MensajeUsuario = $"Error en búsqueda: {ex.Message}",
-                    RequiereIntervencionManual = true,
-                    Matches = new List<ClienteMatch>()
-                };
-            }
-
             stopwatch.Stop();
 
+            // ✅ RESPUESTA SIMPLIFICADA PARA PROCESAMIENTO EN LOTE
             return new AzureProcessResponseDto
             {
                 Archivo = file.FileName,
@@ -441,29 +344,9 @@ namespace RegularizadorPolizas.API.Controllers
                     Departamento = datosFormateados.Departamento,
                     Localidad = datosFormateados.Localidad
                 },
-                BusquedaCliente = new AzureBusquedaClienteDto
-                {
-                    TipoResultado = resultadoBusqueda?.TipoResultado.ToString() ?? "SinCoincidencias",
-                    Mensaje = resultadoBusqueda?.MensajeUsuario ?? "No se pudo realizar búsqueda",
-                    RequiereIntervencion = resultadoBusqueda?.RequiereIntervencionManual ?? true,
-                    ClientesEncontrados = resultadoBusqueda?.Matches.Count ?? 0,
-                    Matches = resultadoBusqueda?.Matches.Select(m => new AzureClienteMatchDto
-                    {
-                        Cliente = new AzureClienteInfoDto
-                        {
-                            Id = m.Cliente.Clinro,
-                            Nombre = m.Cliente.Clinom,
-                            Documento = m.Cliente.Cliruc,
-                            Telefono = m.Cliente.Clitelcel,
-                            Email = m.Cliente.Cliemail,
-                            Direccion = m.Cliente.Clidir
-                        },
-                        Score = m.Score,
-                        Criterio = m.Criterio,
-                        Coincidencias = m.Coincidencias
-                    }).ToList() ?? new List<AzureClienteMatchDto>()
-                },
-                SiguientePaso = DeterminarSiguientePaso(resultadoBusqueda),
+                // ✅ SIN BÚSQUEDA DE CLIENTE EN PROCESAMIENTO BATCH
+                // BusquedaCliente = null,
+                SiguientePaso = "completar_formulario",
                 Resumen = new AzureResumenDto
                 {
                     ProcesamientoExitoso = true,
@@ -471,23 +354,10 @@ namespace RegularizadorPolizas.API.Controllers
                     ClienteExtraido = datosFormateados.Asegurado,
                     DocumentoExtraido = datosFormateados.Documento,
                     VehiculoExtraido = datosFormateados.Vehiculo,
-                    ClienteEncontrado = resultadoBusqueda?.TipoResultado == TipoResultadoCliente.MatchExacto,
-                    ListoParaVelneo = resultadoBusqueda?.TipoResultado == TipoResultadoCliente.MatchExacto &&
-                                     !string.IsNullOrEmpty(datosFormateados.NumeroPoliza)
+                    ClienteEncontrado = false, // ✅ Ya no buscamos cliente
+                    ListoParaVelneo = !string.IsNullOrEmpty(datosFormateados.NumeroPoliza) &&
+                                     !string.IsNullOrEmpty(datosFormateados.Asegurado)
                 }
-            };
-        }
-
-        private string DeterminarSiguientePaso(ClienteMatchResult? resultado)
-        {
-            if (resultado == null) return "buscar_cliente_manualmente";
-
-            return resultado.TipoResultado switch
-            {
-                TipoResultadoCliente.MatchExacto => "crear_poliza_automatico",
-                TipoResultadoCliente.MatchMuyProbable => "confirmar_cliente",
-                TipoResultadoCliente.MultiplesMatches => "seleccionar_cliente",
-                _ => "buscar_cliente_manualmente"
             };
         }
 

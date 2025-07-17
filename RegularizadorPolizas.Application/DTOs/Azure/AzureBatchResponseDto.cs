@@ -13,16 +13,6 @@
         public bool TodosExitosos => Errores == 0;
         public bool AlgunosExitosos => Procesados > 0;
         public double TiempoPromedioPorArchivo => Procesados > 0 ? TiempoTotalProcesamiento / (double)Procesados : 0;
-
-        public AzureBatchEstadisticasDto Estadisticas => new()
-        {
-            TotalProcesados = Procesados,
-            TotalErrores = Errores,
-            PorcentajeExito = PorcentajeExito,
-            ClientesEncontrados = Resultados.Count(r => r.BusquedaCliente.TieneMatches),
-            ListosParaVelneo = Resultados.Count(r => r.ListoParaVelneo),
-            RequierenIntervencion = Resultados.Count(r => r.RequiereIntervencion)
-        };
     }
 
     public class AzureBatchErrorDto

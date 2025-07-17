@@ -72,21 +72,6 @@ namespace RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence
             }
         }
 
-        public DatosClienteExtraidos CrearDatosClienteBusqueda(SmartExtractedData datos)
-        {
-            return new DatosClienteExtraidos
-            {
-                Nombre = datos.Asegurado,
-                Documento = datos.Documento,
-                Email = datos.Email,
-                Telefono = "", 
-                Direccion = datos.Direccion,
-                Localidad = datos.Localidad,
-                Departamento = datos.Departamento,
-                ConfidenceScore = 0.95f
-            };
-        }
-
         #region Métodos de Extracción Específicos
 
         private void ExtractPolizaData(string datosPoliza, SmartExtractedData datos)
