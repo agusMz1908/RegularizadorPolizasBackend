@@ -28,6 +28,7 @@ namespace RegularizadorPolizas.API.Controllers
         }
 
         [HttpPost("process")]
+        [Authorize]
         [ProducesResponseType(typeof(AzureProcessResponseDto), 200)]
         [ProducesResponseType(typeof(AzureErrorResponseDto), 400)]
         [ProducesResponseType(typeof(AzureErrorResponseDto), 500)]
@@ -140,6 +141,7 @@ namespace RegularizadorPolizas.API.Controllers
         }
 
         [HttpPost("process-batch")]
+        [Authorize]
         [ProducesResponseType(typeof(AzureBatchResponseDto), 200)]
         [ProducesResponseType(typeof(AzureErrorResponseDto), 400)]
         [ProducesResponseType(typeof(AzureErrorResponseDto), 500)]
@@ -201,6 +203,7 @@ namespace RegularizadorPolizas.API.Controllers
         }
 
         [HttpGet("model-info")]
+        [Authorize]
         [ProducesResponseType(typeof(AzureModelInfoResponseDto), 200)]
         [ProducesResponseType(typeof(AzureErrorResponseDto), 500)]
         public async Task<ActionResult> GetModelInfo()
@@ -354,7 +357,7 @@ namespace RegularizadorPolizas.API.Controllers
                     ClienteExtraido = datosFormateados.Asegurado,
                     DocumentoExtraido = datosFormateados.Documento,
                     VehiculoExtraido = datosFormateados.Vehiculo,
-                    ClienteEncontrado = false, // ✅ Ya no buscamos cliente
+                    ClienteEncontrado = false,
                     ListoParaVelneo = !string.IsNullOrEmpty(datosFormateados.NumeroPoliza) &&
                                      !string.IsNullOrEmpty(datosFormateados.Asegurado)
                 }

@@ -1,8 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
-using RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence;
+using RegularizadorPolizas.Application.Services;
+using RegularizadorPolizas.Domain.Entities;
+using RegularizadorPolizas.Infrastructure.Data;
 
 namespace RegularizadorPolizas.API.Controllers
 {
@@ -13,13 +16,16 @@ namespace RegularizadorPolizas.API.Controllers
     {
         private readonly IVelneoApiService _velneoApiService;
         private readonly ILogger<ClientsController> _logger;
+        private readonly ApplicationDbContext _context;
 
         public ClientsController(
             IVelneoApiService velneoApiService,
-            ILogger<ClientsController> logger)
+            ILogger<ClientsController> logger,
+            ApplicationDbContext context) 
         {
-            _velneoApiService = velneoApiService ?? throw new ArgumentNullException(nameof(velneoApiService));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _velneoApiService = velneoApiService;
+            _logger = logger;
+            _context = context;
         }
 
         [HttpGet]
@@ -331,6 +337,58 @@ namespace RegularizadorPolizas.API.Controllers
             {
                 _logger.LogError(ex, "Error deleting client {ClientId} via Velneo API", id);
                 return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
+            }
+        }
+
+        [HttpGet("tenant-config")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(401)]
+        [ProducesResponseType(500)]
+        [Authorize]
+        public async Task<ActionResult> GetTenantConfiguration()
+        {
+            try
+            {
+                _logger.LogInformation("🔑 Obteniendo configuración de tenant para búsqueda directa");
+
+                const string TENANT_ID = "KEYDEMO"; 
+
+                var apiKey = await _context.ApiKeys
+                    .FirstOrDefaultAsync(a => a.TenantId == TENANT_ID &&
+                                             a.Activo &&
+                                             (a.FechaExpiracion == null || a.FechaExpiracion > DateTime.UtcNow));
+
+                if (apiKey == null)
+                {
+                    _logger.LogError("❌ No se encontró configuración activa para tenant: {TenantId}", TENANT_ID);
+                    return StatusCode(500, new { message = $"No hay configuración activa para tenant {TENANT_ID}" });
+                }
+
+                var clientConfig = new
+                {
+                    baseUrl = apiKey.BaseUrl,        
+                    apiKey = apiKey.Key,                
+                    tenantId = apiKey.TenantId,         
+                    timeout = apiKey.TimeoutSeconds,    
+                    isActive = apiKey.Activo,          
+                    environment = apiKey.Environment    
+                };
+
+                _logger.LogInformation("✅ Configuración de tenant KEYDEMO obtenida exitosamente");
+                _logger.LogInformation("📋 BaseUrl: {BaseUrl}", apiKey.BaseUrl);
+                _logger.LogInformation("🔑 ApiKey: {ApiKeyMasked}", apiKey.Key?.Substring(0, 8) + "...");
+
+                return Ok(clientConfig);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error obteniendo configuración de tenant");
+                return StatusCode(500, new
+                {
+                    message = "Error obteniendo configuración",
+                    error = ex.Message,
+                    tenantId = "KEYDEMO"
+                });
             }
         }
     }

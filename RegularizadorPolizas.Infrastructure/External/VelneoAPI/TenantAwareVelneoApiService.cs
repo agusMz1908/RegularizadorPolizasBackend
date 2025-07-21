@@ -357,6 +357,116 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             }
         }
 
+        public async Task<IEnumerable<ClientDto>> SearchClientesDirectAsync(string searchTerm)
+        {
+            if (string.IsNullOrWhiteSpace(searchTerm))
+                return new List<ClientDto>();
+
+            try
+            {
+                _logger.LogInformation("🔍 BÚSQUEDA DIRECTA VELNEO: {SearchTerm}", searchTerm);
+
+                // ✅ OBTENER CONFIGURACIÓN DEL TENANT DINÁMICAMENTE
+                var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
+                if (tenantConfig == null)
+                {
+                    _logger.LogError("❌ No se pudo obtener configuración del tenant");
+                    return new List<ClientDto>();
+                }
+
+                // ✅ CREAR HTTPCLIENT USANDO FACTORY
+                using var httpClient = _httpClientFactory.CreateClient();
+                httpClient.Timeout = TimeSpan.FromSeconds(30);
+
+                // ✅ CONSTRUIR URL CON FILTRO DIRECTO
+                var filterUrl = $"{tenantConfig.BaseUrl}/v1/clientes?filter[nombre]={Uri.EscapeDataString(searchTerm)}&api_key={tenantConfig.Key}";
+
+                _logger.LogInformation("📤 URL filtrada: {FilterUrl}", filterUrl.Replace(tenantConfig.Key, "***"));
+
+                var response = await httpClient.GetAsync(filterUrl);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogError("❌ Error en búsqueda directa: {StatusCode}", response.StatusCode);
+                    return new List<ClientDto>();
+                }
+
+                var jsonResponse = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("📥 JSON Response length: {Length}", jsonResponse.Length);
+
+                // ✅ PARSEAR JSON DINÁMICAMENTE (sin tipos específicos)
+                using var jsonDocument = JsonDocument.Parse(jsonResponse);
+                var root = jsonDocument.RootElement;
+
+                // La respuesta de Velneo tiene estructura: { "data": [...], "meta": {...} }
+                if (!root.TryGetProperty("data", out var dataElement))
+                {
+                    _logger.LogWarning("⚠️ No se encontró 'data' en respuesta de Velneo para: {SearchTerm}", searchTerm);
+                    return new List<ClientDto>();
+                }
+
+                var clients = new List<ClientDto>();
+
+                foreach (var clientElement in dataElement.EnumerateArray())
+                {
+                    try
+                    {
+                        var clientDto = new ClientDto();
+
+                        // Extraer ID
+                        if (clientElement.TryGetProperty("id", out var idElement))
+                        {
+                            clientDto.Id = idElement.GetInt32();
+                        }
+
+                        // Extraer attributes
+                        if (clientElement.TryGetProperty("attributes", out var attributesElement))
+                        {
+                            if (attributesElement.TryGetProperty("nombre", out var nombreElement))
+                                clientDto.Clinom = nombreElement.GetString() ?? "";
+
+                            if (attributesElement.TryGetProperty("documento", out var documentoElement))
+                                clientDto.Cliced = documentoElement.GetString() ?? "";
+
+                            if (attributesElement.TryGetProperty("ruc", out var rucElement))
+                                clientDto.Cliruc = rucElement.GetString() ?? "";
+
+                            if (attributesElement.TryGetProperty("email", out var emailElement))
+                                clientDto.Cliemail = emailElement.GetString() ?? "";
+
+                            if (attributesElement.TryGetProperty("direccion", out var direccionElement))
+                                clientDto.Clidir = direccionElement.GetString() ?? "";
+
+                            if (attributesElement.TryGetProperty("telefono", out var telefonoElement))
+                                clientDto.Telefono = telefonoElement.GetString() ?? "";
+                        }
+
+                        clientDto.Activo = true; // Asumimos que están activos
+                        clients.Add(clientDto);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "⚠️ Error parseando cliente individual en respuesta de Velneo");
+                        continue;
+                    }
+                }
+
+                _logger.LogInformation("✅ BÚSQUEDA DIRECTA EXITOSA: {Count} clientes encontrados en Velneo", clients.Count);
+
+                return clients;
+            }
+            catch (JsonException jsonEx)
+            {
+                _logger.LogError(jsonEx, "❌ Error parseando JSON de Velneo: {SearchTerm}", searchTerm);
+                return new List<ClientDto>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error en búsqueda directa de clientes: {SearchTerm}", searchTerm);
+                return new List<ClientDto>();
+            }
+        }
+
         public class VelneoClientesResponse
         {
             public List<VelneoCliente>? Clientes { get; set; }
