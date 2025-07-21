@@ -1,10 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
-using RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence;
-using RegularizadorPolizas.Infrastructure.External.VelneoAPI;
 using System.ComponentModel.DataAnnotations;
+using static RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence.SmartDocumentParser;
 
 namespace RegularizadorPolizas.API.Controllers
 {

@@ -208,44 +208,42 @@ namespace RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence
             _logger.LogDebug("✅ Motor extraído: '{Motor}'", datos.Motor);
         }
 
-        private string LimpiarTexto(string texto)
+        // DTO para los datos extraídos inteligentemente
+        public class SmartExtractedData
         {
-            if (string.IsNullOrWhiteSpace(texto)) return "";
-
-            return texto.Trim()
-                        .Replace("\n", " ")
-                        .Replace("\r", " ")
-                        .Replace("  ", " ")
-                        .Trim();
+            public string NumeroPoliza { get; set; } = "";
+            public string Asegurado { get; set; } = "";
+            public string Documento { get; set; } = "";
+            public string Vehiculo { get; set; } = "";
+            public string Marca { get; set; } = "";
+            public string Modelo { get; set; } = "";
+            public string Matricula { get; set; } = "";
+            public string Motor { get; set; } = "";
+            public string Chasis { get; set; } = "";
+            public decimal PrimaComercial { get; set; } = 0;
+            public decimal PremioTotal { get; set; } = 0;
+            public DateTime? VigenciaDesde { get; set; }
+            public DateTime? VigenciaHasta { get; set; }
+            public string Corredor { get; set; } = "";
+            public string Plan { get; set; } = "";
+            public string Ramo { get; set; } = "AUTOMOVILES";
+            public string Anio { get; set; } = "";
+            public string Combustible { get; set; } = "";
+            public string Email { get; set; } = "";
+            public string Direccion { get; set; } = "";
+            public string Departamento { get; set; } = "";
+            public string Localidad { get; set; } = "";
+            public string Color { get; set; } = "";
+            public string TipoVehiculo { get; set; } = "";
+            public string Uso { get; set; } = "";
+            public decimal ImpuestoMSP { get; set; } = 0;
+            public string FormaPago { get; set; } = "";
+            public int CantidadCuotas { get; set; } = 1;
+            public string Telefono { get; set; } = "";
+            public string CodigoPostal { get; set; } = "";
+            public decimal Descuentos { get; set; } = 0;
+            public decimal Recargos { get; set; } = 0;
         }
-
-        #endregion
     }
-
-    // DTO para los datos extraídos inteligentemente
-    public class SmartExtractedData
-    {
-        public string NumeroPoliza { get; set; } = "";
-        public string Asegurado { get; set; } = "";
-        public string Documento { get; set; } = "";
-        public string Vehiculo { get; set; } = "";
-        public string Marca { get; set; } = "";
-        public string Modelo { get; set; } = "";
-        public string Matricula { get; set; } = "";
-        public string Motor { get; set; } = "";
-        public string Chasis { get; set; } = "";
-        public decimal PrimaComercial { get; set; } = 0;
-        public decimal PremioTotal { get; set; } = 0;
-        public DateTime? VigenciaDesde { get; set; }
-        public DateTime? VigenciaHasta { get; set; }
-        public string Corredor { get; set; } = "";
-        public string Plan { get; set; } = "";
-        public string Ramo { get; set; } = "AUTOMOVILES";
-        public string Anio { get; set; } = "";
-        public string Combustible { get; set; } = "";
-        public string Email { get; set; } = "";
-        public string Direccion { get; set; } = "";
-        public string Departamento { get; set; } = "";
-        public string Localidad { get; set; } = "";
-    }
+    #endregion
 }

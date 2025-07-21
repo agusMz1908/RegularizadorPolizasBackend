@@ -35,6 +35,17 @@
         public string Direccion { get; set; } = string.Empty;
         public string Departamento { get; set; } = string.Empty;
         public string Localidad { get; set; } = string.Empty;
+        public string Color { get; set; } = string.Empty;
+        public string TipoVehiculo { get; set; } = string.Empty;
+        public string Combustible { get; set; } = string.Empty;
+        public string Uso { get; set; } = string.Empty;
+        public decimal ImpuestoMSP { get; set; }
+        public string FormaPago { get; set; } = string.Empty;
+        public int CantidadCuotas { get; set; }
+        public string Telefono { get; set; } = string.Empty;
+        public string CodigoPostal { get; set; } = string.Empty;
+        public decimal Descuentos { get; set; }
+        public decimal Recargos { get; set; }
         public bool TieneDatosMinimos => !string.IsNullOrEmpty(NumeroPoliza) &&
                                         !string.IsNullOrEmpty(Asegurado) &&
                                         !string.IsNullOrEmpty(Documento);
