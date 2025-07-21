@@ -1,4 +1,6 @@
-﻿namespace RegularizadorPolizas.Application.DTOs.Azure
+﻿using static RegularizadorPolizas.Application.DTOs.Azure.AzureResumenDto;
+
+namespace RegularizadorPolizas.Application.DTOs.Azure
 {
     public class AzureProcessResponseDto
     {
@@ -52,6 +54,13 @@
 
         public int CamposCompletos => GetType().GetProperties()
             .Count(p => p.PropertyType == typeof(string) && !string.IsNullOrEmpty((string?)p.GetValue(this)));
+
+        public AzureInformacionCuotasDto DetalleCuotas { get; set; } = new();
+        public DateTime? PrimerVencimiento { get; set; }
+        public decimal PrimaCuota { get; set; }
+
+        public bool TieneCuotasDetalladas => DetalleCuotas.TieneCuotasDetalladas;
+        public int CuotasEncontradas => DetalleCuotas.Cuotas.Count;
     }
 
     public class AzureResumenDto
@@ -75,6 +84,23 @@
                 var camposCompletos = campos.Count(c => !string.IsNullOrEmpty(c));
                 return (int)((camposCompletos / (float)campos.Length) * 100);
             }
+        }
+
+        public class AzureDetalleCuotaDto
+        {
+            public int Numero { get; set; }
+            public DateTime? FechaVencimiento { get; set; }
+            public decimal Monto { get; set; }
+            public string Estado { get; set; } = "";
+        }
+
+        public class AzureInformacionCuotasDto
+        {
+            public int CantidadTotal { get; set; }
+            public List<AzureDetalleCuotaDto> Cuotas { get; set; } = new();
+            public AzureDetalleCuotaDto PrimeraCuota => Cuotas.FirstOrDefault();
+            public decimal MontoPromedio => Cuotas.Any() ? Cuotas.Average(c => c.Monto) : 0;
+            public bool TieneCuotasDetalladas => Cuotas.Any();
         }
     }
 }

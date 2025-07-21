@@ -91,15 +91,21 @@ namespace RegularizadorPolizas.API.Controllers
 
                 _logger.LogInformation("📊 PASO 2: Procesando con SmartParser - Total campos: {Count}", camposRaw.Count);
 
-                // Usar tu SmartDocumentParser actual
+                // ✅ NUEVO: Logear algunos campos clave antes del parsing
+                LogCamposClave(camposRaw);
+
+                // Usar tu SmartDocumentParser actualizado
                 var smartData = _smartParser.ExtraerDatosInteligente(camposRaw);
 
                 // 🔧 NUEVO: Post-procesamiento para completar campos faltantes
                 CompletarCamposFaltantes(smartData, analyzeResult);
 
+                // ✅ NUEVO: Post-procesamiento específico para pago
+                CompletarDatosPago(smartData, camposRaw, analyzeResult);
+
                 stopwatch.Stop();
 
-                // Mapear a tu DTO existente
+                // Mapear a tu DTO existente - ✅ AHORA CON LAS NUEVAS PROPIEDADES
                 var datosFormateados = new AzureDatosFormateadosDto
                 {
                     NumeroPoliza = smartData.NumeroPoliza,
@@ -127,12 +133,13 @@ namespace RegularizadorPolizas.API.Controllers
                     Combustible = smartData.Combustible,
                     Uso = smartData.Uso,
                     ImpuestoMSP = smartData.ImpuestoMSP,
-                    FormaPago = smartData.FormaPago,
-                    CantidadCuotas = smartData.CantidadCuotas,
+                    FormaPago = smartData.FormaPago,      
+                    CantidadCuotas = smartData.CantidadCuotas, 
                     Telefono = smartData.Telefono,
                     CodigoPostal = smartData.CodigoPostal,
                     Descuentos = smartData.Descuentos,
                     Recargos = smartData.Recargos,
+                    Color = smartData.Color                  
                 };
 
                 var response = new AzureProcessResponseDto
@@ -153,6 +160,10 @@ namespace RegularizadorPolizas.API.Controllers
                         ListoParaVelneo = datosFormateados.TieneDatosMinimos
                     }
                 };
+
+                // ✅ NUEVO: Logear información de pago extraída
+                _logger.LogInformation("💳 Pago extraído: FormaPago={FormaPago}, Cuotas={Cuotas}, Color={Color}",
+                    datosFormateados.FormaPago, datosFormateados.CantidadCuotas, datosFormateados.Color);
 
                 return Ok(response);
             }
@@ -812,6 +823,290 @@ namespace RegularizadorPolizas.API.Controllers
                 return StatusCode(500, AzureErrorResponseDto.ErrorGeneral(ex.Message, "Consulta de modelo"));
             }
         }
+
+        #region Métodos de Debugging y Post-procesamiento
+
+        private void LogCamposClave(Dictionary<string, string> campos)
+        {
+            _logger.LogDebug("🔍 CAMPOS CLAVE ENCONTRADOS:");
+
+            var camposInteres = new[] {
+        "medio_pago", "forma_pago", "cuotas", "pago", "payment",
+        "mensual", "anual", "modo_facturacion", "installments"
+    };
+
+            foreach (var campo in campos)
+            {
+                foreach (var interes in camposInteres)
+                {
+                    if (campo.Key.Contains(interes, StringComparison.OrdinalIgnoreCase) ||
+                        campo.Value.Contains(interes, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _logger.LogDebug("💰 Campo pago: {Key} = {Value}",
+                            campo.Key, campo.Value.Substring(0, Math.Min(100, campo.Value.Length)));
+                        break;
+                    }
+                }
+            }
+
+            // Logear campos que contienen números (posibles cuotas)
+            foreach (var campo in campos)
+            {
+                if (Regex.IsMatch(campo.Value, @"\d+\s*cuotas?", RegexOptions.IgnoreCase))
+                {
+                    _logger.LogDebug("🔢 Campo con cuotas: {Key} = {Value}",
+                        campo.Key, campo.Value.Substring(0, Math.Min(100, campo.Value.Length)));
+                }
+            }
+        }
+
+        private void CompletarDatosPago(SmartExtractedData datos, Dictionary<string, string> camposRaw, AnalyzeResult analyzeResult)
+        {
+            try
+            {
+                _logger.LogDebug("💳 Post-procesando datos de pago...");
+
+                // Si no se encontró forma de pago, buscar con patterns más agresivos
+                if (string.IsNullOrEmpty(datos.FormaPago))
+                {
+                    var formaPago = BuscarFormaPagoEnTodoElTexto(analyzeResult.Content);
+                    if (!string.IsNullOrEmpty(formaPago))
+                    {
+                        datos.FormaPago = formaPago;
+                        _logger.LogDebug("✅ Forma de pago encontrada en texto completo: {FormaPago}", formaPago);
+                    }
+                }
+
+                // Si no se encontraron cuotas específicas, buscar patterns especiales
+                if (datos.CantidadCuotas <= 1)
+                {
+                    var cuotas = BuscarCuotasEnTodoElTexto(analyzeResult.Content);
+                    if (cuotas > 1)
+                    {
+                        datos.CantidadCuotas = cuotas;
+                        _logger.LogDebug("✅ Cuotas encontradas en texto completo: {Cuotas}", cuotas);
+                    }
+                }
+
+                // Buscar en campos específicos que puedan tener información de pago
+                BuscarEnCamposEspecificosPago(camposRaw, datos);
+
+                // Última verificación de relaciones lógicas
+                AjustarRelacionesFinales(datos);
+
+                _logger.LogDebug("💳 Resultado final: FormaPago='{FormaPago}', Cuotas={Cuotas}",
+                    datos.FormaPago, datos.CantidadCuotas);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error en post-procesamiento de datos de pago");
+            }
+        }
+
+        private string BuscarFormaPagoEnTodoElTexto(string textoCompleto)
+        {
+            if (string.IsNullOrEmpty(textoCompleto)) return "";
+
+            var patterns = new[]
+            {
+        @"(?i)MEDIO\s+DE\s+PAGO[:\s]*([^\n\r.]{5,50})",
+        @"(?i)FORMA\s+DE\s+PAGO[:\s]*([^\n\r.]{5,50})",
+        @"(?i)MODALIDAD[:\s]*([^\n\r.]{5,50})",
+        @"(?i)(MENSUAL|ANUAL|SEMESTRAL|TRIMESTRAL|CONTADO)(?=\s|$|\n|\r)",
+        @"(\d{1,2})\s*CUOTAS?\s*(MENSUAL|ANUAL|SEMESTRAL)?",
+        @"PAGO\s+(MENSUAL|ANUAL|SEMESTRAL|TRIMESTRAL|CONTADO)"
+    };
+
+            foreach (var pattern in patterns)
+            {
+                var match = Regex.Match(textoCompleto, pattern, RegexOptions.IgnoreCase);
+                if (match.Success)
+                {
+                    var valor = match.Groups[1].Value.Trim().ToUpperInvariant();
+
+                    // Mapear valores comunes
+                    if (valor.Contains("MENSUAL") || valor == "12")
+                        return "MENSUAL";
+                    else if (valor.Contains("ANUAL") || valor == "1")
+                        return "ANUAL";
+                    else if (valor.Contains("SEMESTRAL") || valor == "6")
+                        return "SEMESTRAL";
+                    else if (valor.Contains("TRIMESTRAL") || valor == "3")
+                        return "TRIMESTRAL";
+                    else if (valor.Contains("CONTADO"))
+                        return "CONTADO";
+                    else if (!string.IsNullOrEmpty(valor) && valor.Length > 2)
+                        return valor;
+                }
+            }
+
+            return "";
+        }
+
+        private int BuscarCuotasEnTodoElTexto(string textoCompleto)
+        {
+            if (string.IsNullOrEmpty(textoCompleto)) return 0;
+
+            var patterns = new[]
+            {
+        @"(\d{1,2})\s*CUOTAS?",
+        @"CUOTAS?\s*[:\-]\s*(\d{1,2})",
+        @"PAGO\s+EN\s+(\d{1,2})",
+        @"(\d{1,2})\s*MENSUAL",
+        @"MENSUAL\s*(\d{1,2})"
+    };
+
+            foreach (var pattern in patterns)
+            {
+                var match = Regex.Match(textoCompleto, pattern, RegexOptions.IgnoreCase);
+                if (match.Success && int.TryParse(match.Groups[1].Value, out int cuotas))
+                {
+                    if (cuotas >= 1 && cuotas <= 48) // Validar rango razonable
+                        return cuotas;
+                }
+            }
+
+            return 0;
+        }
+
+        private void BuscarEnCamposEspecificosPago(Dictionary<string, string> campos, SmartExtractedData datos)
+        {
+            // Buscar patrones específicos según tu gist
+            foreach (var kvp in campos)
+            {
+                var texto = kvp.Value;
+
+                // Buscar "12 CUOTAS" específicamente
+                if (datos.CantidadCuotas <= 1 && texto.Contains("CUOTAS", StringComparison.OrdinalIgnoreCase))
+                {
+                    var match = Regex.Match(texto, @"(\d{1,2})\s*CUOTAS?", RegexOptions.IgnoreCase);
+                    if (match.Success && int.TryParse(match.Groups[1].Value, out int cuotas))
+                    {
+                        datos.CantidadCuotas = cuotas;
+                        _logger.LogDebug("✅ Cuotas específicas encontradas: {Cuotas}", cuotas);
+
+                        // Si encontramos cuotas pero no forma de pago, inferir
+                        if (string.IsNullOrEmpty(datos.FormaPago))
+                        {
+                            datos.FormaPago = cuotas switch
+                            {
+                                1 => "CONTADO",
+                                3 => "TRIMESTRAL",
+                                6 => "SEMESTRAL",
+                                12 => "MENSUAL",
+                                _ => "MENSUAL"
+                            };
+                        }
+                    }
+                }
+
+                // Buscar "MEDIO DE PAGO" específicamente
+                if (string.IsNullOrEmpty(datos.FormaPago) &&
+                    (kvp.Key.Contains("medio", StringComparison.OrdinalIgnoreCase) ||
+                     texto.Contains("MEDIO DE PAGO", StringComparison.OrdinalIgnoreCase)))
+                {
+                    var patterns = new[]
+                    {
+                @"MEDIO\s+DE\s+PAGO[:\s]*([^\n\r]{3,50})",
+                @"medio_pago[:\s]*([^\n\r]{3,50})",
+                @"payment_method[:\s]*([^\n\r]{3,50})"
+            };
+
+                    foreach (var pattern in patterns)
+                    {
+                        var match = Regex.Match(texto, pattern, RegexOptions.IgnoreCase);
+                        if (match.Success)
+                        {
+                            var medioPago = match.Groups[1].Value.Trim();
+                            if (!string.IsNullOrEmpty(medioPago) && medioPago.Length > 2)
+                            {
+                                datos.FormaPago = medioPago.ToUpperInvariant();
+                                _logger.LogDebug("✅ Medio de pago específico encontrado: {MedioPago}", medioPago);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Buscar campos que contengan información combinada de pago
+                if (texto.Contains("CUOTAS", StringComparison.OrdinalIgnoreCase) &&
+                    (texto.Contains("MENSUAL", StringComparison.OrdinalIgnoreCase) ||
+                     texto.Contains("ANUAL", StringComparison.OrdinalIgnoreCase)))
+                {
+                    // Ejemplo: "12 CUOTAS MENSUALES"
+                    var matchCombinado = Regex.Match(texto, @"(\d{1,2})\s*CUOTAS?\s*(MENSUAL|ANUAL|SEMESTRAL|TRIMESTRAL)?", RegexOptions.IgnoreCase);
+                    if (matchCombinado.Success)
+                    {
+                        if (int.TryParse(matchCombinado.Groups[1].Value, out int cuotas))
+                        {
+                            datos.CantidadCuotas = cuotas;
+                        }
+
+                        var tipoPago = matchCombinado.Groups[2].Value;
+                        if (!string.IsNullOrEmpty(tipoPago))
+                        {
+                            datos.FormaPago = tipoPago.ToUpperInvariant();
+                        }
+
+                        _logger.LogDebug("✅ Información combinada encontrada: {Cuotas} {FormaPago}", datos.CantidadCuotas, datos.FormaPago);
+                    }
+                }
+            }
+        }
+
+        private void AjustarRelacionesFinales(SmartExtractedData datos)
+        {
+            // Validaciones finales y ajustes de coherencia
+
+            // Si tenemos forma de pago pero cuotas incorrectas
+            if (!string.IsNullOrEmpty(datos.FormaPago))
+            {
+                switch (datos.FormaPago.ToUpperInvariant())
+                {
+                    case "MENSUAL":
+                        if (datos.CantidadCuotas <= 1 || datos.CantidadCuotas > 24)
+                            datos.CantidadCuotas = 12; // Default mensual
+                        break;
+                    case "ANUAL":
+                    case "CONTADO":
+                        datos.CantidadCuotas = 1;
+                        break;
+                    case "SEMESTRAL":
+                        if (datos.CantidadCuotas <= 1 || datos.CantidadCuotas > 12)
+                            datos.CantidadCuotas = 6;
+                        break;
+                    case "TRIMESTRAL":
+                        if (datos.CantidadCuotas <= 1 || datos.CantidadCuotas > 8)
+                            datos.CantidadCuotas = 3;
+                        break;
+                }
+            }
+
+            // Si tenemos cuotas válidas pero no forma de pago
+            if (string.IsNullOrEmpty(datos.FormaPago) && datos.CantidadCuotas > 1)
+            {
+                datos.FormaPago = datos.CantidadCuotas switch
+                {
+                    1 => "CONTADO",
+                    2 => "SEMESTRAL",
+                    3 => "TRIMESTRAL",
+                    4 => "TRIMESTRAL",
+                    6 => "SEMESTRAL",
+                    12 => "MENSUAL",
+                    _ when datos.CantidadCuotas > 6 => "MENSUAL",
+                    _ => "MENSUAL"
+                };
+            }
+
+            // Default si no se encontró nada
+            if (string.IsNullOrEmpty(datos.FormaPago) && datos.CantidadCuotas <= 1)
+            {
+                datos.FormaPago = "CONTADO";
+                datos.CantidadCuotas = 1;
+            }
+        }
+
+        #endregion
 
         #region Métodos Privados de Soporte
 
