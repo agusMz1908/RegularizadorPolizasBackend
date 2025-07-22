@@ -394,55 +394,57 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var jsonResponse = await response.Content.ReadAsStringAsync();
                 _logger.LogInformation("📥 JSON Response length: {Length}", jsonResponse.Length);
 
-                // ✅ PARSEAR JSON DINÁMICAMENTE (sin tipos específicos)
+                // ✅ PARSEAR JSON CON LA ESTRUCTURA REAL DE VELNEO
                 using var jsonDocument = JsonDocument.Parse(jsonResponse);
                 var root = jsonDocument.RootElement;
 
-                // La respuesta de Velneo tiene estructura: { "data": [...], "meta": {...} }
-                if (!root.TryGetProperty("data", out var dataElement))
+                if (!root.TryGetProperty("clientes", out var clientesElement))
                 {
-                    _logger.LogWarning("⚠️ No se encontró 'data' en respuesta de Velneo para: {SearchTerm}", searchTerm);
+                    _logger.LogWarning("⚠️ No se encontró 'clientes' en respuesta de Velneo para: {SearchTerm}", searchTerm);
                     return new List<ClientDto>();
                 }
 
                 var clients = new List<ClientDto>();
 
-                foreach (var clientElement in dataElement.EnumerateArray())
+                foreach (var clientElement in clientesElement.EnumerateArray())
                 {
                     try
                     {
                         var clientDto = new ClientDto();
 
-                        // Extraer ID
+                        // ✅ EXTRAER ID 
                         if (clientElement.TryGetProperty("id", out var idElement))
                         {
                             clientDto.Id = idElement.GetInt32();
                         }
 
-                        // Extraer attributes
-                        if (clientElement.TryGetProperty("attributes", out var attributesElement))
+                        // ✅ CAMPOS DIRECTOS EN EL OBJETO (NO EN ATTRIBUTES)
+                        if (clientElement.TryGetProperty("clinom", out var clinomElement))
+                            clientDto.Clinom = clinomElement.GetString() ?? "";
+
+                        if (clientElement.TryGetProperty("cliced", out var clicedElement))
+                            clientDto.Cliced = clicedElement.GetString() ?? "";
+
+                        if (clientElement.TryGetProperty("cliruc", out var clirucElement))
+                            clientDto.Cliruc = clirucElement.GetString() ?? "";
+
+                        if (clientElement.TryGetProperty("cliemail", out var cliemailElement))
+                            clientDto.Cliemail = cliemailElement.GetString() ?? "";
+
+                        if (clientElement.TryGetProperty("clidir", out var clidirElement))
+                            clientDto.Clidir = clidirElement.GetString() ?? "";
+
+                        if (clientElement.TryGetProperty("telefono", out var telefonoElement))
+                            clientDto.Telefono = telefonoElement.GetString() ?? "";
+
+                        // Activo por defecto ya que están en la respuesta
+                        clientDto.Activo = true;
+
+                        // ✅ SOLO AGREGAR SI TIENE DATOS MÍNIMOS
+                        if (!string.IsNullOrEmpty(clientDto.Clinom) && clientDto.Id > 0)
                         {
-                            if (attributesElement.TryGetProperty("nombre", out var nombreElement))
-                                clientDto.Clinom = nombreElement.GetString() ?? "";
-
-                            if (attributesElement.TryGetProperty("documento", out var documentoElement))
-                                clientDto.Cliced = documentoElement.GetString() ?? "";
-
-                            if (attributesElement.TryGetProperty("ruc", out var rucElement))
-                                clientDto.Cliruc = rucElement.GetString() ?? "";
-
-                            if (attributesElement.TryGetProperty("email", out var emailElement))
-                                clientDto.Cliemail = emailElement.GetString() ?? "";
-
-                            if (attributesElement.TryGetProperty("direccion", out var direccionElement))
-                                clientDto.Clidir = direccionElement.GetString() ?? "";
-
-                            if (attributesElement.TryGetProperty("telefono", out var telefonoElement))
-                                clientDto.Telefono = telefonoElement.GetString() ?? "";
+                            clients.Add(clientDto);
                         }
-
-                        clientDto.Activo = true; // Asumimos que están activos
-                        clients.Add(clientDto);
                     }
                     catch (Exception ex)
                     {
@@ -451,7 +453,19 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                     }
                 }
 
-                _logger.LogInformation("✅ BÚSQUEDA DIRECTA EXITOSA: {Count} clientes encontrados en Velneo", clients.Count);
+                // ✅ EXTRAER TOTAL DEL COUNT
+                var totalCount = 0;
+                if (root.TryGetProperty("total_count", out var totalCountElement))
+                {
+                    totalCount = totalCountElement.GetInt32();
+                }
+                else if (root.TryGetProperty("count", out var countElement))
+                {
+                    totalCount = countElement.GetInt32();
+                }
+
+                _logger.LogInformation("✅ BÚSQUEDA DIRECTA EXITOSA: {Count} clientes encontrados (total: {Total})",
+                    clients.Count, totalCount);
 
                 return clients;
             }

@@ -16,7 +16,6 @@ namespace RegularizadorPolizas.Infrastructure.External
             _logger = logger;
         }
 
-        // Constructor sin logger (para casos donde no esté disponible)
         public DocumentResultParser()
         {
             _logger = null;

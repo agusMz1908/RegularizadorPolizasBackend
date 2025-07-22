@@ -138,6 +138,41 @@ namespace RegularizadorPolizas.API.Controllers
             }
         }
 
+        [HttpGet("direct")]
+        [ProducesResponseType(typeof(IEnumerable<ClientDto>), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(500)]
+        [Authorize]
+        public async Task<ActionResult<IEnumerable<ClientDto>>> SearchClientesDirect([FromQuery] string filtro)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(filtro))
+                {
+                    return BadRequest(new { message = "Filtro de búsqueda requerido" });
+                }
+
+                _logger.LogInformation("🔍 BÚSQUEDA DIRECTA VELNEO: Searching clients with filter '{Filtro}'", filtro);
+
+                // ✅ USAR EL MÉTODO QUE YA TIENES IMPLEMENTADO
+                var clients = await _velneoApiService.SearchClientesDirectAsync(filtro);
+
+                _logger.LogInformation("✅ BÚSQUEDA DIRECTA EXITOSA: Found {Count} clients matching '{Filtro}'", clients.Count(), filtro);
+
+                return Ok(clients);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error en búsqueda directa de clientes con filtro '{Filtro}'", filtro);
+                return StatusCode(500, new
+                {
+                    message = "Error en búsqueda directa de clientes",
+                    error = ex.Message,
+                    filtro = filtro
+                });
+            }
+        }
+
         [HttpGet("{id}")]
         [ProducesResponseType(typeof(ClientDto), 200)]
         [ProducesResponseType(404)]

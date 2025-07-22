@@ -8,7 +8,8 @@ namespace RegularizadorPolizas.Application.Interfaces
         Task<PaginatedVelneoResponse<PolizaDto>> GetPolizasPaginatedAsync(int page = 1, int pageSize = 50, string? search = null);
         Task<PaginatedVelneoResponse<PolizaDto>> GetPolizasByClientPaginatedAsync(int clienteId, int page = 1, int pageSize = 25, string? search = null);
         Task<ClientDto> GetClienteAsync(int id);
-        Task<IEnumerable<ClientDto>> GetClientesAsync(); 
+        Task<IEnumerable<ClientDto>> GetClientesAsync();
+        Task<IEnumerable<ClientDto>> SearchClientesDirectAsync(string searchTerm);
         Task<IEnumerable<ClientDto>> SearchClientesAsync(string searchTerm);
         Task<ClientDto> CreateClienteAsync(ClientDto clienteDto);
         Task UpdateClienteAsync(ClientDto clienteDto);
