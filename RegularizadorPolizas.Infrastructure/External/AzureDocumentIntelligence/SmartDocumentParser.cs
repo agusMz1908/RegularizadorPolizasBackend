@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RegularizadorPolizas.Application.DTOs;
+using RegularizadorPolizas.Application.DTOs.Azure;
 using System.Text.RegularExpressions;
 
 namespace RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence
@@ -568,6 +569,21 @@ namespace RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence
             {
                 _logger.LogDebug("📅 Extrayendo cuotas detalladas...");
 
+                // Log campos que pueden contener cuotas
+                var camposRelevantes = campos.Where(kvp =>
+                    kvp.Key.Contains("cuota", StringComparison.OrdinalIgnoreCase) ||
+                    kvp.Key.Contains("pago", StringComparison.OrdinalIgnoreCase) ||
+                    kvp.Key.Contains("vencimiento", StringComparison.OrdinalIgnoreCase) ||
+                    kvp.Key.Contains("prima", StringComparison.OrdinalIgnoreCase)
+                ).ToList();
+
+                _logger.LogDebug("🔍 Campos relevantes para cuotas encontrados: {Count}", camposRelevantes.Count);
+                foreach (var campo in camposRelevantes.Take(5)) // Solo los primeros 5 para no saturar logs
+                {
+                    _logger.LogDebug("📄 Campo: {Key} = {Value}", campo.Key,
+                        campo.Value.Substring(0, Math.Min(50, campo.Value.Length)));
+                }
+
                 // 1. BUSCAR TABLA DE CUOTAS ESPECÍFICA
                 var tablaCuotasEncontrada = BuscarTablaCuotas(campos);
                 if (tablaCuotasEncontrada.Any())
@@ -575,7 +591,17 @@ namespace RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence
                     datos.DetalleCuotas.Cuotas = tablaCuotasEncontrada;
                     datos.DetalleCuotas.CantidadTotal = tablaCuotasEncontrada.Count;
                     datos.CantidadCuotas = Math.Max(datos.CantidadCuotas, tablaCuotasEncontrada.Count);
-                    _logger.LogDebug("✅ Tabla de cuotas encontrada: {Count} cuotas", tablaCuotasEncontrada.Count);
+                    _logger.LogInformation("✅ Tabla de cuotas encontrada: {Count} cuotas detalladas", tablaCuotasEncontrada.Count);
+
+                    // Log de la primera cuota para verificar
+                    var primera = tablaCuotasEncontrada.FirstOrDefault();
+                    if (primera != null)
+                    {
+                        _logger.LogInformation("📅 Primera cuota: #{Numero} - {Fecha} - ${Monto}",
+                            primera.Numero,
+                            primera.FechaVencimiento?.ToString("dd/MM/yyyy") ?? "SIN FECHA",
+                            primera.Monto);
+                    }
                 }
 
                 // 2. BUSCAR INFORMACIÓN DE PRIMERA CUOTA
@@ -594,8 +620,10 @@ namespace RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence
                 // 3. ACTUALIZAR INFORMACIÓN CONSOLIDADA
                 datos.DetalleCuotas.CantidadTotal = Math.Max(datos.CantidadCuotas, datos.DetalleCuotas.Cuotas.Count);
 
-                _logger.LogDebug("📊 Cuotas detalladas procesadas: Total={Total}, Detalladas={Detalladas}",
-                    datos.DetalleCuotas.CantidadTotal, datos.DetalleCuotas.Cuotas.Count);
+                _logger.LogInformation("📊 Resultado cuotas detalladas: Total={Total}, Detalladas={Detalladas}, TieneDatos={TieneDatos}",
+                    datos.DetalleCuotas.CantidadTotal,
+                    datos.DetalleCuotas.Cuotas.Count,
+                    datos.DetalleCuotas.TieneCuotasDetalladas);
 
             }
             catch (Exception ex)
@@ -607,6 +635,14 @@ namespace RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence
         private List<DetalleCuota> BuscarTablaCuotas(Dictionary<string, string> campos)
         {
             var cuotas = new List<DetalleCuota>();
+
+            // ✅ AGREGAR: BUSCAR CAMPOS ESPECÍFICOS DE AZURE DOCUMENT INTELLIGENCE
+            var cuotasAzure = ExtraerCuotasDeAzure(campos);
+            if (cuotasAzure.Any())
+            {
+                cuotas.AddRange(cuotasAzure);
+                _logger.LogDebug("✅ Cuotas extraídas de campos Azure: {Count}", cuotasAzure.Count);
+            }
 
             // BUSCAR CAMPOS QUE CONTENGAN TABLAS DE CUOTAS
             var camposCuotasTabla = campos.Where(kvp =>
@@ -627,6 +663,148 @@ namespace RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence
 
             // ORDENAR POR NÚMERO DE CUOTA O FECHA
             return cuotas.OrderBy(c => c.Numero).ThenBy(c => c.FechaVencimiento).ToList();
+        }
+
+        private List<DetalleCuota> ExtraerCuotasDeAzure(Dictionary<string, string> campos)
+        {
+            var cuotas = new List<DetalleCuota>();
+
+            try
+            {
+                _logger.LogDebug("🔍 Buscando campos específicos de Azure Document Intelligence...");
+
+                // PATRÓN 1: Campos individuales tipo "pago.cuotas[1].vencimiento"
+                var camposCuotasIndividuales = campos.Where(kvp =>
+                    kvp.Key.Contains("pago.cuotas[", StringComparison.OrdinalIgnoreCase) ||
+                    kvp.Key.Contains("cuotas[", StringComparison.OrdinalIgnoreCase) ||
+                    kvp.Key.Contains("installment", StringComparison.OrdinalIgnoreCase)
+                ).ToList();
+
+                // Agrupar por número de cuota
+                var cuotasAgrupadas = new Dictionary<int, DetalleCuota>();
+
+                foreach (var campo in camposCuotasIndividuales)
+                {
+                    var numeroCuota = ExtraerNumeroCuotaDeCampo(campo.Key);
+                    if (numeroCuota > 0)
+                    {
+                        if (!cuotasAgrupadas.ContainsKey(numeroCuota))
+                        {
+                            cuotasAgrupadas[numeroCuota] = new DetalleCuota
+                            {
+                                Numero = numeroCuota,
+                                Estado = "PENDIENTE"
+                            };
+                        }
+
+                        // Extraer vencimiento
+                        if (campo.Key.Contains("vencimiento", StringComparison.OrdinalIgnoreCase) ||
+                            campo.Key.Contains("fecha", StringComparison.OrdinalIgnoreCase) ||
+                            campo.Key.Contains("due", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var fecha = ExtraerFechaDeCampo(campo.Value);
+                            if (fecha.HasValue)
+                            {
+                                cuotasAgrupadas[numeroCuota].FechaVencimiento = fecha;
+                                _logger.LogDebug("📅 Cuota {Numero}: Vencimiento {Fecha}", numeroCuota, fecha.Value.ToString("dd/MM/yyyy"));
+                            }
+                        }
+
+                        // Extraer monto
+                        if (campo.Key.Contains("prima", StringComparison.OrdinalIgnoreCase) ||
+                            campo.Key.Contains("monto", StringComparison.OrdinalIgnoreCase) ||
+                            campo.Key.Contains("amount", StringComparison.OrdinalIgnoreCase) ||
+                            campo.Key.Contains("importe", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var monto = ExtraerMontoDeCampo(campo.Value);
+                            if (monto > 0)
+                            {
+                                cuotasAgrupadas[numeroCuota].Monto = monto;
+                                _logger.LogDebug("💰 Cuota {Numero}: Monto ${Monto}", numeroCuota, monto);
+                            }
+                        }
+                    }
+                }
+
+                // Convertir a lista y validar
+                cuotas.AddRange(cuotasAgrupadas.Values.Where(c =>
+                    c.FechaVencimiento.HasValue || c.Monto > 0));
+
+                _logger.LogDebug("✅ Extraídas {Count} cuotas de campos Azure específicos", cuotas.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error extrayendo cuotas de campos Azure");
+            }
+
+            return cuotas;
+        }
+
+        private int ExtraerNumeroCuotaDeCampo(string nombreCampo)
+        {
+            // Buscar patrones como "pago.cuotas[1]" o "cuotas[2]"
+            var match = Regex.Match(nombreCampo, @"cuotas\[(\d+)\]", RegexOptions.IgnoreCase);
+            if (match.Success && int.TryParse(match.Groups[1].Value, out int numero))
+            {
+                return numero;
+            }
+
+            // Buscar patrones como "installment_1" o "cuota_2"
+            match = Regex.Match(nombreCampo, @"(?:cuota|installment)_?(\d+)", RegexOptions.IgnoreCase);
+            if (match.Success && int.TryParse(match.Groups[1].Value, out numero))
+            {
+                return numero;
+            }
+
+            return 0;
+        }
+
+        private DateTime? ExtraerFechaDeCampo(string valor)
+        {
+            if (string.IsNullOrEmpty(valor)) return null;
+
+            // Limpiar el valor
+            var fechaLimpia = valor.Replace("Vencimiento:", "").Replace("Fecha:", "").Trim();
+
+            // Formatos de fecha uruguayos
+            var formatos = new[] { "dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy", "d-M-yyyy" };
+
+            foreach (var formato in formatos)
+            {
+                if (DateTime.TryParseExact(fechaLimpia, formato, null, System.Globalization.DateTimeStyles.None, out DateTime fecha))
+                {
+                    return fecha;
+                }
+            }
+
+            // Intentar parsing general
+            if (DateTime.TryParse(fechaLimpia, out DateTime fechaGeneral))
+            {
+                return fechaGeneral;
+            }
+
+            return null;
+        }
+
+        private decimal ExtraerMontoDeCampo(string valor)
+        {
+            if (string.IsNullOrEmpty(valor)) return 0;
+
+            // Limpiar el valor
+            var montoLimpio = valor.Replace("Prima:", "").Replace("$", "").Replace("USD", "").Replace("UYU", "").Trim();
+
+            // Formato uruguayo: 15.379,00 (punto como separador de miles, coma como decimal)
+            if (montoLimpio.Contains(","))
+            {
+                montoLimpio = montoLimpio.Replace(".", "").Replace(",", ".");
+            }
+
+            if (decimal.TryParse(montoLimpio, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal monto))
+            {
+                return monto;
+            }
+
+            return 0;
         }
 
         private List<DetalleCuota> ParsearTablaCuotas(string textoTabla)
@@ -882,6 +1060,589 @@ namespace RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence
             public decimal MontoPromedio => Cuotas.Any() ? Cuotas.Average(c => c.Monto) : 0;
             public bool TieneCuotasDetalladas => Cuotas.Any();
         }
-    }
+
     #endregion
+
+    public AzureDatosPolizaVelneoDto ExtraerDatosOrganizadosVelneo(Dictionary<string, string> camposExtraidos)
+        {
+            var datosVelneo = new AzureDatosPolizaVelneoDto();
+
+            try
+            {
+                _logger.LogInformation("🏗️ Iniciando extracción organizada para Velneo de {CamposCount} campos", camposExtraidos.Count);
+
+                // Primero extraer con el método existente para mantener compatibilidad
+                var datosLegacy = ExtraerDatosInteligente(camposExtraidos);
+
+                // Luego organizar en las nuevas secciones
+                datosVelneo.DatosBasicos = ExtraerDatosBasicos(camposExtraidos, datosLegacy);
+                datosVelneo.DatosPoliza = ExtraerDatosPoliza(camposExtraidos, datosLegacy);
+                datosVelneo.DatosVehiculo = ExtraerDatosVehiculo(camposExtraidos, datosLegacy);
+                datosVelneo.DatosCobertura = ExtraerDatosCobertura(camposExtraidos, datosLegacy);
+                datosVelneo.CondicionesPago = ExtraerCondicionesPago(camposExtraidos, datosLegacy);
+                datosVelneo.Bonificaciones = ExtraerBonificaciones(camposExtraidos, datosLegacy);
+                datosVelneo.Observaciones = ExtraerObservaciones(camposExtraidos, datosLegacy);
+                datosVelneo.Metricas = CalcularMetricas(datosVelneo, camposExtraidos.Count);
+
+                _logger.LogInformation("✅ Extracción organizada completada: {Completitud}% completitud",
+                    datosVelneo.Metricas.PorcentajeCompletitud);
+
+                return datosVelneo;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error en extracción organizada");
+                return datosVelneo; // Retorna datos parciales
+            }
+        }
+
+        #region Extracción por Secciones Velneo
+
+        private AzureDatosBasicosDto ExtraerDatosBasicos(Dictionary<string, string> campos, SmartExtractedData datosLegacy)
+        {
+            var datos = new AzureDatosBasicosDto();
+
+            try
+            {
+                _logger.LogDebug("👤 Extrayendo Datos Básicos...");
+
+                // Mapear desde datos legacy
+                datos.Asegurado = datosLegacy.Asegurado;
+                datos.Domicilio = datosLegacy.Direccion;
+                datos.Telefono = datosLegacy.Telefono;
+                datos.Email = datosLegacy.Email;
+                datos.Documento = datosLegacy.Documento;
+                datos.Departamento = datosLegacy.Departamento;
+                datos.Localidad = datosLegacy.Localidad;
+                datos.CodigoPostal = datosLegacy.CodigoPostal;
+                datos.Corredor = datosLegacy.Corredor;
+
+                // Extraer fecha de emisión
+                if (datosLegacy.VigenciaDesde.HasValue)
+                {
+                    datos.Fecha = datosLegacy.VigenciaDesde; // Usar vigencia como fecha de emisión por defecto
+                }
+
+                // Determinar tipo (Persona/Empresa) basado en el documento
+                datos.Tipo = DeterminarTipoCliente(datos.Documento, datos.Asegurado);
+
+                // Buscar trámite específico
+                datos.Tramite = BuscarTramite(campos);
+
+                _logger.LogDebug("✅ Datos Básicos: Cliente={Cliente}, Tipo={Tipo}", datos.Asegurado, datos.Tipo);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error extrayendo datos básicos");
+            }
+
+            return datos;
+        }
+
+        // ✅ SECCIÓN 2: DATOS DE LA PÓLIZA
+        private AzureDatosPolizaDto ExtraerDatosPoliza(Dictionary<string, string> campos, SmartExtractedData datosLegacy)
+        {
+            var datos = new AzureDatosPolizaDto();
+
+            try
+            {
+                _logger.LogDebug("📋 Extrayendo Datos de la Póliza...");
+
+                // Mapear desde datos legacy
+                datos.NumeroPoliza = datosLegacy.NumeroPoliza;
+                datos.Desde = datosLegacy.VigenciaDesde;
+                datos.Hasta = datosLegacy.VigenciaHasta;
+                datos.Ramo = datosLegacy.Ramo;
+
+                // Buscar campos específicos
+                datos.Certificado = BuscarCertificado(campos);
+                datos.Endoso = BuscarEndoso(campos);
+                datos.TipoMovimiento = BuscarTipoMovimiento(campos);
+
+                _logger.LogDebug("✅ Datos Póliza: Número={Numero}, Vigencia={Desde}-{Hasta}",
+                    datos.NumeroPoliza, datos.Desde?.ToString("dd/MM/yyyy"), datos.Hasta?.ToString("dd/MM/yyyy"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error extrayendo datos de póliza");
+            }
+
+            return datos;
+        }
+
+        // ✅ SECCIÓN 3: DATOS DEL VEHÍCULO
+        private AzureDatosVehiculoDto ExtraerDatosVehiculo(Dictionary<string, string> campos, SmartExtractedData datosLegacy)
+        {
+            var datos = new AzureDatosVehiculoDto();
+
+            try
+            {
+                _logger.LogDebug("🚗 Extrayendo Datos del Vehículo...");
+
+                // Mapear desde datos legacy
+                datos.Marca = datosLegacy.Marca;
+                datos.Modelo = datosLegacy.Modelo;
+                datos.MarcaModelo = $"{datos.Marca} {datos.Modelo}".Trim();
+                datos.Anio = datosLegacy.Anio;
+                datos.Motor = datosLegacy.Motor;
+                datos.Combustible = datosLegacy.Combustible;
+                datos.Chasis = datosLegacy.Chasis;
+                datos.Matricula = datosLegacy.Matricula;
+                datos.Color = datosLegacy.Color;
+                datos.TipoVehiculo = datosLegacy.TipoVehiculo;
+                datos.Uso = datosLegacy.Uso;
+
+                // Mapear uso a destino si es posible
+                datos.Destino = MapearUsoADestino(datos.Uso);
+
+                // Determinar categoría basada en tipo de vehículo
+                datos.Categoria = DeterminarCategoria(datos.TipoVehiculo, datos.Uso);
+
+                _logger.LogDebug("✅ Datos Vehículo: {Marca} {Modelo} {Anio}, Uso={Uso}",
+                    datos.Marca, datos.Modelo, datos.Anio, datos.Uso);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error extrayendo datos del vehículo");
+            }
+
+            return datos;
+        }
+
+        // ✅ SECCIÓN 4: DATOS DE LA COBERTURA
+        private AzureDatosCoberturaDto ExtraerDatosCobertura(Dictionary<string, string> campos, SmartExtractedData datosLegacy)
+        {
+            var datos = new AzureDatosCoberturaDto();
+
+            try
+            {
+                _logger.LogDebug("🛡️ Extrayendo Datos de la Cobertura...");
+
+                // Extraer cobertura/plan
+                datos.Cobertura = datosLegacy.Plan;
+
+                // Mapear departamento a zona de circulación
+                datos.ZonaCirculacion = datosLegacy.Departamento;
+
+                // Determinar moneda y código
+                datos.Moneda = DeterminarMoneda(campos);
+                datos.CodigoMoneda = MapearCodigoMoneda(datos.Moneda);
+
+                _logger.LogDebug("✅ Datos Cobertura: Plan={Plan}, Zona={Zona}, Moneda={Moneda}",
+                    datos.Cobertura, datos.ZonaCirculacion, datos.Moneda);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error extrayendo datos de cobertura");
+            }
+
+            return datos;
+        }
+
+        // ✅ SECCIÓN 5: CONDICIONES DE PAGO
+        private AzureCondicionesPagoDto ExtraerCondicionesPago(Dictionary<string, string> campos, SmartExtractedData datosLegacy)
+        {
+            var datos = new AzureCondicionesPagoDto();
+
+            try
+            {
+                _logger.LogDebug("💳 Extrayendo Condiciones de Pago...");
+
+                // Mapear desde datos legacy
+                datos.FormaPago = datosLegacy.FormaPago;
+                datos.Premio = datosLegacy.PrimaComercial;
+                datos.Total = datosLegacy.PremioTotal;
+                datos.Cuotas = datosLegacy.CantidadCuotas;
+                datos.DetalleCuotas = ConvertirInformacionCuotas(datosLegacy.DetalleCuotas);
+
+                // Calcular valor cuota
+                if (datos.Cuotas > 0 && datos.Total > 0)
+                {
+                    datos.ValorCuota = datos.Total / datos.Cuotas;
+                }
+                else if (datosLegacy.DetalleCuotas.TieneCuotasDetalladas)
+                {
+                    datos.ValorCuota = datosLegacy.DetalleCuotas.MontoPromedio;
+                }
+
+                // Determinar moneda
+                datos.Moneda = DeterminarMoneda(campos);
+
+                _logger.LogDebug("✅ Condiciones Pago: FormaPago={FormaPago}, Total={Total}, Cuotas={Cuotas}, ValorCuota={ValorCuota}",
+                    datos.FormaPago, datos.Total, datos.Cuotas, datos.ValorCuota);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error extrayendo condiciones de pago");
+            }
+
+            return datos;
+        }
+
+        // ✅ SECCIÓN 6: BONIFICACIONES
+        private AzureBonificacionesDto ExtraerBonificaciones(Dictionary<string, string> campos, SmartExtractedData datosLegacy)
+        {
+            var datos = new AzureBonificacionesDto();
+
+            try
+            {
+                _logger.LogDebug("🎁 Extrayendo Bonificaciones...");
+
+                // Mapear desde datos legacy
+                datos.Descuentos = datosLegacy.Descuentos;
+                datos.Recargos = datosLegacy.Recargos;
+                datos.ImpuestoMSP = datosLegacy.ImpuestoMSP;
+
+                // Buscar bonificaciones específicas en los campos
+                datos.Bonificaciones = BuscarBonificaciones(campos);
+                datos.TotalBonificaciones = datos.Bonificaciones.Sum(b => b.Monto);
+
+                _logger.LogDebug("✅ Bonificaciones: Descuentos={Descuentos}, Recargos={Recargos}, ImpuestoMSP={ImpuestoMSP}",
+                    datos.Descuentos, datos.Recargos, datos.ImpuestoMSP);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error extrayendo bonificaciones");
+            }
+
+            return datos;
+        }
+
+        // ✅ SECCIÓN 7: OBSERVACIONES
+        private AzureObservacionesDto ExtraerObservaciones(Dictionary<string, string> campos, SmartExtractedData datosLegacy)
+        {
+            var datos = new AzureObservacionesDto();
+
+            try
+            {
+                _logger.LogDebug("📝 Extrayendo Observaciones...");
+
+                // Buscar observaciones en campos específicos
+                datos.ObservacionesGenerales = BuscarObservaciones(campos);
+
+                // Agregar notas del procesamiento
+                datos.NotasEscaneado.Add($"Documento procesado automáticamente el {DateTime.Now:dd/MM/yyyy HH:mm}");
+
+                if (datosLegacy.DetalleCuotas.TieneCuotasDetalladas)
+                {
+                    datos.NotasEscaneado.Add($"Cronograma de {datosLegacy.DetalleCuotas.Cuotas.Count} cuotas extraído automáticamente");
+                }
+
+                _logger.LogDebug("✅ Observaciones extraídas");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error extrayendo observaciones");
+            }
+
+            return datos;
+        }
+
+        // ✅ MÉTRICAS DE CALIDAD
+        private AzureMetricasExtraccionDto CalcularMetricas(AzureDatosPolizaVelneoDto datos, int totalCampos)
+        {
+            var metricas = new AzureMetricasExtraccionDto();
+
+            try
+            {
+                // Contar campos completos por sección
+                var camposCompletos = 0;
+                var totalCamposEsperados = 0;
+
+                // Datos Básicos (campos críticos)
+                var camposBasicos = new[] { datos.DatosBasicos.Asegurado, datos.DatosBasicos.Documento, datos.DatosBasicos.Domicilio };
+                camposCompletos += camposBasicos.Count(c => !string.IsNullOrEmpty(c));
+                totalCamposEsperados += camposBasicos.Length;
+
+                // Datos Póliza (campos críticos)
+                var camposPoliza = new[] { datos.DatosPoliza.NumeroPoliza };
+                camposCompletos += camposPoliza.Count(c => !string.IsNullOrEmpty(c));
+                totalCamposEsperados += camposPoliza.Length;
+
+                // Datos Vehículo (campos críticos)
+                var camposVehiculo = new[] { datos.DatosVehiculo.Marca, datos.DatosVehiculo.Modelo, datos.DatosVehiculo.Anio };
+                camposCompletos += camposVehiculo.Count(c => !string.IsNullOrEmpty(c));
+                totalCamposEsperados += camposVehiculo.Length;
+
+                // Condiciones Pago (campos críticos)
+                var camposPago = new[] { datos.CondicionesPago.FormaPago };
+                camposCompletos += camposPago.Count(c => !string.IsNullOrEmpty(c));
+                totalCamposEsperados += camposPago.Length;
+
+                metricas.CamposCompletos = camposCompletos;
+                metricas.CamposExtraidos = totalCampos;
+                metricas.PorcentajeCompletitud = totalCamposEsperados > 0 ?
+                    (decimal)camposCompletos / totalCamposEsperados * 100 : 0;
+
+                metricas.TieneDatosMinimos = !string.IsNullOrEmpty(datos.DatosPoliza.NumeroPoliza) &&
+                                            !string.IsNullOrEmpty(datos.DatosBasicos.Asegurado) &&
+                                            !string.IsNullOrEmpty(datos.DatosBasicos.Documento);
+
+                // Identificar campos faltantes críticos
+                if (string.IsNullOrEmpty(datos.DatosBasicos.Asegurado)) metricas.CamposFaltantes.Add("Asegurado");
+                if (string.IsNullOrEmpty(datos.DatosBasicos.Documento)) metricas.CamposFaltantes.Add("Documento");
+                if (string.IsNullOrEmpty(datos.DatosPoliza.NumeroPoliza)) metricas.CamposFaltantes.Add("Número de Póliza");
+                if (string.IsNullOrEmpty(datos.DatosVehiculo.Marca)) metricas.CamposFaltantes.Add("Marca del Vehículo");
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error calculando métricas");
+            }
+
+            return metricas;
+        }
+
+        #endregion
+
+        #region Métodos Auxiliares de Mapeo
+
+        private string DeterminarTipoCliente(string documento, string asegurado)
+        {
+            // Si el documento es RUT (12 dígitos) y el nombre suena empresarial, es empresa
+            if (!string.IsNullOrEmpty(documento) && documento.Length >= 12)
+            {
+                var nombresEmpresa = new[] { "SA", "S.A", "SRL", "S.R.L", "LTDA", "CIA", "EMPRESA", "SOCIEDAD" };
+                if (nombresEmpresa.Any(emp => asegurado.Contains(emp, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return "EMPRESA";
+                }
+            }
+            return "PERSONA";
+        }
+
+        private string BuscarTramite(Dictionary<string, string> campos)
+        {
+            var camposTramite = new[] { "tramite", "tipo_tramite", "operacion", "movimiento" };
+
+            foreach (var campo in camposTramite)
+            {
+                if (campos.ContainsKey(campo) && !string.IsNullOrEmpty(campos[campo]))
+                {
+                    return campos[campo];
+                }
+            }
+
+            return "RENOVACION"; // Default
+        }
+
+        private string BuscarCertificado(Dictionary<string, string> campos)
+        {
+            var camposCertificado = new[] { "certificado", "poliza.certificado", "numero_certificado", "cert" };
+
+            foreach (var campo in camposCertificado)
+            {
+                if (campos.ContainsKey(campo) && !string.IsNullOrEmpty(campos[campo]))
+                {
+                    var certificado = campos[campo];
+
+                    // Limpiar formato: "Certificado Nº:\n1" -> "Nº 1"
+                    certificado = certificado
+                        .Replace("Certificado Nº:", "Nº")
+                        .Replace("Certificado No:", "Nº")
+                        .Replace("Certificado N°:", "Nº")
+                        .Replace("Certificado:", "")
+                        .Replace("\n", " ")
+                        .Replace("\r", " ")
+                        .Trim();
+
+                    // Remover espacios múltiples
+                    while (certificado.Contains("  "))
+                    {
+                        certificado = certificado.Replace("  ", " ");
+                    }
+
+                    _logger.LogDebug("✅ Certificado formateado: {Certificado}", certificado);
+                    return certificado;
+                }
+            }
+
+            return "";
+        }
+
+        private string BuscarEndoso(Dictionary<string, string> campos)
+        {
+            var camposEndoso = new[] { "endoso", "poliza.endoso", "numero_endoso" };
+
+            foreach (var campo in camposEndoso)
+            {
+                if (campos.ContainsKey(campo) && !string.IsNullOrEmpty(campos[campo]))
+                {
+                    return campos[campo];
+                }
+            }
+
+            return "0"; // Default
+        }
+
+        private string BuscarTipoMovimiento(Dictionary<string, string> campos)
+        {
+            // Buscar primero el campo específico de Azure Document Intelligence
+            if (campos.ContainsKey("poliza.tipo_movimiento") && !string.IsNullOrEmpty(campos["poliza.tipo_movimiento"]))
+            {
+                var tipoMovimiento = campos["poliza.tipo_movimiento"].Trim().ToUpperInvariant();
+                _logger.LogDebug("✅ Tipo movimiento encontrado en Azure: {TipoMovimiento}", tipoMovimiento);
+                return tipoMovimiento;
+            }
+
+            // Buscar en otros campos posibles
+            var camposMovimiento = new[] { "tipo_movimiento", "movimiento", "operacion", "poliza.operacion" };
+
+            foreach (var campo in camposMovimiento)
+            {
+                if (campos.ContainsKey(campo) && !string.IsNullOrEmpty(campos[campo]))
+                {
+                    var valor = campos[campo].Trim().ToUpperInvariant();
+
+                    // Mapear valores comunes
+                    if (valor.Contains("EMISION") || valor.Contains("NUEVA") || valor.Contains("ALTA"))
+                        return "EMISION";
+                    if (valor.Contains("RENOVACION") || valor.Contains("RENOV"))
+                        return "RENOVACION";
+                    if (valor.Contains("MODIFICACION") || valor.Contains("MODIF"))
+                        return "MODIFICACION";
+                    if (valor.Contains("ANULACION") || valor.Contains("BAJA"))
+                        return "ANULACION";
+
+                    return valor;
+                }
+            }
+
+            return "EMISION"; // Default cambiado a EMISION
+        }
+
+        private string MapearUsoADestino(string uso)
+        {
+            return uso?.ToUpperInvariant() switch
+            {
+                "PARTICULAR" => "PARTICULAR",
+                "COMERCIAL" => "COMERCIAL",
+                "TAXI" => "TAXI",
+                "REMISE" => "REMISE",
+                "CARGA" => "CARGA",
+                _ => "PARTICULAR" // Default
+            };
+        }
+
+        private string DeterminarCategoria(string tipoVehiculo, string uso)
+        {
+            // Lógica para determinar categoría basada en tipo y uso
+            if (!string.IsNullOrEmpty(tipoVehiculo))
+            {
+                if (tipoVehiculo.Contains("AUTOMOVIL", StringComparison.OrdinalIgnoreCase))
+                    return "AUTOMOVIL";
+                if (tipoVehiculo.Contains("CAMIONETA", StringComparison.OrdinalIgnoreCase))
+                    return "CAMIONETA";
+                if (tipoVehiculo.Contains("MOTOCICLETA", StringComparison.OrdinalIgnoreCase))
+                    return "MOTOCICLETA";
+            }
+
+            return "AUTOMOVIL"; // Default
+        }
+
+        private string DeterminarMoneda(Dictionary<string, string> campos)
+        {
+            // Buscar primero el campo específico de Azure Document Intelligence
+            if (campos.ContainsKey("poliza.moneda") && !string.IsNullOrEmpty(campos["poliza.moneda"]))
+            {
+                var monedaAzure = campos["poliza.moneda"].ToUpperInvariant().Trim();
+                _logger.LogDebug("✅ Moneda encontrada en Azure: {Moneda}", monedaAzure);
+
+                // Mapear valores específicos de Azure
+                if (monedaAzure.Contains("PESO") || monedaAzure.Contains("URUGUAYO") || monedaAzure.Contains("UYU"))
+                    return "UYU";
+                if (monedaAzure.Contains("DOLAR") || monedaAzure.Contains("USD") || monedaAzure.Contains("DOLARES"))
+                    return "USD";
+                if (monedaAzure.Contains("EURO") || monedaAzure.Contains("EUR"))
+                    return "EUR";
+            }
+
+            // Buscar en otros campos posibles
+            var camposMoneda = new[] { "moneda", "currency", "financiero.moneda", "divisa" };
+
+            foreach (var campo in camposMoneda)
+            {
+                if (campos.ContainsKey(campo) && !string.IsNullOrEmpty(campos[campo]))
+                {
+                    var moneda = campos[campo].ToUpperInvariant();
+                    if (moneda.Contains("USD") || moneda.Contains("DOLAR"))
+                        return "USD";
+                    if (moneda.Contains("UYU") || moneda.Contains("PESO"))
+                        return "UYU";
+                    if (moneda.Contains("EUR") || moneda.Contains("EURO"))
+                        return "EUR";
+                }
+            }
+
+            return "UYU"; // Default uruguayo
+        }
+
+        private int MapearCodigoMoneda(string moneda)
+        {
+            return moneda switch
+            {
+                "UYU" => 1,
+                "USD" => 2,
+                _ => 1
+            };
+        }
+
+        private AzureInformacionCuotasDto ConvertirInformacionCuotas(InformacionCuotas cuotasLegacy)
+        {
+            return new AzureInformacionCuotasDto
+            {
+                CantidadTotal = cuotasLegacy.CantidadTotal,
+                Cuotas = cuotasLegacy.Cuotas.Select(c => new AzureDetalleCuotaDto
+                {
+                    Numero = c.Numero,
+                    FechaVencimiento = c.FechaVencimiento,
+                    Monto = c.Monto,
+                    Estado = c.Estado
+                }).ToList()
+            };
+        }
+
+        private List<AzureBonificacionDto> BuscarBonificaciones(Dictionary<string, string> campos)
+        {
+            var bonificaciones = new List<AzureBonificacionDto>();
+
+            // Buscar patrones de bonificaciones
+            foreach (var campo in campos)
+            {
+                if (campo.Key.Contains("bonif", StringComparison.OrdinalIgnoreCase) ||
+                    campo.Value.Contains("bonificacion", StringComparison.OrdinalIgnoreCase))
+                {
+                    var match = Regex.Match(campo.Value, @"(\d+(?:\.\d+)?)%?", RegexOptions.IgnoreCase);
+                    if (match.Success && decimal.TryParse(match.Groups[1].Value, out decimal valor))
+                    {
+                        bonificaciones.Add(new AzureBonificacionDto
+                        {
+                            Tipo = campo.Key,
+                            Porcentaje = valor,
+                            Descripcion = campo.Value
+                        });
+                    }
+                }
+            }
+
+            return bonificaciones;
+        }
+
+        private string BuscarObservaciones(Dictionary<string, string> campos)
+        {
+            var camposObservaciones = new[] { "observaciones", "notas", "comentarios", "observacion" };
+
+            foreach (var campo in camposObservaciones)
+            {
+                if (campos.ContainsKey(campo) && !string.IsNullOrEmpty(campos[campo]))
+                {
+                    return campos[campo];
+                }
+            }
+
+            return "";
+        }
+
+        #endregion
+    }
 }

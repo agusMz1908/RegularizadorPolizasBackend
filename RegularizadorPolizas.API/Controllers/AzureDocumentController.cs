@@ -6,6 +6,7 @@ using RegularizadorPolizas.Application.DTOs.Azure;
 using RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence;
 using System.ComponentModel.DataAnnotations;
 using System.Text.RegularExpressions;
+using static RegularizadorPolizas.Application.DTOs.Azure.AzureResumenDto;
 using static RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence.SmartDocumentParser;
 
 namespace RegularizadorPolizas.API.Controllers
@@ -31,7 +32,7 @@ namespace RegularizadorPolizas.API.Controllers
 
         [HttpPost("process")]
         [Authorize]
-        [ProducesResponseType(typeof(AzureBatchResponseDto), 200)]
+        [ProducesResponseType(typeof(AzureProcessResponseDto), 200)]
         [ProducesResponseType(typeof(AzureErrorResponseDto), 400)]
         [ProducesResponseType(typeof(AzureErrorResponseDto), 500)]
         public async Task<ActionResult> ProcessDocument([Required] IFormFile file)
@@ -77,7 +78,7 @@ namespace RegularizadorPolizas.API.Controllers
                     }
                 }
 
-                // 🔧 NUEVO: Capturar TODOS los campos estructurados de Azure
+                // 🔧 Capturar TODOS los campos estructurados de Azure
                 var camposEstructurados = ExtraerCamposEstructurados(analyzeResult);
 
                 // Combinar campos raw + estructurados
@@ -91,79 +92,28 @@ namespace RegularizadorPolizas.API.Controllers
 
                 _logger.LogInformation("📊 PASO 2: Procesando con SmartParser - Total campos: {Count}", camposRaw.Count);
 
-                // ✅ NUEVO: Logear algunos campos clave antes del parsing
+                // ✅ Logear algunos campos clave antes del parsing
                 LogCamposClave(camposRaw);
 
-                // Usar tu SmartDocumentParser actualizado
-                var smartData = _smartParser.ExtraerDatosInteligente(camposRaw);
+                // ✅ Usar el nuevo método organizado por secciones
+                var datosVelneo = _smartParser.ExtraerDatosOrganizadosVelneo(camposRaw);
 
-                // 🔧 NUEVO: Post-procesamiento para completar campos faltantes
-                CompletarCamposFaltantes(smartData, analyzeResult);
-
-                // ✅ NUEVO: Post-procesamiento específico para pago
-                CompletarDatosPago(smartData, camposRaw, analyzeResult);
+                // 🔧 Post-procesamiento adicional si es necesario
+                CompletarDatosAdicionales(datosVelneo, analyzeResult);
 
                 stopwatch.Stop();
 
-                // Mapear a tu DTO existente - ✅ AHORA CON LAS NUEVAS PROPIEDADES
-                var datosFormateados = new AzureDatosFormateadosDto
-                {
-                    NumeroPoliza = smartData.NumeroPoliza,
-                    Asegurado = smartData.Asegurado,
-                    Documento = smartData.Documento,
-                    Vehiculo = smartData.Vehiculo,
-                    Marca = smartData.Marca,
-                    Modelo = smartData.Modelo,
-                    Matricula = smartData.Matricula,
-                    Motor = smartData.Motor,
-                    Chasis = smartData.Chasis,
-                    PrimaComercial = smartData.PrimaComercial,
-                    PremioTotal = smartData.PremioTotal,
-                    VigenciaDesde = smartData.VigenciaDesde,
-                    VigenciaHasta = smartData.VigenciaHasta,
-                    Corredor = smartData.Corredor,
-                    Plan = smartData.Plan,
-                    Ramo = smartData.Ramo,
-                    Anio = smartData.Anio,
-                    Email = smartData.Email,
-                    Direccion = smartData.Direccion,
-                    Departamento = smartData.Departamento,
-                    Localidad = smartData.Localidad,
-                    TipoVehiculo = smartData.TipoVehiculo,
-                    Combustible = smartData.Combustible,
-                    Uso = smartData.Uso,
-                    ImpuestoMSP = smartData.ImpuestoMSP,
-                    FormaPago = smartData.FormaPago,      
-                    CantidadCuotas = smartData.CantidadCuotas, 
-                    Telefono = smartData.Telefono,
-                    CodigoPostal = smartData.CodigoPostal,
-                    Descuentos = smartData.Descuentos,
-                    Recargos = smartData.Recargos,
-                    Color = smartData.Color                  
-                };
-
+                // ✅ RESPONSE LIMPIO - SIN CAMPOS LEGACY
                 var response = new AzureProcessResponseDto
                 {
                     Archivo = file.FileName,
                     Timestamp = DateTime.UtcNow,
                     TiempoProcesamiento = stopwatch.ElapsedMilliseconds,
                     Estado = "PROCESADO_CON_SMART_EXTRACTION",
-                    DatosFormateados = datosFormateados,
-                    SiguientePaso = "completar_formulario",
-                    Resumen = new AzureResumenDto
-                    {
-                        ProcesamientoExitoso = true,
-                        NumeroPolizaExtraido = datosFormateados.NumeroPoliza,
-                        ClienteExtraido = datosFormateados.Asegurado,
-                        DocumentoExtraido = datosFormateados.Documento,
-                        VehiculoExtraido = datosFormateados.Vehiculo,
-                        ListoParaVelneo = datosFormateados.TieneDatosMinimos
-                    }
+                    DatosVelneo = datosVelneo,
                 };
 
-                // ✅ NUEVO: Logear información de pago extraída
-                _logger.LogInformation("💳 Pago extraído: FormaPago={FormaPago}, Cuotas={Cuotas}, Color={Color}",
-                    datosFormateados.FormaPago, datosFormateados.CantidadCuotas, datosFormateados.Color);
+                LogResultadosPorSeccion(datosVelneo);
 
                 return Ok(response);
             }
@@ -171,6 +121,104 @@ namespace RegularizadorPolizas.API.Controllers
             {
                 _logger.LogError(ex, "❌ Error en procesamiento principal");
                 return StatusCode(500, AzureErrorResponseDto.ErrorGeneral(ex.Message, file?.FileName));
+            }
+        }
+
+        private void CompletarDatosAdicionales(AzureDatosPolizaVelneoDto datos, AnalyzeResult analyzeResult)
+        {
+            try
+            {
+                _logger.LogDebug("🔧 Completando datos adicionales...");
+
+                // Completar campos que puedan faltar con búsqueda más agresiva
+                if (string.IsNullOrEmpty(datos.DatosBasicos.Asegurado))
+                {
+                    var asegurado = BuscarEnTodoElTexto(analyzeResult, @"(?i)asegurado[:\s]*([^\n\r]{10,100})");
+                    if (!string.IsNullOrEmpty(asegurado))
+                    {
+                        datos.DatosBasicos.Asegurado = asegurado;
+                    }
+                }
+
+                if (string.IsNullOrEmpty(datos.DatosPoliza.NumeroPoliza))
+                {
+                    var poliza = BuscarEnTodoElTexto(analyzeResult, @"(?i)p[oó]liza[^:]*[:\s]*(\d{6,})");
+                    if (!string.IsNullOrEmpty(poliza))
+                    {
+                        datos.DatosPoliza.NumeroPoliza = poliza;
+                    }
+                }
+
+                if (string.IsNullOrEmpty(datos.DatosVehiculo.Marca))
+                {
+                    var marca = BuscarEnTodoElTexto(analyzeResult, @"(?i)(TOYOTA|RENAULT|CHEVROLET|FORD|VOLKSWAGEN|PEUGEOT|FIAT|NISSAN|HYUNDAI|KIA|HONDA|MAZDA)");
+                    if (!string.IsNullOrEmpty(marca))
+                    {
+                        datos.DatosVehiculo.Marca = marca;
+                        if (string.IsNullOrEmpty(datos.DatosVehiculo.MarcaModelo))
+                        {
+                            datos.DatosVehiculo.MarcaModelo = $"{marca} {datos.DatosVehiculo.Modelo}".Trim();
+                        }
+                    }
+                }
+
+                _logger.LogDebug("✅ Datos adicionales completados");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error completando datos adicionales");
+            }
+        }
+
+        // ✅ NUEVO MÉTODO: Logging organizado por secciones
+        private void LogResultadosPorSeccion(AzureDatosPolizaVelneoDto datos)
+        {
+            try
+            {
+                _logger.LogInformation("📊 RESULTADOS POR SECCIÓN:");
+
+                // Datos Básicos
+                _logger.LogInformation("👤 DATOS BÁSICOS: Cliente={Cliente}, Doc={Documento}, Tipo={Tipo}",
+                    datos.DatosBasicos.Asegurado,
+                    datos.DatosBasicos.Documento,
+                    datos.DatosBasicos.Tipo);
+
+                // Datos Póliza  
+                _logger.LogInformation("📋 DATOS PÓLIZA: Número={Numero}, Vigencia={Desde}-{Hasta}",
+                    datos.DatosPoliza.NumeroPoliza,
+                    datos.DatosPoliza.Desde?.ToString("dd/MM/yyyy") ?? "N/A",
+                    datos.DatosPoliza.Hasta?.ToString("dd/MM/yyyy") ?? "N/A");
+
+                // Datos Vehículo
+                _logger.LogInformation("🚗 DATOS VEHÍCULO: {Marca} {Modelo} {Anio}, Uso={Uso}",
+                    datos.DatosVehiculo.Marca,
+                    datos.DatosVehiculo.Modelo,
+                    datos.DatosVehiculo.Anio,
+                    datos.DatosVehiculo.Uso);
+
+                // Condiciones Pago
+                _logger.LogInformation("💳 CONDICIONES PAGO: FormaPago={FormaPago}, Total=${Total}, Cuotas={Cuotas}, CuotasDetalladas={TieneCuotasDetalladas}",
+                    datos.CondicionesPago.FormaPago,
+                    datos.CondicionesPago.Total,
+                    datos.CondicionesPago.Cuotas,
+                    datos.CondicionesPago.DetalleCuotas.TieneCuotasDetalladas);
+
+                // Métricas generales
+                _logger.LogInformation("📈 MÉTRICAS: Completitud={Completitud}%, CamposCompletos={Completos}, TieneDatosMinimos={TieneDatos}",
+                    datos.Metricas.PorcentajeCompletitud,
+                    datos.Metricas.CamposCompletos,
+                    datos.Metricas.TieneDatosMinimos);
+
+                // Campos faltantes si los hay
+                if (datos.Metricas.CamposFaltantes.Any())
+                {
+                    _logger.LogWarning("⚠️ CAMPOS FALTANTES: {CamposFaltantes}",
+                        string.Join(", ", datos.Metricas.CamposFaltantes));
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error en logging de resultados");
             }
         }
 
@@ -687,65 +735,132 @@ namespace RegularizadorPolizas.API.Controllers
             return "";
         }
 
-        [HttpPost("process-batch")]
+        [HttpPost("process-legacy")]
         [Authorize]
-        [ProducesResponseType(typeof(AzureBatchResponseDto), 200)]
-        [ProducesResponseType(typeof(AzureErrorResponseDto), 400)]
-        [ProducesResponseType(typeof(AzureErrorResponseDto), 500)]
-        public async Task<ActionResult> ProcessBatch([Required] List<IFormFile> files)
+        [ProducesResponseType(typeof(AzureProcessResponseDto), 200)]
+        public async Task<ActionResult> ProcessDocumentLegacy([Required] IFormFile file)
         {
-            var stopwatchTotal = System.Diagnostics.Stopwatch.StartNew();
+            // Este endpoint mantiene la estructura anterior para compatibilidad
+            return await ProcessDocumentLegacyInternal(file);
+        }
+
+        private async Task<ActionResult> ProcessDocumentLegacyInternal(IFormFile file)
+        {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
             try
             {
-                if (files == null || files.Count == 0)
+                // Procesar con método legacy
+                var endpoint = _configuration["AzureDocumentIntelligence:Endpoint"];
+                var apiKey = _configuration["AzureDocumentIntelligence:ApiKey"];
+                var modelId = _configuration["AzureDocumentIntelligence:ModelId"];
+
+                var client = new DocumentIntelligenceClient(
+                    new Uri(endpoint),
+                    new AzureKeyCredential(apiKey));
+
+                using var stream = file.OpenReadStream();
+                var binaryData = BinaryData.FromStream(stream);
+
+                var operation = await client.AnalyzeDocumentAsync(
+                    WaitUntil.Completed,
+                    modelId,
+                    binaryData);
+
+                var analyzeResult = operation.Value;
+                var camposRaw = new Dictionary<string, string>();
+
+                if (analyzeResult.Documents?.Count > 0)
                 {
-                    return BadRequest(AzureErrorResponseDto.ArchivoInvalido("Lista de archivos vacía"));
+                    var document = analyzeResult.Documents[0];
+                    foreach (var field in document.Fields)
+                    {
+                        string rawValue = field.Value.ValueString ?? field.Value.Content ?? field.Value.ToString();
+                        camposRaw[field.Key] = rawValue;
+                    }
                 }
 
-                _logger.LogInformation("📦 PROCESAMIENTO EN LOTE: {FileCount} archivos", files.Count);
-
-                var resultados = new List<AzureProcessResponseDto>();
-                var errores = new List<AzureBatchErrorDto>();
-
-                foreach (var file in files)
+                var camposEstructurados = ExtraerCamposEstructurados(analyzeResult);
+                foreach (var campo in camposEstructurados)
                 {
-                    try
+                    if (!camposRaw.ContainsKey(campo.Key))
                     {
-                        var singleFileResult = await ProcessSingleFileInternal(file);
-                        resultados.Add(singleFileResult);
+                        camposRaw[campo.Key] = campo.Value;
                     }
-                    catch (Exception ex)
+                }
+
+                // Usar método legacy
+                var smartData = _smartParser.ExtraerDatosInteligente(camposRaw);
+                CompletarCamposFaltantes(smartData, analyzeResult);
+                CompletarDatosPago(smartData, camposRaw, analyzeResult);
+
+                stopwatch.Stop();
+
+                // Crear response con estructura legacy (AzureDatosFormateadosDto)
+                var datosFormateados = new AzureDatosFormateadosDto
+                {
+                    NumeroPoliza = smartData.NumeroPoliza,
+                    Asegurado = smartData.Asegurado,
+                    Documento = smartData.Documento,
+                    Vehiculo = smartData.Vehiculo,
+                    Marca = smartData.Marca,
+                    Modelo = smartData.Modelo,
+                    Matricula = smartData.Matricula,
+                    Motor = smartData.Motor,
+                    Chasis = smartData.Chasis,
+                    PrimaComercial = smartData.PrimaComercial,
+                    PremioTotal = smartData.PremioTotal,
+                    VigenciaDesde = smartData.VigenciaDesde,
+                    VigenciaHasta = smartData.VigenciaHasta,
+                    Corredor = smartData.Corredor,
+                    Plan = smartData.Plan,
+                    Ramo = smartData.Ramo,
+                    Anio = smartData.Anio,
+                    Email = smartData.Email,
+                    Direccion = smartData.Direccion,
+                    Departamento = smartData.Departamento,
+                    Localidad = smartData.Localidad,
+                    TipoVehiculo = smartData.TipoVehiculo,
+                    Combustible = smartData.Combustible,
+                    Uso = smartData.Uso,
+                    ImpuestoMSP = smartData.ImpuestoMSP,
+                    FormaPago = smartData.FormaPago,
+                    CantidadCuotas = smartData.CantidadCuotas,
+                    Telefono = smartData.Telefono,
+                    CodigoPostal = smartData.CodigoPostal,
+                    Descuentos = smartData.Descuentos,
+                    Recargos = smartData.Recargos,
+                    Color = smartData.Color,
+
+                    DetalleCuotas = new AzureInformacionCuotasDto
                     {
-                        errores.Add(new AzureBatchErrorDto
+                        CantidadTotal = smartData.DetalleCuotas.CantidadTotal,
+                        Cuotas = smartData.DetalleCuotas.Cuotas.Select(c => new AzureDetalleCuotaDto
                         {
-                            Archivo = file.FileName,
-                            Error = ex.Message,
-                            Timestamp = DateTime.UtcNow,
-                            CodigoError = "ERROR_PROCESAMIENTO_INDIVIDUAL"
-                        });
-                    }
-                }
+                            Numero = c.Numero,
+                            FechaVencimiento = c.FechaVencimiento,
+                            Monto = c.Monto,
+                            Estado = c.Estado
+                        }).ToList()
+                    },
+                    PrimerVencimiento = smartData.PrimerVencimiento,
+                    PrimaCuota = smartData.PrimaCuota
+                };
 
-                stopwatchTotal.Stop();
-
-                var response = new AzureBatchResponseDto
+                var response = new AzureProcessResponseDto
                 {
-                    Procesados = resultados.Count,
-                    Errores = errores.Count,
-                    TotalArchivos = files.Count,
-                    Resultados = resultados,
-                    ErroresDetalle = errores,
-                    FechaProcesamiento = DateTime.UtcNow,
-                    TiempoTotalProcesamiento = stopwatchTotal.ElapsedMilliseconds
+                    Archivo = file.FileName,
+                    Timestamp = DateTime.UtcNow,
+                    TiempoProcesamiento = stopwatch.ElapsedMilliseconds,
+                    Estado = "PROCESADO_CON_SMART_EXTRACTION"
                 };
 
                 return Ok(response);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error en procesamiento en lote");
-                return StatusCode(500, AzureErrorResponseDto.ErrorGeneral(ex.Message, "Procesamiento en lote"));
+                _logger.LogError(ex, "❌ Error en procesamiento legacy");
+                return StatusCode(500, AzureErrorResponseDto.ErrorGeneral(ex.Message, file?.FileName));
             }
         }
 
@@ -1104,95 +1219,6 @@ namespace RegularizadorPolizas.API.Controllers
                 datos.FormaPago = "CONTADO";
                 datos.CantidadCuotas = 1;
             }
-        }
-
-        #endregion
-
-        #region Métodos Privados de Soporte
-
-        private async Task<AzureProcessResponseDto> ProcessSingleFileInternal(IFormFile file)
-        {
-            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-
-            var endpoint = _configuration["AzureDocumentIntelligence:Endpoint"];
-            var apiKey = _configuration["AzureDocumentIntelligence:ApiKey"];
-            var modelId = _configuration["AzureDocumentIntelligence:ModelId"];
-
-            var client = new DocumentIntelligenceClient(
-                new Uri(endpoint),
-                new AzureKeyCredential(apiKey));
-
-            using var stream = file.OpenReadStream();
-            var binaryData = BinaryData.FromStream(stream);
-
-            var operation = await client.AnalyzeDocumentAsync(
-                WaitUntil.Completed,
-                modelId,
-                binaryData);
-
-            var analyzeResult = operation.Value;
-            var camposRaw = new Dictionary<string, string>();
-
-            if (analyzeResult.Documents?.Count > 0)
-            {
-                var document = analyzeResult.Documents[0];
-                foreach (var field in document.Fields)
-                {
-                    string rawValue = field.Value.ValueString ?? field.Value.Content ?? "";
-                    camposRaw[field.Key] = rawValue.Trim();
-                }
-            }
-
-            var datosFormateados = _smartParser.ExtraerDatosInteligente(camposRaw);
-
-            stopwatch.Stop();
-
-            // ✅ RESPUESTA SIMPLIFICADA PARA PROCESAMIENTO EN LOTE
-            return new AzureProcessResponseDto
-            {
-                Archivo = file.FileName,
-                Timestamp = DateTime.UtcNow,
-                TiempoProcesamiento = stopwatch.ElapsedMilliseconds,
-                Estado = "PROCESADO_CON_SMART_EXTRACTION",
-                DatosFormateados = new AzureDatosFormateadosDto
-                {
-                    NumeroPoliza = datosFormateados.NumeroPoliza,
-                    Asegurado = datosFormateados.Asegurado,
-                    Documento = datosFormateados.Documento,
-                    Vehiculo = datosFormateados.Vehiculo,
-                    Marca = datosFormateados.Marca,
-                    Modelo = datosFormateados.Modelo,
-                    Matricula = datosFormateados.Matricula,
-                    Motor = datosFormateados.Motor,
-                    Chasis = datosFormateados.Chasis,
-                    PrimaComercial = datosFormateados.PrimaComercial,
-                    PremioTotal = datosFormateados.PremioTotal,
-                    VigenciaDesde = datosFormateados.VigenciaDesde,
-                    VigenciaHasta = datosFormateados.VigenciaHasta,
-                    Corredor = datosFormateados.Corredor,
-                    Plan = datosFormateados.Plan,
-                    Ramo = datosFormateados.Ramo,
-                    Anio = datosFormateados.Anio,
-                    Email = datosFormateados.Email,
-                    Direccion = datosFormateados.Direccion,
-                    Departamento = datosFormateados.Departamento,
-                    Localidad = datosFormateados.Localidad
-                },
-                // ✅ SIN BÚSQUEDA DE CLIENTE EN PROCESAMIENTO BATCH
-                // BusquedaCliente = null,
-                SiguientePaso = "completar_formulario",
-                Resumen = new AzureResumenDto
-                {
-                    ProcesamientoExitoso = true,
-                    NumeroPolizaExtraido = datosFormateados.NumeroPoliza,
-                    ClienteExtraido = datosFormateados.Asegurado,
-                    DocumentoExtraido = datosFormateados.Documento,
-                    VehiculoExtraido = datosFormateados.Vehiculo,
-                    ClienteEncontrado = false,
-                    ListoParaVelneo = !string.IsNullOrEmpty(datosFormateados.NumeroPoliza) &&
-                                     !string.IsNullOrEmpty(datosFormateados.Asegurado)
-                }
-            };
         }
 
         #endregion
