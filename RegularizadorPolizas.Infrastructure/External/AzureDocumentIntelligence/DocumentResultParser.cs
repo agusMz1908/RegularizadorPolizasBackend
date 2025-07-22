@@ -255,59 +255,17 @@ namespace RegularizadorPolizas.Infrastructure.External
                 poliza.Clinom = LimpiarTexto(nombre);
             }
 
-            // Dirección
+            // Dirección - ACTUALIZADO para incluir asegurado.direccion
             if (TryGetCampo(campos, out var direccion,
-                "asegurado.direccion", "cliente_direccion", "direccion", "domicilio", "address"))
+                "asegurado.direccion",      // ⭐ AGREGADO: Campo específico de Azure
+                "cliente_direccion",
+                "direccion",
+                "domicilio",
+                "address",
+                "asegurado_domicilio",
+                "cliente.direccion"))
             {
                 poliza.Condom = LimpiarTexto(direccion);
-            }
-
-            // Localidad
-            if (TryGetCampo(campos, out var localidad,
-                "asegurado.localidad", "localidad", "ciudad", "city"))
-            {
-                poliza.Clilocnom = LimpiarTexto(localidad);
-            }
-
-            // Departamento
-            if (TryGetCampo(campos, out var departamento,
-                "asegurado.departamento", "departamento", "estado", "state", "provincia"))
-            {
-                poliza.Clidptnom = LimpiarTexto(departamento);
-            }
-
-            // Documento
-            if (TryGetCampo(campos, out var documento,
-                "asegurado.documento.numero", "cliente_documento", "documento", "cedula", "rut", "ci"))
-            {
-                poliza.Cliruc = LimpiarDocumento(documento);
-            }
-
-            // Radio/Código postal
-            if (TryGetCampo(campos, out var radio,
-                "asegurado.radio", "codigo_postal", "radio", "postal_code"))
-            {
-                if (int.TryParse(radio, out var radioNum))
-                {
-                    poliza.Cliposcod = radioNum;
-                }
-            }
-
-            // Email
-            if (TryGetCampo(campos, out var email,
-                "asegurado.email", "cliente_email", "email", "correo"))
-            {
-                if (EsEmailValido(email))
-                {
-                    poliza.Cliemail = LimpiarTexto(email);
-                }
-            }
-
-            // Teléfono
-            if (TryGetCampo(campos, out var telefono,
-                "asegurado.telefono", "cliente_telefono", "telefono", "phone", "celular"))
-            {
-                poliza.Clitelcel = LimpiarTelefono(telefono);
             }
         }
 

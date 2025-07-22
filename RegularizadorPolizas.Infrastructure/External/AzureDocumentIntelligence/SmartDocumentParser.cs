@@ -1108,7 +1108,14 @@ namespace RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence
 
                 // Mapear desde datos legacy
                 datos.Asegurado = datosLegacy.Asegurado;
-                datos.Domicilio = datosLegacy.Direccion;
+
+                // CORREGIDO: Buscar domicilio específicamente desde Azure y fallback a legacy
+                datos.Domicilio = BuscarDomicilio(campos);
+                if (string.IsNullOrEmpty(datos.Domicilio))
+                {
+                    datos.Domicilio = datosLegacy.Direccion; // Fallback a datos legacy
+                }
+
                 datos.Telefono = datosLegacy.Telefono;
                 datos.Email = datosLegacy.Email;
                 datos.Documento = datosLegacy.Documento;
@@ -1129,7 +1136,8 @@ namespace RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence
                 // Buscar trámite específico
                 datos.Tramite = BuscarTramite(campos);
 
-                _logger.LogDebug("✅ Datos Básicos: Cliente={Cliente}, Tipo={Tipo}", datos.Asegurado, datos.Tipo);
+                _logger.LogDebug("✅ Datos Básicos: Cliente={Cliente}, Tipo={Tipo}, Domicilio={Domicilio}",
+                    datos.Asegurado, datos.Tipo, datos.Domicilio);
             }
             catch (Exception ex)
             {
@@ -1411,19 +1419,190 @@ namespace RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence
             return "PERSONA";
         }
 
+        private string BuscarDomicilio(Dictionary<string, string> campos)
+        {
+            // Buscar primero en el campo específico de Azure Document Intelligence
+            if (campos.ContainsKey("asegurado.direccion") && !string.IsNullOrEmpty(campos["asegurado.direccion"]))
+            {
+                var domicilio = LimpiarDomicilio(campos["asegurado.direccion"]);
+                _logger.LogDebug("✅ Domicilio encontrado en Azure: {Domicilio}", domicilio);
+                return domicilio;
+            }
+
+            // Buscar en otros campos posibles de dirección
+            var camposDireccion = new[] {
+        "direccion",
+        "domicilio",
+        "address",
+        "cliente_direccion",
+        "asegurado_domicilio",
+        "cliente.direccion",
+        "asegurado.domicilio",
+        "datos_asegurado.direccion",
+        "datos_cliente.direccion"
+    };
+
+            foreach (var campo in camposDireccion)
+            {
+                if (campos.ContainsKey(campo) && !string.IsNullOrEmpty(campos[campo]))
+                {
+                    var valor = LimpiarDomicilio(campos[campo]);
+                    if (!string.IsNullOrEmpty(valor))
+                    {
+                        _logger.LogDebug("✅ Domicilio encontrado en campo {Campo}: {Valor}", campo, valor);
+                        return valor;
+                    }
+                }
+            }
+
+            _logger.LogDebug("⚠️ No se encontró domicilio en ningún campo");
+            return string.Empty;
+        }
+
+        private string LimpiarDomicilio(string domicilio)
+        {
+            if (string.IsNullOrEmpty(domicilio))
+                return string.Empty;
+
+            var domicilioLimpio = domicilio.Trim();
+
+            // Patrones a remover del inicio
+            var patronesARemover = new[]
+            {
+        @"^Dirección:\s*",
+        @"^Direccion:\s*",
+        @"^Domicilio:\s*",
+        @"^Address:\s*",
+        @"^Dir:\s*",
+        @"^Dom:\s*"
+    };
+
+            foreach (var patron in patronesARemover)
+            {
+                domicilioLimpio = Regex.Replace(domicilioLimpio, patron, "", RegexOptions.IgnoreCase).Trim();
+            }
+
+            return domicilioLimpio;
+        }
+
         private string BuscarTramite(Dictionary<string, string> campos)
         {
+            // Primero buscar el tipoMovimiento ya extraído
+            var tipoMovimiento = BuscarTipoMovimiento(campos);
+
+            if (!string.IsNullOrEmpty(tipoMovimiento))
+            {
+                // Mapear tipoMovimiento a valores del combo Velneo
+                var tramiteMapeado = MapearTipoMovimientoATramite(tipoMovimiento);
+                if (!string.IsNullOrEmpty(tramiteMapeado))
+                {
+                    _logger.LogDebug("✅ Trámite mapeado desde tipoMovimiento: {TipoMovimiento} -> {Tramite}",
+                        tipoMovimiento, tramiteMapeado);
+                    return tramiteMapeado;
+                }
+            }
+
+            // Si no se pudo mapear desde tipoMovimiento, buscar directamente en campos de trámite
             var camposTramite = new[] { "tramite", "tipo_tramite", "operacion", "movimiento" };
 
             foreach (var campo in camposTramite)
             {
                 if (campos.ContainsKey(campo) && !string.IsNullOrEmpty(campos[campo]))
                 {
-                    return campos[campo];
+                    var valor = campos[campo].Trim();
+                    var tramiteMapeado = MapearTextoATramite(valor);
+                    if (!string.IsNullOrEmpty(tramiteMapeado))
+                    {
+                        _logger.LogDebug("✅ Trámite encontrado en campo {Campo}: {Valor} -> {Tramite}",
+                            campo, valor, tramiteMapeado);
+                        return tramiteMapeado;
+                    }
                 }
             }
 
-            return "RENOVACION"; // Default
+            // Default: si es emisión, es nuevo
+            return "Nuevo";
+        }
+
+        private string MapearTipoMovimientoATramite(string tipoMovimiento)
+        {
+            if (string.IsNullOrEmpty(tipoMovimiento))
+                return string.Empty;
+
+            var tipo = tipoMovimiento.Trim().ToUpperInvariant();
+
+            return tipo switch
+            {
+                // Emisión = Nuevo
+                "EMISION" => "Nuevo",
+                "EMISIÓN" => "Nuevo",
+                "NUEVA" => "Nuevo",
+                "ALTA" => "Nuevo",
+                "NUEVA_POLIZA" => "Nuevo",
+                "TIPO DE MOVIMIENTO: EMISIÓN" => "Nuevo", // Formato específico que aparece en tu JSON
+
+                // Renovación = Renovación
+                "RENOVACION" => "Renovación",
+                "RENOVACIÓN" => "Renovación",
+                "RENOV" => "Renovación",
+                "RENEWAL" => "Renovación",
+
+                // Cambios/Modificaciones = Cambio
+                "MODIFICACION" => "Cambio",
+                "MODIFICACIÓN" => "Cambio",
+                "MODIF" => "Cambio",
+                "ENDOSO" => "Cambio",
+                "CAMBIO" => "Cambio",
+                "MODIFICATION" => "Cambio",
+
+                // Casos especiales
+                "ANULACION" => "Cancelación",
+                "ANULACIÓN" => "Cancelación",
+                "BAJA" => "Cancelación",
+                "CANCELACION" => "Cancelación",
+                "CANCELACIÓN" => "Cancelación",
+
+                // Si no coincide con ningún patrón, devolver vacío para que use la lógica default
+                _ => string.Empty
+            };
+        }
+
+        /// <summary>
+        /// Mapea texto libre a valores del combo Velneo (para campos que no sean tipoMovimiento)
+        /// </summary>
+        private string MapearTextoATramite(string texto)
+        {
+            if (string.IsNullOrEmpty(texto))
+                return string.Empty;
+
+            var textoLimpio = texto.Trim().ToUpperInvariant();
+
+            // Buscar palabras clave
+            if (textoLimpio.Contains("EMISION") || textoLimpio.Contains("NUEVA") || textoLimpio.Contains("ALTA"))
+                return "Nuevo";
+
+            if (textoLimpio.Contains("RENOVACION") || textoLimpio.Contains("RENOV"))
+                return "Renovación";
+
+            if (textoLimpio.Contains("MODIFICACION") || textoLimpio.Contains("ENDOSO") || textoLimpio.Contains("CAMBIO"))
+                return "Cambio";
+
+            if (textoLimpio.Contains("ANULACION") || textoLimpio.Contains("BAJA") || textoLimpio.Contains("CANCELACION"))
+                return "Cancelación";
+
+            // Si coincide exactamente con uno de los valores del combo, devolverlo
+            return textoLimpio switch
+            {
+                "NUEVO" => "Nuevo",
+                "RENOVACION" => "Renovación",
+                "RENOVACIÓN" => "Renovación",
+                "CAMBIO" => "Cambio",
+                "ENDOSO" => "Endoso",
+                "NO RENUEVA" => "No Renueva",
+                "CANCELACION" => "Cancelación",
+                "CANCELACIÓN" => "Cancelación",
+                _ => string.Empty
+            };
         }
 
         private string BuscarCertificado(Dictionary<string, string> campos)
