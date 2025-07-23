@@ -196,7 +196,7 @@ namespace RegularizadorPolizas.Application.Services
             return new SeccionDto
             {
                 Id = seccion.Id,
-                Name = seccion.Name,
+                Seccion = seccion.Name,
                 Icono = seccion.Icono,
                 Activo = seccion.Activo,
                 FechaCreacion = seccion.FechaCreacion,

@@ -4,7 +4,6 @@ using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers;
 using RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models;
 using System.Diagnostics;
-using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
@@ -28,7 +27,9 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             _jsonOptions = new JsonSerializerOptions
             {
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                WriteIndented = true
+                WriteIndented = true,
+                PropertyNameCaseInsensitive = true,
+                NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString
             };
         }
 
@@ -40,9 +41,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 tenantConfig.TenantId, tenantConfig.BaseUrl);
 
             var httpClient = _httpClientFactory.CreateClient();
-
             httpClient.Timeout = TimeSpan.FromSeconds(tenantConfig.TimeoutSeconds);
-
             httpClient.DefaultRequestHeaders.Clear();
             httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
             httpClient.DefaultRequestHeaders.Add("User-Agent", "RegularizadorPolizas-API/1.0");
@@ -56,14 +55,39 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
         private async Task<string> BuildVelneoUrlAsync(string endpoint)
         {
             var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
-
             var baseUrl = tenantConfig.BaseUrl.TrimEnd('/');
-
             var separator = endpoint.Contains('?') ? "&" : "?";
             var fullUrl = $"{baseUrl}/{endpoint}{separator}api_key={tenantConfig.Key}";
 
             _logger.LogDebug("Built Velneo URL: {Url}", fullUrl);
             return fullUrl;
+        }
+
+        // ✅ Método helper para deserialización robusta - SIN ReadFromJsonAsync
+        private async Task<T?> DeserializeResponseAsync<T>(HttpResponseMessage response) where T : class
+        {
+            var jsonContent = string.Empty;
+            try
+            {
+                jsonContent = await response.Content.ReadAsStringAsync();
+
+                if (string.IsNullOrWhiteSpace(jsonContent))
+                {
+                    _logger.LogWarning("Empty JSON response from Velneo API");
+                    return null;
+                }
+
+                _logger.LogDebug("JSON Response length: {Length} chars", jsonContent.Length);
+
+                // ✅ Solo System.Text.Json - sin ambigüedad
+                return JsonSerializer.Deserialize<T>(jsonContent, _jsonOptions);
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "JSON parsing error in Velneo API response. Content preview: {Content}",
+                    jsonContent?.Substring(0, Math.Min(500, jsonContent.Length)));
+                throw new ApplicationException($"Error parsing Velneo API response: {ex.Message}", ex);
+            }
         }
 
         #region Métodos de Clientes
@@ -79,28 +103,24 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
-                var jsonContent = await response.Content.ReadAsStringAsync();
-                _logger.LogDebug("Velneo cliente response: {Response}", jsonContent.Substring(0, Math.Min(200, jsonContent.Length)));
-
-                try
+                // ✅ Intentar primero como objeto directo
+                var velneoCliente = await DeserializeResponseAsync<VelneoCliente>(response);
+                if (velneoCliente != null)
                 {
-                    var velneoCliente = await response.Content.ReadFromJsonAsync<VelneoCliente>(_jsonOptions);
-                    if (velneoCliente != null)
-                    {
-                        var result = velneoCliente.ToClienteDto();
-                        _logger.LogInformation("Successfully retrieved cliente {ClienteId} from Velneo API", id);
-                        return result;
-                    }
+                    var result = velneoCliente.ToClienteDto();
+                    _logger.LogInformation("Successfully retrieved cliente {ClienteId} from Velneo API", id);
+                    return result;
                 }
-                catch (JsonException)
+
+                // ✅ Si falla, intentar como wrapper - hacer nueva llamada
+                response = await httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+                var velneoResponse = await DeserializeResponseAsync<VelneoClientResponse>(response);
+                if (velneoResponse?.Cliente != null)
                 {
-                    var velneoResponse = JsonSerializer.Deserialize<VelneoClientResponse>(jsonContent, _jsonOptions);
-                    if (velneoResponse?.Cliente != null)
-                    {
-                        var result = velneoResponse.Cliente.ToClienteDto();
-                        _logger.LogInformation("Successfully retrieved cliente {ClienteId} from Velneo API (wrapped)", id);
-                        return result;
-                    }
+                    var result = velneoResponse.Cliente.ToClienteDto();
+                    _logger.LogInformation("Successfully retrieved cliente {ClienteId} from Velneo API (wrapped)", id);
+                    return result;
                 }
 
                 throw new KeyNotFoundException($"Cliente with ID {id} not found in Velneo API");
@@ -121,7 +141,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 
                 var allClientes = new List<ClientDto>();
                 var pageNumber = 1;
-                var pageSize = 1000; 
+                var pageSize = 1000;
                 var hasMoreData = true;
 
                 while (hasMoreData)
@@ -129,57 +149,36 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                     _logger.LogInformation("Obteniendo página {Page}...", pageNumber);
 
                     using var httpClient = await GetConfiguredHttpClientAsync();
-                    httpClient.Timeout = TimeSpan.FromMinutes(5);
-
-                    var url = await BuildVelneoUrlAsync($"v1/clientes?page[number]={pageNumber}&page[size]={pageSize}");
-                    _logger.LogInformation("URL página {Page}: {Url}", pageNumber, url);
-
+                    var url = await BuildVelneoUrlAsync($"v1/clientes?page={pageNumber}&limit={pageSize}");
                     var response = await httpClient.GetAsync(url);
-                    _logger.LogInformation("Respuesta página {Page}: Status {StatusCode}", pageNumber, response.StatusCode);
                     response.EnsureSuccessStatusCode();
 
-                    var jsonContent = await response.Content.ReadAsStringAsync();
-                    _logger.LogInformation("JSON página {Page} - Length: {Length} caracteres", pageNumber, jsonContent.Length);
-
-                    _logger.LogInformation("Deserializando página {Page}...", pageNumber);
-                    var velneoResponse = await response.Content.ReadFromJsonAsync<VelneoClientsResponse>(_jsonOptions);
+                    var velneoResponse = await DeserializeResponseAsync<VelneoClientesResponse>(response);
 
                     if (velneoResponse?.Clientes != null && velneoResponse.Clientes.Any())
                     {
-                        _logger.LogInformation("Página {Page} - Count: {Count}, Total en DB: {Total}",
-                            pageNumber, velneoResponse.Clientes.Count, velneoResponse.TotalCount);
-
                         var clientesPage = velneoResponse.Clientes.ToClienteDtos().ToList();
                         allClientes.AddRange(clientesPage);
 
-                        _logger.LogInformation("🗺Mapeados {Count} clientes de página {Page}. Total acumulado: {TotalAccumulated}",
-                            clientesPage.Count, pageNumber, allClientes.Count);
+                        _logger.LogInformation("✅ Página {Page}: {Count} clientes obtenidos (Total acumulado: {Total})",
+                            pageNumber, clientesPage.Count, allClientes.Count);
 
-                        hasMoreData = velneoResponse.Clientes.Count == pageSize && allClientes.Count < velneoResponse.TotalCount;
-
-                        if (hasMoreData)
-                        {
-                            pageNumber++;
-                            _logger.LogInformation("➡Hay más datos. Continuando con página {NextPage}", pageNumber);
-                        }
-                        else
-                        {
-                            _logger.LogInformation("No hay más páginas. Proceso completado.");
-                        }
+                        hasMoreData = velneoResponse.HasMoreData == true;
+                        pageNumber++;
                     }
                     else
                     {
-                        _logger.LogWarning("Página {Page} vacía. Finalizando paginación.", pageNumber);
                         hasMoreData = false;
+                        _logger.LogInformation("No hay más datos en página {Page}", pageNumber);
                     }
                 }
 
-                _logger.LogInformation("COMPLETADO: {TotalRetrieved} clientes obtenidos en total", allClientes.Count);
+                _logger.LogInformation("🎯 FINAL: Successfully retrieved {Count} clientes total from Velneo API", allClientes.Count);
                 return allClientes;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "ERROR en GetClientesAsync con paginación: {Message}", ex.Message);
+                _logger.LogError(ex, "Error getting clientes from Velneo API");
                 throw;
             }
         }
@@ -504,32 +503,27 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
-                var jsonContent = await response.Content.ReadAsStringAsync();
-                _logger.LogDebug("Velneo companies response length: {Length}", jsonContent.Length);
-
-                // Intentar deserializar como array directo primero
-                try
+                // ✅ PRIMERO: Intentar como wrapper (que es lo que Velneo está devolviendo)
+                var velneoResponse = await DeserializeResponseAsync<VelneoCompaniesResponse>(response);
+                if (velneoResponse?.Companias != null && velneoResponse.Companias.Any())
                 {
-                    var velneoCompanies = await response.Content.ReadFromJsonAsync<List<VelneoCompany>>(_jsonOptions);
-                    if (velneoCompanies != null && velneoCompanies.Any())
-                    {
-                        var companies = velneoCompanies.ToCompanyDtos().ToList();
-                        _logger.LogInformation("Successfully retrieved {Count} companies from Velneo API", companies.Count);
-                        return companies;
-                    }
-                }
-                catch (JsonException)
-                {
-                    // Si falla, intentar con wrapper
-                    var velneoResponse = JsonSerializer.Deserialize<VelneoCompaniesResponse>(jsonContent, _jsonOptions);
-                    if (velneoResponse?.Companias != null)
-                    {
-                        var companies = velneoResponse.Companias.ToCompanyDtos().ToList();
-                        _logger.LogInformation("Successfully retrieved {Count} companies from Velneo API (wrapped)", companies.Count);
-                        return companies;
-                    }
+                    var companies = velneoResponse.Companias.ToCompanyDtos().ToList();
+                    _logger.LogInformation("Successfully retrieved {Count} companies from Velneo API (wrapper format)", companies.Count);
+                    return companies;
                 }
 
+                // ✅ SEGUNDO: Si falla, intentar como array directo (fallback)
+                response = await httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+                var velneoCompanies = await DeserializeResponseAsync<List<VelneoCompany>>(response);
+                if (velneoCompanies != null && velneoCompanies.Any())
+                {
+                    var companies = velneoCompanies.ToCompanyDtos().ToList();
+                    _logger.LogInformation("Successfully retrieved {Count} companies from Velneo API (array format)", companies.Count);
+                    return companies;
+                }
+
+                _logger.LogWarning("No companies found in Velneo API response");
                 return new List<CompanyDto>();
             }
             catch (Exception ex)
@@ -632,7 +626,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             {
                 var tenantId = _tenantService.GetCurrentTenantId();
                 _logger.LogInformation("🔍 INICIO: Getting ALL polizas/contratos from Velneo API for tenant {TenantId}", tenantId);
-
                 var allPolizas = new List<PolizaDto>();
                 var pageNumber = 1;
                 var pageSize = 1000;
@@ -644,7 +637,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 
                     using var httpClient = await GetConfiguredHttpClientAsync();
                     httpClient.Timeout = TimeSpan.FromMinutes(5);
-
                     var url = await BuildVelneoUrlAsync($"v1/contratos?page[number]={pageNumber}&page[size]={pageSize}");
                     _logger.LogInformation("🌐 URL página {Page}: {Url}", pageNumber, url);
 
@@ -654,10 +646,10 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 
                     var jsonContent = await response.Content.ReadAsStringAsync();
                     _logger.LogInformation("📄 JSON página {Page} - Length: {Length} caracteres", pageNumber, jsonContent.Length);
-
                     _logger.LogInformation("🔄 Deserializando página {Page}...", pageNumber);
 
-                    var velneoResponse = await response.Content.ReadFromJsonAsync<VelneoPolizasResponse>(_jsonOptions);
+                    // ✅ CAMBIO: Usar JsonSerializer.Deserialize en lugar de ReadFromJsonAsync
+                    var velneoResponse = JsonSerializer.Deserialize<VelneoPolizasResponse>(jsonContent, _jsonOptions);
 
                     if (velneoResponse?.Polizas != null && velneoResponse.Polizas.Any())
                     {
@@ -705,7 +697,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             {
                 var tenantId = _tenantService.GetCurrentTenantId();
                 _logger.LogInformation("INICIO: Getting polizas for client {ClienteId} from Velneo API for tenant {TenantId}", clienteId, tenantId);
-
                 var allPolizas = new List<PolizaDto>();
                 var pageNumber = 1;
                 var pageSize = 1000;
@@ -717,7 +708,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 
                     using var httpClient = await GetConfiguredHttpClientAsync();
                     httpClient.Timeout = TimeSpan.FromMinutes(5);
-
                     var url = await BuildVelneoUrlAsync($"v1/contratos?filter[clientes]={clienteId}&page[number]={pageNumber}&page[size]={pageSize}");
                     _logger.LogInformation("URL página {Page}: {Url}", pageNumber, url);
 
@@ -727,10 +717,10 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 
                     var jsonContent = await response.Content.ReadAsStringAsync();
                     _logger.LogInformation("JSON página {Page} - Length: {Length} caracteres", pageNumber, jsonContent.Length);
-
                     _logger.LogInformation("Deserializando página {Page}...", pageNumber);
 
-                    var velneoResponse = await response.Content.ReadFromJsonAsync<VelneoPolizasResponse>(_jsonOptions);
+                    // ✅ CAMBIO: Usar JsonSerializer.Deserialize en lugar de ReadFromJsonAsync
+                    var velneoResponse = JsonSerializer.Deserialize<VelneoPolizasResponse>(jsonContent, _jsonOptions);
 
                     if (velneoResponse?.Polizas != null && velneoResponse.Polizas.Any())
                     {
@@ -757,7 +747,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                     }
                     else
                     {
-                        _logger.LogWarning("⚠Página {Page} vacía. Finalizando paginación.", pageNumber);
+                        _logger.LogWarning("⚠️Página {Page} vacía. Finalizando paginación.", pageNumber);
                         hasMoreData = false;
                     }
                 }
@@ -771,6 +761,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 throw;
             }
         }
+
         public async Task<PaginatedVelneoResponse<PolizaDto>> GetPolizasByClientPaginatedAsync(
             int clienteId,
             int page = 1,
@@ -1047,6 +1038,135 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 
         #endregion
 
+        #region Métodos de Secciones
+
+        public async Task<SeccionDto> GetSeccionAsync(int id)
+        {
+            try
+            {
+                var secciones = await GetActiveSeccionesAsync();
+                var seccion = secciones.FirstOrDefault(s => s.Id == id);
+
+                if (seccion == null)
+                {
+                    throw new KeyNotFoundException($"Seccion with ID {id} not found in Velneo API");
+                }
+
+                return seccion;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting seccion {SeccionId} from Velneo API", id);
+                throw;
+            }
+        }
+
+        public async Task<IEnumerable<SeccionDto>> GetActiveSeccionesAsync()
+        {
+            try
+            {
+                var tenantId = _tenantService.GetCurrentTenantId();
+                _logger.LogDebug("Getting active secciones from Velneo API for tenant {TenantId}", tenantId);
+
+                using var httpClient = await GetConfiguredHttpClientAsync();
+                var url = await BuildVelneoUrlAsync("v1/secciones");
+                var response = await httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                // ✅ Usar el método helper unificado
+                var velneoResponse = await DeserializeResponseAsync<VelneoSeccionesResponse>(response);
+
+                if (velneoResponse?.Secciones != null)
+                {
+                    var secciones = velneoResponse.Secciones.ToSeccionDtos().ToList();
+                    _logger.LogInformation("Successfully retrieved {Count} secciones from Velneo API", secciones.Count);
+                    return secciones;
+                }
+
+                _logger.LogWarning("No secciones found in Velneo API response");
+                return new List<SeccionDto>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting secciones from Velneo API");
+                throw new ApplicationException($"Error getting secciones from Velneo API: {ex.Message}", ex);
+            }
+        }
+
+        public async Task<IEnumerable<SeccionLookupDto>> GetSeccionesForLookupAsync()
+        {
+            try
+            {
+                var tenantId = _tenantService.GetCurrentTenantId();
+                _logger.LogInformation("🔍 Getting secciones for lookup from Velneo API for tenant {TenantId}", tenantId);
+
+                using var httpClient = await GetConfiguredHttpClientAsync();
+                var url = await BuildVelneoUrlAsync("v1/secciones");
+                var response = await httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                // ✅ Usar el método helper unificado
+                var velneoResponse = await DeserializeResponseAsync<VelneoSeccionesResponse>(response);
+
+                if (velneoResponse?.Secciones != null)
+                {
+                    var seccionesLookup = velneoResponse.Secciones
+                        .Select(s => new SeccionLookupDto
+                        {
+                            Id = s.Id,
+                            Name = s.Seccion,
+                            Icono = SeccionMappers.GetIconoForSeccion(s.Seccion),
+                            Activo = true
+                        })
+                        .OrderBy(s => s.Name)
+                        .ToList();
+
+                    _logger.LogInformation("✅ Successfully retrieved {Count} secciones for lookup from Velneo API", seccionesLookup.Count);
+
+                    foreach (var seccion in seccionesLookup.Take(5))
+                    {
+                        _logger.LogDebug("📋 Sección: {Name} (ID: {Id}) {Icono}", seccion.Name, seccion.Id, seccion.Icono);
+                    }
+
+                    return seccionesLookup;
+                }
+
+                return new List<SeccionLookupDto>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting secciones for lookup from Velneo API");
+                throw;
+            }
+        }
+
+        public async Task<IEnumerable<SeccionDto>> GetSeccionesByCompanyAsync(int companyId)
+        {
+            _logger.LogInformation("Getting secciones for company {CompanyId} (returning all for now)", companyId);
+            return await GetActiveSeccionesAsync();
+        }
+
+        public async Task<IEnumerable<SeccionDto>> SearchSeccionesAsync(string searchTerm)
+        {
+            try
+            {
+                var allSecciones = await GetActiveSeccionesAsync();
+                var filtered = allSecciones.Where(s =>
+                    s.Seccion?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) == true
+                ).ToList();
+
+                _logger.LogInformation("Found {Count} secciones matching search term '{SearchTerm}'", filtered.Count, searchTerm);
+                return filtered;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error searching secciones with term '{SearchTerm}' from Velneo API", searchTerm);
+                throw;
+            }
+        }
+
+        #endregion
+
         #region Métodos NO IMPLEMENTADOS
 
         public async Task<ClientDto> CreateClienteAsync(ClientDto clienteDto)
@@ -1088,32 +1208,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
         {
             throw new NotImplementedException("DeletePoliza no está implementado en Velneo API aún");
         }
-
-        public async Task<SeccionDto> GetSeccionAsync(int id)
-        {
-            throw new NotImplementedException("GetSeccion no está implementado en Velneo API aún");
-        }
-
-        public async Task<IEnumerable<SeccionDto>> GetActiveSeccionesAsync()
-        {
-            throw new NotImplementedException("GetActiveSecciones no está implementado en Velneo API aún");
-        }
-
-        public async Task<IEnumerable<SeccionDto>> GetSeccionesByCompanyAsync(int companyId)
-        {
-            throw new NotImplementedException("GetSeccionesByCompany no está implementado en Velneo API aún");
-        }
-
-        public async Task<IEnumerable<SeccionDto>> SearchSeccionesAsync(string searchTerm)
-        {
-            throw new NotImplementedException("SearchSecciones no está implementado en Velneo API aún");
-        }
-
-        public async Task<IEnumerable<SeccionLookupDto>> GetSeccionesForLookupAsync()
-        {
-            throw new NotImplementedException("GetSeccionesForLookup no está implementado en Velneo API aún");
-        }
-
         public async Task<SeccionDto> CreateSeccionAsync(SeccionDto seccionDto)
         {
             throw new NotImplementedException("CreateSeccion no está implementado en Velneo API aún");
@@ -1181,45 +1275,5 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 
         #endregion
 
-        #region Test Connection
-
-        public async Task<bool> TestConnectionAsync()
-        {
-            try
-            {
-                var tenantId = _tenantService.GetCurrentTenantId();
-                _logger.LogDebug("Testing connection to Velneo API for tenant {TenantId}", tenantId);
-
-                using var httpClient = await GetConfiguredHttpClientAsync();
-                var url = await BuildVelneoUrlAsync("v1/clientes");
-                httpClient.Timeout = TimeSpan.FromSeconds(10);
-
-                var response = await httpClient.GetAsync(url);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    _logger.LogInformation("Velneo API connection test SUCCESSFUL for tenant {TenantId}", tenantId);
-                    return true;
-                }
-                else
-                {
-                    _logger.LogWarning("⚠Velneo API connection test failed for tenant {TenantId} with status {StatusCode}",
-                        tenantId, response.StatusCode);
-                    return false;
-                }
-            }
-            catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
-            {
-                _logger.LogWarning("Velneo API connection test timed out for tenant {TenantId}", _tenantService.GetCurrentTenantId());
-                return false;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error testing connection to Velneo API for tenant {TenantId}", _tenantService.GetCurrentTenantId());
-                return false;
-            }
-        }
-
-        #endregion
     }
 }

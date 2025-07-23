@@ -33,6 +33,7 @@ namespace RegularizadorPolizas.API.Middleware
                 "/api/companies",
                 "/api/clients",
                 "/api/clientes",
+                "/api/secciones",
                 "/api/currencies",
                 "/api/brokers",
                 "/api/polizas",

@@ -6,194 +6,182 @@ using RegularizadorPolizas.Application.Interfaces;
 namespace RegularizadorPolizas.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/secciones")]
     [Authorize]
     public class SeccionesController : ControllerBase
     {
-        private readonly ISeccionService _seccionService;
+        private readonly IVelneoApiService _velneoApiService; 
         private readonly ILogger<SeccionesController> _logger;
 
         public SeccionesController(
-            ISeccionService seccionService,
+            IVelneoApiService velneoApiService, 
             ILogger<SeccionesController> logger)
         {
-            _seccionService = seccionService;
-            _logger = logger;
+            _velneoApiService = velneoApiService ?? throw new ArgumentNullException(nameof(velneoApiService));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         [HttpGet]
+        [ProducesResponseType(typeof(IEnumerable<SeccionDto>), 200)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<IEnumerable<SeccionDto>>> GetSecciones()
         {
             try
             {
-                var secciones = await _seccionService.GetAllSeccionesAsync();
+                _logger.LogInformation("Getting all secciones from Velneo API");
+                var secciones = await _velneoApiService.GetActiveSeccionesAsync(); 
+                _logger.LogInformation("Successfully retrieved {Count} secciones from Velneo API", secciones.Count());
                 return Ok(secciones);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting all secciones");
-                return StatusCode(500, "Error interno del servidor");
+                _logger.LogError(ex, "Error getting all secciones from Velneo API");
+                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
             }
         }
 
         [HttpGet("active")]
+        [ProducesResponseType(typeof(IEnumerable<SeccionDto>), 200)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<IEnumerable<SeccionDto>>> GetActiveSecciones()
         {
             try
             {
-                var secciones = await _seccionService.GetActiveSeccionesAsync();
+                _logger.LogInformation("Getting active secciones from Velneo API");
+                var secciones = await _velneoApiService.GetActiveSeccionesAsync();
+                _logger.LogInformation("Successfully retrieved {Count} active secciones from Velneo API", secciones.Count());
                 return Ok(secciones);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting active secciones");
-                return StatusCode(500, "Error interno del servidor");
+                _logger.LogError(ex, "Error getting active secciones from Velneo API");
+                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
             }
         }
 
         [HttpGet("lookup")]
+        [ProducesResponseType(typeof(IEnumerable<SeccionLookupDto>), 200)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<IEnumerable<SeccionLookupDto>>> GetSeccionesForLookup()
         {
             try
             {
-                var secciones = await _seccionService.GetSeccionesForLookupAsync();
+                _logger.LogInformation("Getting secciones for lookup from Velneo API");
+                var secciones = await _velneoApiService.GetSeccionesForLookupAsync();
+                _logger.LogInformation("Successfully retrieved {Count} secciones for lookup from Velneo API", secciones.Count());
                 return Ok(secciones);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting secciones for lookup");
-                return StatusCode(500, "Error interno del servidor");
+                _logger.LogError(ex, "Error getting secciones for lookup from Velneo API");
+                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
             }
         }
 
         [HttpGet("{id}")]
+        [ProducesResponseType(typeof(SeccionDto), 200)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<SeccionDto>> GetSeccion(int id)
         {
             try
             {
-                var seccion = await _seccionService.GetSeccionByIdAsync(id);
+                _logger.LogInformation("Getting seccion {SeccionId} from Velneo API", id);
+                var seccion = await _velneoApiService.GetSeccionAsync(id);
 
                 if (seccion == null)
                 {
-                    return NotFound($"Sección con ID {id} no encontrada");
+                    _logger.LogWarning("Seccion {SeccionId} not found in Velneo API", id);
+                    return NotFound(new { message = $"Sección con ID {id} no encontrada" });
                 }
 
+                _logger.LogInformation("Successfully retrieved seccion {SeccionId} from Velneo API", id);
                 return Ok(seccion);
+            }
+            catch (KeyNotFoundException)
+            {
+                _logger.LogWarning("Seccion {SeccionId} not found in Velneo API", id);
+                return NotFound(new { message = $"Sección con ID {id} no encontrada" });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting seccion {Id}", id);
-                return StatusCode(500, "Error interno del servidor");
+                _logger.LogError(ex, "Error getting seccion {SeccionId} from Velneo API", id);
+                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
             }
         }
 
         [HttpGet("search")]
+        [ProducesResponseType(typeof(IEnumerable<SeccionDto>), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<IEnumerable<SeccionDto>>> SearchSecciones([FromQuery] string searchTerm)
         {
             try
             {
-                var secciones = await _seccionService.SearchSeccionesAsync(searchTerm);
+                if (string.IsNullOrWhiteSpace(searchTerm))
+                {
+                    return BadRequest(new { message = "Término de búsqueda requerido" });
+                }
+
+                _logger.LogInformation("Searching secciones with term '{SearchTerm}' in Velneo API", searchTerm);
+                var secciones = await _velneoApiService.SearchSeccionesAsync(searchTerm);
+                _logger.LogInformation("Found {Count} secciones matching '{SearchTerm}' in Velneo API", secciones.Count(), searchTerm);
                 return Ok(secciones);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error searching secciones with term {SearchTerm}", searchTerm);
-                return StatusCode(500, "Error interno del servidor");
+                _logger.LogError(ex, "Error searching secciones with term '{SearchTerm}' in Velneo API", searchTerm);
+                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
             }
         }
 
-        [HttpPost]
-        public async Task<ActionResult<SeccionDto>> CreateSeccion([FromBody] CreateSeccionDto createDto)
+        [HttpGet("company/{companyId}")]
+        [ProducesResponseType(typeof(IEnumerable<SeccionDto>), 200)]
+        [ProducesResponseType(500)]
+        public async Task<ActionResult<IEnumerable<SeccionDto>>> GetSeccionesByCompany(int companyId)
         {
             try
             {
-                if (!ModelState.IsValid)
-                {
-                    return BadRequest(ModelState);
-                }
-
-                var seccion = await _seccionService.CreateSeccionAsync(createDto);
-                return CreatedAtAction(nameof(GetSeccion), new { id = seccion.Id }, seccion);
-            }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogWarning(ex, "Invalid operation creating seccion");
-                return BadRequest(ex.Message);
+                _logger.LogInformation("Getting secciones for company {CompanyId} from Velneo API", companyId);
+                var secciones = await _velneoApiService.GetSeccionesByCompanyAsync(companyId);
+                _logger.LogInformation("Successfully retrieved {Count} secciones for company {CompanyId} from Velneo API", secciones.Count(), companyId);
+                return Ok(secciones);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating seccion");
-                return StatusCode(500, "Error interno del servidor");
-            }
-        }
-
-        [HttpPut("{id}")]
-        public async Task<ActionResult<SeccionDto>> UpdateSeccion(int id, [FromBody] UpdateSeccionDto updateDto)
-        {
-            try
-            {
-                if (!ModelState.IsValid)
-                {
-                    return BadRequest(ModelState);
-                }
-
-                var seccion = await _seccionService.UpdateSeccionAsync(id, updateDto);
-                return Ok(seccion);
-            }
-            catch (KeyNotFoundException ex)
-            {
-                _logger.LogWarning(ex, "Seccion not found for update");
-                return NotFound(ex.Message);
-            }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogWarning(ex, "Invalid operation updating seccion");
-                return BadRequest(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating seccion {Id}", id);
-                return StatusCode(500, "Error interno del servidor");
-            }
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<ActionResult> DeleteSeccion(int id)
-        {
-            try
-            {
-                await _seccionService.DeleteSeccionAsync(id);
-                return NoContent();
-            }
-            catch (KeyNotFoundException ex)
-            {
-                _logger.LogWarning(ex, "Seccion not found for deletion");
-                return NotFound(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting seccion {Id}", id);
-                return StatusCode(500, "Error interno del servidor");
+                _logger.LogError(ex, "Error getting secciones for company {CompanyId} from Velneo API", companyId);
+                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
             }
         }
 
         [HttpGet("exists")]
+        [ProducesResponseType(typeof(bool), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(500)]
         public async Task<ActionResult<bool>> SeccionExists([FromQuery] string name, [FromQuery] int? excludeId = null)
         {
             try
             {
                 if (string.IsNullOrWhiteSpace(name))
                 {
-                    return BadRequest("El nombre es requerido");
+                    return BadRequest(new { message = "El nombre es requerido" });
                 }
 
-                var exists = await _seccionService.SeccionExistsAsync(name, excludeId);
+                _logger.LogInformation("Checking if seccion exists with name '{Name}' in Velneo API", name);
+
+                // ✅ Implementación usando búsqueda
+                var secciones = await _velneoApiService.SearchSeccionesAsync(name);
+                var exists = secciones.Any(s =>
+                    string.Equals(s.Seccion, name, StringComparison.OrdinalIgnoreCase) &&
+                    (excludeId == null || s.Id != excludeId));
+
+                _logger.LogInformation("Seccion exists check for '{Name}': {Exists}", name, exists);
                 return Ok(exists);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error checking if seccion exists");
-                return StatusCode(500, "Error interno del servidor");
+                _logger.LogError(ex, "Error checking if seccion exists with name '{Name}' in Velneo API", name);
+                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
             }
         }
     }

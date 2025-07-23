@@ -98,6 +98,11 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers
             return velneoClientes.Select(c => c.ToClienteDto());
         }
 
+        public static IEnumerable<ClientDto> ToClientDtos(this IEnumerable<VelneoCliente> velneoClientes)
+        {
+            return velneoClientes.Select(c => c.ToClienteDto());
+        }
+
         public static VelneoCliente ToVelneoClienteDto(this ClientDto clienteDto)
         {
             return new VelneoCliente

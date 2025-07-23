@@ -7,11 +7,11 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models
         [JsonPropertyName("id")]
         public int Id { get; set; }
 
-        [JsonPropertyName("name")]
-        public string Name { get; set; } = string.Empty;
+        [JsonPropertyName("seccion")]
+        public string Seccion { get; set; } = string.Empty;
 
         [JsonPropertyName("icono")]
-        public string Icono { get; set; } = string.Empty;
+        public string? Icono { get; set; } = string.Empty;
 
         [JsonPropertyName("activo")]
         public bool Activo { get; set; } = true;
@@ -40,8 +40,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models
         [JsonPropertyName("id")]
         public int Id { get; set; }
 
-        [JsonPropertyName("name")]
-        public string Name { get; set; } = string.Empty;
+        [JsonPropertyName("seccion")]
+        public string Seccion { get; set; } = string.Empty;
 
         [JsonPropertyName("icono")]
         public string Icono { get; set; } = string.Empty;

@@ -8,7 +8,7 @@ namespace RegularizadorPolizas.Application.DTOs
 
         [Required(ErrorMessage = "El nombre de la sección es requerido")]
         [StringLength(50, ErrorMessage = "El nombre no puede exceder 50 caracteres")]
-        public string Name { get; set; } = string.Empty;
+        public string Seccion { get; set; } = string.Empty;
 
         [StringLength(50, ErrorMessage = "El icono no puede exceder 50 caracteres")]
         public string Icono { get; set; } = string.Empty;

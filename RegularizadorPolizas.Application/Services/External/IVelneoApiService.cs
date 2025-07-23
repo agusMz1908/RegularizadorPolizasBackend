@@ -42,8 +42,6 @@ namespace RegularizadorPolizas.Application.Interfaces
         Task<BrokerDto> CreateBrokerAsync(BrokerDto brokerDto);
         Task UpdateBrokerAsync(BrokerDto brokerDto);
         Task DeleteBrokerAsync(int id);
-
-        Task<bool> TestConnectionAsync();
         Task<IEnumerable<CurrencyDto>> SearchCurrenciesAsync(string searchTerm);
         Task<CurrencyDto?> GetDefaultCurrencyAsync();
         Task<IEnumerable<CurrencyLookupDto>> GetCurrenciesForLookupAsync();
