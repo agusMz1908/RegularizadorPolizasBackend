@@ -46,5 +46,9 @@ namespace RegularizadorPolizas.Application.Interfaces
         Task<CurrencyDto?> GetDefaultCurrencyAsync();
         Task<IEnumerable<CurrencyLookupDto>> GetCurrenciesForLookupAsync();
         Task<IEnumerable<CurrencyDto>> GetAllCurrenciesAsync();
+        Task<IEnumerable<CombustibleDto>> GetAllCombustiblesAsync();
+        Task<IEnumerable<DestinoDto>> GetAllDestinosAsync();
+        Task<IEnumerable<CategoriaDto>> GetAllCategoriasAsync();
+        Task<IEnumerable<CalidadDto>> GetAllCalidadesAsync();
     }
 }

@@ -1167,6 +1167,210 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 
         #endregion
 
+        #region Métodos de Combustibles
+
+        /// <summary>
+        /// Obtiene todos los combustibles desde Velneo API
+        /// </summary>
+        public async Task<IEnumerable<CombustibleDto>> GetAllCombustiblesAsync()
+        {
+            try
+            {
+                var tenantId = _tenantService.GetCurrentTenantId();
+                _logger.LogDebug("Getting all combustibles from Velneo API for tenant {TenantId}", tenantId);
+
+                using var httpClient = await GetConfiguredHttpClientAsync();
+                var url = await BuildVelneoUrlAsync("v1/combustibles");
+                var response = await httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                // ✅ PRIMERO: Intentar como wrapper (formato esperado de Velneo)
+                var velneoResponse = await DeserializeResponseAsync<VelneoCombustiblesResponse>(response);
+                if (velneoResponse?.Combustibles != null && velneoResponse.Combustibles.Any())
+                {
+                    var combustibles = velneoResponse.Combustibles.ToCombustibleDtos().ToList();
+                    _logger.LogInformation("Successfully retrieved {Count} combustibles from Velneo API (wrapper format)",
+                        combustibles.Count);
+                    return combustibles;
+                }
+
+                // ✅ SEGUNDO: Si falla, intentar como array directo (fallback)
+                response = await httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+                var velneoCombustibles = await DeserializeResponseAsync<List<VelneoCombustible>>(response);
+                if (velneoCombustibles != null && velneoCombustibles.Any())
+                {
+                    var combustibles = velneoCombustibles.ToCombustibleDtos().ToList();
+                    _logger.LogInformation("Successfully retrieved {Count} combustibles from Velneo API (array format)",
+                        combustibles.Count);
+                    return combustibles;
+                }
+
+                _logger.LogWarning("No combustibles found in Velneo API response");
+                return new List<CombustibleDto>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting combustibles from Velneo API");
+                throw new ApplicationException($"Error retrieving combustibles from Velneo API: {ex.Message}", ex);
+            }
+        }
+
+        #endregion
+
+        #region Métodos de Destinos
+
+        /// <summary>
+        /// Obtiene todos los destinos desde Velneo API
+        /// </summary>
+        public async Task<IEnumerable<DestinoDto>> GetAllDestinosAsync()
+        {
+            try
+            {
+                var tenantId = _tenantService.GetCurrentTenantId();
+                _logger.LogDebug("Getting all destinos from Velneo API for tenant {TenantId}", tenantId);
+
+                using var httpClient = await GetConfiguredHttpClientAsync();
+                var url = await BuildVelneoUrlAsync("v1/destinos");
+                var response = await httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                // ✅ PRIMERO: Intentar como wrapper (formato esperado de Velneo)
+                var velneoResponse = await DeserializeResponseAsync<VelneoDestinosResponse>(response);
+                if (velneoResponse?.Destinos != null && velneoResponse.Destinos.Any())
+                {
+                    var destinos = velneoResponse.Destinos.ToDestinoDtos().ToList();
+                    _logger.LogInformation("Successfully retrieved {Count} destinos from Velneo API (wrapper format)",
+                        destinos.Count);
+                    return destinos;
+                }
+
+                // ✅ SEGUNDO: Si falla, intentar como array directo (fallback)
+                response = await httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+                var velneoDestinos = await DeserializeResponseAsync<List<VelneoDestino>>(response);
+                if (velneoDestinos != null && velneoDestinos.Any())
+                {
+                    var destinos = velneoDestinos.ToDestinoDtos().ToList();
+                    _logger.LogInformation("Successfully retrieved {Count} destinos from Velneo API (array format)",
+                        destinos.Count);
+                    return destinos;
+                }
+
+                _logger.LogWarning("No destinos found in Velneo API response");
+                return new List<DestinoDto>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting destinos from Velneo API");
+                throw new ApplicationException($"Error retrieving destinos from Velneo API: {ex.Message}", ex);
+            }
+        }
+
+        #endregion
+
+        #region Métodos de Categorías
+
+        /// <summary>
+        /// Obtiene todas las categorías desde Velneo API
+        /// </summary>
+        public async Task<IEnumerable<CategoriaDto>> GetAllCategoriasAsync()
+        {
+            try
+            {
+                var tenantId = _tenantService.GetCurrentTenantId();
+                _logger.LogDebug("Getting all categorias from Velneo API for tenant {TenantId}", tenantId);
+
+                using var httpClient = await GetConfiguredHttpClientAsync();
+                var url = await BuildVelneoUrlAsync("v1/categorias");
+                var response = await httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                // ✅ PRIMERO: Intentar como wrapper (formato esperado de Velneo)
+                var velneoResponse = await DeserializeResponseAsync<VelneoCategoriasResponse>(response);
+                if (velneoResponse?.Categorias != null && velneoResponse.Categorias.Any())
+                {
+                    var categorias = velneoResponse.Categorias.ToCategoriaDtos().ToList();
+                    _logger.LogInformation("Successfully retrieved {Count} categorias from Velneo API (wrapper format)",
+                        categorias.Count);
+                    return categorias;
+                }
+
+                // ✅ SEGUNDO: Si falla, intentar como array directo (fallback)
+                response = await httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+                var velneoCategorias = await DeserializeResponseAsync<List<VelneoCategoria>>(response);
+                if (velneoCategorias != null && velneoCategorias.Any())
+                {
+                    var categorias = velneoCategorias.ToCategoriaDtos().ToList();
+                    _logger.LogInformation("Successfully retrieved {Count} categorias from Velneo API (array format)",
+                        categorias.Count);
+                    return categorias;
+                }
+
+                _logger.LogWarning("No categorias found in Velneo API response");
+                return new List<CategoriaDto>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting categorias from Velneo API");
+                throw new ApplicationException($"Error retrieving categorias from Velneo API: {ex.Message}", ex);
+            }
+        }
+
+        #endregion
+
+        #region Métodos de Calidades
+
+        /// <summary>
+        /// Obtiene todas las calidades desde Velneo API
+        /// </summary>
+        public async Task<IEnumerable<CalidadDto>> GetAllCalidadesAsync()
+        {
+            try
+            {
+                var tenantId = _tenantService.GetCurrentTenantId();
+                _logger.LogDebug("Getting all calidades from Velneo API for tenant {TenantId}", tenantId);
+
+                using var httpClient = await GetConfiguredHttpClientAsync();
+                var url = await BuildVelneoUrlAsync("v1/calidades");
+                var response = await httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                // ✅ PRIMERO: Intentar como wrapper (formato esperado de Velneo)
+                var velneoResponse = await DeserializeResponseAsync<VelneoCalidadesResponse>(response);
+                if (velneoResponse?.Calidades != null && velneoResponse.Calidades.Any())
+                {
+                    var calidades = velneoResponse.Calidades.ToCalidadDtos().ToList();
+                    _logger.LogInformation("Successfully retrieved {Count} calidades from Velneo API (wrapper format)",
+                        calidades.Count);
+                    return calidades;
+                }
+
+                // ✅ SEGUNDO: Si falla, intentar como array directo (fallback)
+                response = await httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+                var velneoCalidades = await DeserializeResponseAsync<List<VelneoCalidad>>(response);
+                if (velneoCalidades != null && velneoCalidades.Any())
+                {
+                    var calidades = velneoCalidades.ToCalidadDtos().ToList();
+                    _logger.LogInformation("Successfully retrieved {Count} calidades from Velneo API (array format)",
+                        calidades.Count);
+                    return calidades;
+                }
+
+                _logger.LogWarning("No calidades found in Velneo API response");
+                return new List<CalidadDto>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting calidades from Velneo API");
+                throw new ApplicationException($"Error retrieving calidades from Velneo API: {ex.Message}", ex);
+            }
+        }
+
+        #endregion
+
         #region Métodos NO IMPLEMENTADOS
 
         public async Task<ClientDto> CreateClienteAsync(ClientDto clienteDto)
