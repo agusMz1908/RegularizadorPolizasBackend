@@ -285,5 +285,199 @@ namespace RegularizadorPolizas.API.Controllers
                 return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
             }
         }
+
+        [HttpPost]
+        [ProducesResponseType(typeof(object), 201)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(500)]
+        public async Task<ActionResult> CreatePoliza([FromBody] PolizaCreateRequest request)
+        {
+            try
+            {
+                if (request == null)
+                {
+                    return BadRequest(new { message = "Datos de póliza requeridos" });
+                }
+
+                _logger.LogInformation("🚀 Creating enriched poliza {NumeroPoliza} with Azure AI data", request.Conpol);
+
+                // ✅ CONVERTIR PolizaCreateRequest a PolizaDto ENRIQUECIDO
+                var polizaDto = ConvertirRequestAPolizaDto(request);
+
+                // ✅ USAR EL MÉTODO ÚNICO QUE YA TIENES
+                var createdPoliza = await _velneoApiService.CreatePolizaFromRequestAsync(request);
+
+                if (createdPoliza != null)
+                {
+                    _logger.LogInformation("✅ Successfully created enriched poliza {NumeroPoliza}", request.Conpol);
+
+                    return CreatedAtAction(nameof(GetPolizaById), new { id = request.Conpol }, new
+                    {
+                        success = true,
+                        message = "Póliza enriquecida creada exitosamente en Velneo",
+                        numeroPoliza = request.Conpol,
+                        datosEnviados = GetDatosEnviadosSummary(request),
+                        polizaCreada = createdPoliza,
+                        timestamp = DateTime.UtcNow
+                    });
+                }
+                else
+                {
+                    return StatusCode(500, new
+                    {
+                        success = false,
+                        message = "Velneo retornó respuesta vacía",
+                        numeroPoliza = request.Conpol
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating enriched poliza {NumeroPoliza}", request.Conpol);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error interno del servidor",
+                    error = ex.Message,
+                    numeroPoliza = request.Conpol
+                });
+            }
+        }
+
+        // ✅ MÉTODO AUXILIAR: Convertir PolizaCreateRequest a PolizaDto enriquecido
+        private PolizaDto ConvertirRequestAPolizaDto(PolizaCreateRequest request)
+        {
+            return new PolizaDto
+            {
+                // ✅ CAMPOS BÁSICOS
+                Comcod = request.Comcod,
+                Clinro = request.Clinro,
+                Conpol = request.Conpol,
+                Confchdes = TryParseDate(request.Confchdes),
+                Confchhas = TryParseDate(request.Confchhas),
+                Conpremio = request.Conpremio,
+
+                // ✅ DATOS DEL CLIENTE (enriquecidos de Azure AI)
+                Clinom = request.Asegurado,
+                Condom = request.Direccion,
+
+                // ✅ DATOS DEL VEHÍCULO (enriquecidos de Azure AI)
+                Conmaraut = !string.IsNullOrEmpty(request.Vehiculo) ? request.Vehiculo : $"{request.Marca} {request.Modelo}".Trim(),
+                Conmotor = request.Motor,
+                Conchasis = request.Chasis,
+                Conmataut = request.Matricula,
+                Conanioaut = TryParseInt(request.Anio?.ToString()),
+
+                // ✅ DATOS FINANCIEROS
+                Moncod = GetMonedaId(request.Moneda),
+                Contot = request.PremioTotal,
+
+                // ✅ OTROS DATOS ENRIQUECIDOS
+                Ramo = request.Ramo ?? "AUTOMOVILES",
+                Com_alias = GetCompaniaAlias(request.Comcod),
+
+                // ✅ OBSERVACIONES ENRIQUECIDAS con todos los datos de Azure AI
+                Observaciones = ConstruirObservacionesEnriquecidas(request),
+
+                // ✅ CAMPOS DE CONTROL
+                Convig = "1", // Activa
+                Consta = "1", // Estado activo  
+                Contra = "2", // Tipo de contrato
+                Activo = true,
+                Procesado = true,
+                FechaCreacion = DateTime.Now,
+                FechaModificacion = DateTime.Now,
+                Ingresado = DateTime.Now,
+                Last_update = DateTime.Now
+            };
+        }
+
+        // ✅ MÉTODOS AUXILIARES
+        private DateTime? TryParseDate(string dateString)
+        {
+            if (string.IsNullOrEmpty(dateString)) return null;
+            return DateTime.TryParse(dateString, out var result) ? result : null;
+        }
+
+        private int? TryParseInt(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return null;
+            return int.TryParse(value, out var result) ? result : null;
+        }
+
+        private int GetMonedaId(string moneda)
+        {
+            return moneda?.ToUpper() switch
+            {
+                "UYU" => 1,
+                "USD" => 2,
+                "EUR" => 3,
+                _ => 1 // Default UYU
+            };
+        }
+
+        private string GetCompaniaAlias(int comcod)
+        {
+            return comcod switch
+            {
+                1 => "BSE",
+                2 => "MAPFRE",
+                3 => "SURA",
+                _ => "DESCONOCIDO"
+            };
+        }
+
+        private string ConstruirObservacionesEnriquecidas(PolizaCreateRequest request)
+        {
+            var observaciones = new List<string>();
+
+            // Observaciones originales
+            if (!string.IsNullOrEmpty(request.Observaciones))
+            {
+                observaciones.Add(request.Observaciones);
+            }
+
+            // ✅ INFORMACIÓN ENRIQUECIDA DE AZURE AI
+            observaciones.Add("🤖 Procesado automáticamente con Azure Document Intelligence");
+
+            if (!string.IsNullOrEmpty(request.Vehiculo))
+                observaciones.Add($"🚗 Vehículo: {request.Vehiculo}");
+
+            if (!string.IsNullOrEmpty(request.Combustible))
+                observaciones.Add($"⛽ Combustible: {request.Combustible}");
+
+            if (request.PrimaComercial.HasValue && request.PremioTotal.HasValue)
+                observaciones.Add($"💰 Prima: ${request.PrimaComercial:N2} - Premio: ${request.PremioTotal:N2}");
+
+            if (!string.IsNullOrEmpty(request.Corredor))
+                observaciones.Add($"🏢 Corredor: {request.Corredor}");
+
+            // Contacto
+            var contacto = new List<string>();
+            if (!string.IsNullOrEmpty(request.Email)) contacto.Add($"✉️ {request.Email}");
+            if (!string.IsNullOrEmpty(request.Telefono)) contacto.Add($"📞 {request.Telefono}");
+            if (contacto.Any())
+                observaciones.Add($"📋 Contacto: {string.Join(" | ", contacto)}");
+
+            // Ubicación
+            var ubicacion = new List<string>();
+            if (!string.IsNullOrEmpty(request.Localidad)) ubicacion.Add(request.Localidad);
+            if (!string.IsNullOrEmpty(request.Departamento)) ubicacion.Add(request.Departamento);
+            if (ubicacion.Any())
+                observaciones.Add($"📍 Ubicación: {string.Join(", ", ubicacion)}");
+
+            return string.Join(" | ", observaciones);
+        }
+
+        private object GetDatosEnviadosSummary(PolizaCreateRequest request)
+        {
+            return new
+            {
+                vehiculo = new { marca = request.Marca, modelo = request.Modelo, anio = request.Anio },
+                cliente = new { nombre = request.Asegurado, documento = request.Documento, email = request.Email },
+                financiero = new { prima = request.Conpremio, premioTotal = request.PremioTotal },
+                otros = new { corredor = request.Corredor, ramo = request.Ramo }
+            };
+        }
     }
 }

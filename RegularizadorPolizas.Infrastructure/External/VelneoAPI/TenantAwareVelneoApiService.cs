@@ -4,6 +4,7 @@ using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers;
 using RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models;
 using System.Diagnostics;
+using System.Net;
 using System.Text.Json;
 
 namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
@@ -1036,6 +1037,249 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             }
         }
 
+        public async Task<object> CreatePolizaFromRequestAsync(PolizaCreateRequest request)
+        {
+            var stopwatch = Stopwatch.StartNew();
+
+            try
+            {
+                var tenantId = _tenantService.GetCurrentTenantId();
+                _logger.LogInformation("🚀 CREANDO PÓLIZA ENRIQUECIDA EN VELNEO: Número={NumeroPoliza}, Cliente={ClienteId}, Tenant={TenantId}",
+                    request.Conpol, request.Clinro, tenantId);
+
+                using var httpClient = await GetConfiguredHttpClientAsync();
+
+                // ✅ USAR TU MÉTODO EXISTENTE PERO CON DATOS ENRIQUECIDOS
+                var velneoContrato = MapearCreateRequestAVelneo(request); // Reutilizar el que ya tienes
+
+                // Serializar el payload
+                var jsonPayload = JsonSerializer.Serialize(velneoContrato, _jsonOptions);
+                var content = new StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
+
+                _logger.LogInformation("📤 PAYLOAD VELNEO ENRIQUECIDO: {JsonLength} caracteres para póliza {NumeroPoliza}",
+                    jsonPayload.Length, request.Conpol);
+                _logger.LogDebug("📤 PAYLOAD DETALLE: {JsonPayload}", jsonPayload);
+
+                // ✅ REUTILIZAR TU LÓGICA EXISTENTE
+                var endpoint = "v1/contratos";
+                var url = await BuildVelneoUrlAsync(endpoint);
+
+                var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
+                var maskedUrl = url.Replace(tenantConfig.Key, "***");
+                _logger.LogInformation("🌐 POST Velneo URL: {Url}", maskedUrl);
+
+                using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+                var response = await httpClient.PostAsync(url, content, cts.Token);
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                stopwatch.Stop();
+
+                _logger.LogInformation("📡 Velneo CREATE response: Status {Status}, Duration: {Duration}ms, Content length: {Length}",
+                    response.StatusCode, stopwatch.ElapsedMilliseconds, responseContent.Length);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogError("❌ Error en Velneo API: Status={Status}, Response={Response}",
+                        response.StatusCode, responseContent);
+
+                    var errorMessage = ExtractErrorMessage(responseContent, response.StatusCode);
+                    throw new HttpRequestException($"Error creando póliza enriquecida en Velneo: {errorMessage}");
+                }
+
+                // ✅ REUTILIZAR TU LÓGICA DE MANEJO DE RESPUESTA VACÍA
+                if (string.IsNullOrWhiteSpace(responseContent))
+                {
+                    _logger.LogWarning("⚠️ Velneo retornó respuesta vacía, pero con status 200.");
+                    _logger.LogInformation("✅ PÓLIZA ENRIQUECIDA CREADA EN VELNEO: Número={NumeroPoliza} en {Duration}ms (respuesta vacía pero exitosa)",
+                        request.Conpol, stopwatch.ElapsedMilliseconds);
+
+                    return new
+                    {
+                        success = true,
+                        message = "Póliza enriquecida creada exitosamente en Velneo",
+                        numeroPoliza = request.Conpol,
+                        datosEnviados = GetDatosEnviadosSummary(request)
+                    };
+                }
+
+                // ✅ REUTILIZAR TU LÓGICA DE DESERIALIZACIÓN
+                try
+                {
+                    var velneoResponse = JsonSerializer.Deserialize<object>(responseContent, _jsonOptions);
+
+                    _logger.LogInformation("✅ PÓLIZA ENRIQUECIDA CREADA EN VELNEO: Número={NumeroPoliza} en {Duration}ms con respuesta JSON",
+                        request.Conpol, stopwatch.ElapsedMilliseconds);
+
+                    return new
+                    {
+                        success = true,
+                        message = "Póliza enriquecida creada exitosamente en Velneo",
+                        numeroPoliza = request.Conpol,
+                        velneoResponse = velneoResponse,
+                        datosEnviados = GetDatosEnviadosSummary(request)
+                    };
+                }
+                catch (JsonException jsonEx)
+                {
+                    _logger.LogWarning(jsonEx, "⚠️ Error deserializando respuesta JSON, pero status fue 200.");
+
+                    return new
+                    {
+                        success = true,
+                        message = "Póliza enriquecida creada exitosamente (respuesta no estándar)",
+                        numeroPoliza = request.Conpol,
+                        rawResponse = responseContent.Substring(0, Math.Min(200, responseContent.Length)),
+                        datosEnviados = GetDatosEnviadosSummary(request)
+                    };
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogError("⏰ TIMEOUT creando póliza enriquecida {NumeroPoliza} en Velneo después de {Duration}ms",
+                    request.Conpol, stopwatch.ElapsedMilliseconds);
+                throw new TimeoutException($"Timeout creando póliza enriquecida {request.Conpol} en Velneo");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ ERROR creando póliza enriquecida {NumeroPoliza} en Velneo",
+                    request.Conpol);
+                throw;
+            }
+        }
+
+        private object GetDatosEnviadosSummary(PolizaCreateRequest request)
+        {
+            return new
+            {
+                poliza = new
+                {
+                    numero = request.Conpol,
+                    prima = request.Conpremio,
+                    desde = request.Confchdes,
+                    hasta = request.Confchhas
+                },
+                vehiculo = new
+                {
+                    descripcion = request.Vehiculo,
+                    marca = request.Marca,
+                    modelo = request.Modelo,
+                    anio = request.Anio,
+                    motor = request.Motor,
+                    chasis = request.Chasis,
+                    matricula = request.Matricula,
+                    combustible = request.Combustible
+                },
+                cliente = new
+                {
+                    nombre = request.Asegurado,
+                    documento = request.Documento,
+                    email = request.Email,
+                    telefono = request.Telefono,
+                    direccion = request.Direccion,
+                    localidad = request.Localidad,
+                    departamento = request.Departamento
+                },
+                financiero = new
+                {
+                    prima = request.Conpremio,
+                    primaComercial = request.PrimaComercial,
+                    premioTotal = request.PremioTotal,
+                    moneda = request.Moneda
+                },
+                otros = new
+                {
+                    corredor = request.Corredor,
+                    plan = request.Plan,
+                    ramo = request.Ramo,
+                    procesadoConIA = request.ProcesadoConIA
+                }
+            };
+        }
+
+        private string ExtractErrorMessage(string responseContent, HttpStatusCode statusCode)
+        {
+            try
+            {
+                // Intentar extraer mensaje de error del response JSON
+                using var doc = JsonDocument.Parse(responseContent);
+
+                if (doc.RootElement.TryGetProperty("error", out var errorProp))
+                {
+                    return errorProp.GetString() ?? $"Error HTTP {(int)statusCode}";
+                }
+
+                if (doc.RootElement.TryGetProperty("message", out var messageProp))
+                {
+                    return messageProp.GetString() ?? $"Error HTTP {(int)statusCode}";
+                }
+
+                return $"Error HTTP {(int)statusCode}: {responseContent.Substring(0, Math.Min(200, responseContent.Length))}";
+            }
+            catch
+            {
+                return $"Error HTTP {(int)statusCode}: {responseContent.Substring(0, Math.Min(100, responseContent.Length))}";
+            }
+        }
+
+        private object MapearCreateRequestAVelneo(PolizaCreateRequest request)
+        {
+            // IMPORTANTE: Usar la misma estructura que tu método MapearPolizaRequestAVelneo existente
+            var velneoContrato = new
+            {
+                // Campos básicos de contrato
+                comcod = request.Comcod,
+                clinro = request.Clinro,
+                conpol = request.Conpol,
+                confchdes = !string.IsNullOrEmpty(request.Confchdes) ? DateTime.Parse(request.Confchdes).ToString("yyyy-MM-dd") : null,
+                confchhas = !string.IsNullOrEmpty(request.Confchhas) ? DateTime.Parse(request.Confchhas).ToString("yyyy-MM-dd") : null,
+                conpremio = request.Conpremio,
+
+                // Campos del asegurado
+                asegurado = request.Asegurado,
+                documento = request.Documento,
+                email = request.Email,
+                telefono = request.Telefono,
+                direccion = request.Direccion,
+                localidad = request.Localidad,
+                departamento = request.Departamento,
+
+                // Campos del vehículo (datos enriquecidos de Azure AI)
+                vehiculo = request.Vehiculo,
+                marca = request.Marca,
+                modelo = request.Modelo,
+                motor = request.Motor,
+                chasis = request.Chasis,
+                matricula = request.Matricula,
+                combustible = request.Combustible,
+                anio = TryParseInt(request.Anio?.ToString()),
+
+                // Campos comerciales
+                prima_comercial = request.PrimaComercial,
+                premio_total = request.PremioTotal,
+                corredor = request.Corredor,
+                plan = request.Plan,
+                ramo = request.Ramo ?? "AUTOMOVILES",
+                moneda = request.Moneda ?? "UYU",
+
+                // Campos técnicos
+                observaciones = $"{request.Observaciones ?? ""} | Procesado automáticamente con Azure AI".Trim(),
+                procesado_con_ia = request.ProcesadoConIA,
+                fecha_creacion = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"),
+
+                // Campos de auditoría
+                usuario_creacion = "SISTEMA_IA",
+                origen = "REGULARIZADOR_POLIZAS"
+            };
+
+            return velneoContrato;
+        }
+
+        // ✅ MÉTODO AUXILIAR QUE FALTA
+        private int? TryParseInt(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return null;
+            return int.TryParse(value, out var result) ? result : null;
+        }
         #endregion
 
         #region Métodos de Secciones
@@ -1367,114 +1611,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 _logger.LogError(ex, "Error getting calidades from Velneo API");
                 throw new ApplicationException($"Error retrieving calidades from Velneo API: {ex.Message}", ex);
             }
-        }
-
-        #endregion
-
-        #region Métodos NO IMPLEMENTADOS
-
-        public async Task<ClientDto> CreateClienteAsync(ClientDto clienteDto)
-        {
-            throw new NotImplementedException("CreateCliente no está implementado en Velneo API aún");
-        }
-
-        public async Task UpdateClienteAsync(ClientDto clienteDto)
-        {
-            throw new NotImplementedException("UpdateCliente no está implementado en Velneo API aún");
-        }
-
-        public async Task DeleteClienteAsync(int id)
-        {
-            throw new NotImplementedException("DeleteCliente no está implementado en Velneo API aún");
-        }
-
-        public async Task<PolizaDto> GetPolizaByNumberAsync(string numeroPoliza)
-        {
-            throw new NotImplementedException("GetPolizaByNumber no está implementado en Velneo API aún");
-        }
-
-        public async Task<IEnumerable<PolizaDto>> SearchPolizasAsync(string searchTerm)
-        {
-            throw new NotImplementedException("SearchPolizas no está implementado en Velneo API aún");
-        }
-
-        public async Task<PolizaDto> CreatePolizaAsync(PolizaDto polizaDto)
-        {
-            throw new NotImplementedException("CreatePoliza no está implementado en Velneo API aún");
-        }
-
-        public async Task UpdatePolizaAsync(PolizaDto polizaDto)
-        {
-            throw new NotImplementedException("UpdatePoliza no está implementado en Velneo API aún");
-        }
-
-        public async Task DeletePolizaAsync(int id)
-        {
-            throw new NotImplementedException("DeletePoliza no está implementado en Velneo API aún");
-        }
-        public async Task<SeccionDto> CreateSeccionAsync(SeccionDto seccionDto)
-        {
-            throw new NotImplementedException("CreateSeccion no está implementado en Velneo API aún");
-        }
-
-        public async Task UpdateSeccionAsync(SeccionDto seccionDto)
-        {
-            throw new NotImplementedException("UpdateSeccion no está implementado en Velneo API aún");
-        }
-
-        public async Task DeleteSeccionAsync(int id)
-        {
-            throw new NotImplementedException("DeleteSeccion no está implementado en Velneo API aún");
-        }
-
-        public async Task<BrokerDto> GetBrokerAsync(int id)
-        {
-            throw new NotImplementedException("GetBroker no está implementado en Velneo API aún");
-        }
-
-        public async Task<IEnumerable<BrokerDto>> GetBrokersAsync()
-        {
-            throw new NotImplementedException("GetBrokers no está implementado en Velneo API aún");
-        }
-
-        public async Task<IEnumerable<BrokerDto>> SearchBrokersAsync(string searchTerm)
-        {
-            throw new NotImplementedException("SearchBrokers no está implementado en Velneo API aún");
-        }
-
-        public async Task<BrokerDto> CreateBrokerAsync(BrokerDto brokerDto)
-        {
-            throw new NotImplementedException("CreateBroker no está implementado en Velneo API aún");
-        }
-
-        public async Task UpdateBrokerAsync(BrokerDto brokerDto)
-        {
-            throw new NotImplementedException("UpdateBroker no está implementado en Velneo API aún");
-        }
-
-        public async Task DeleteBrokerAsync(int id)
-        {
-            throw new NotImplementedException("DeleteBroker no está implementado en Velneo API aún");
-        }
-
-        public async Task<IEnumerable<CurrencyDto>> SearchCurrenciesAsync(string searchTerm)
-        {
-            throw new NotImplementedException("SearchCurrencies no está implementado en Velneo API aún");
-        }
-
-        public async Task<CurrencyDto?> GetDefaultCurrencyAsync()
-        {
-            throw new NotImplementedException("GetDefaultCurrency no está implementado en Velneo API aún");
-        }
-
-        public async Task<IEnumerable<CurrencyLookupDto>> GetCurrenciesForLookupAsync()
-        {
-            throw new NotImplementedException("GetCurrenciesForLookup no está implementado en Velneo API aún");
-        }
-
-        public async Task<IEnumerable<CurrencyDto>> GetAllCurrenciesAsync()
-        {
-            throw new NotImplementedException("GetAllCurrencies no está implementado en Velneo API aún");
         }
 
         #endregion

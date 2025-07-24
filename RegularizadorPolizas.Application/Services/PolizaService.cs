@@ -27,6 +27,76 @@ namespace RegularizadorPolizas.Application.Services
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
         }
 
+        // ✅ MÉTODO PRINCIPAL PARA CREAR PÓLIZA ENRIQUECIDA (desde frontend)
+        public async Task<VelneoSubmissionResult> SubmitPolizaToVelneoAsync(PolizaCreateRequest request, int userId)
+        {
+            try
+            {
+                // ✅ VALIDAR REQUEST
+                var validation = await ValidatePolizaForVelneoAsync(request);
+                if (!validation.IsValid)
+                {
+                    return new VelneoSubmissionResult
+                    {
+                        Success = false,
+                        Errors = validation.Errors,
+                        Message = "Datos no válidos para envío"
+                    };
+                }
+
+                try
+                {
+                    // ✅ CONVERTIR PolizaCreateRequest a PolizaDto enriquecido
+                    var polizaDto = ConvertirRequestAPolizaDto(request);
+
+                    // ✅ CREAR EN VELNEO
+                    var createdPolizaDto = await _velneoApiService.CreatePolizaAsync(polizaDto);
+
+                    if (createdPolizaDto != null)
+                    {
+                        var velneoId = createdPolizaDto.Id.ToString();
+                        await SavePolizaTrackingAsync(polizaDto, userId, velneoId);
+
+                        return new VelneoSubmissionResult
+                        {
+                            Success = true,
+                            VelneoPolizaId = velneoId,
+                            Message = "Póliza enriquecida enviada exitosamente a Velneo",
+                            LocalTrackingId = createdPolizaDto.Id
+                        };
+                    }
+                    else
+                    {
+                        return new VelneoSubmissionResult
+                        {
+                            Success = false,
+                            Message = "Velneo retornó respuesta vacía",
+                            Errors = new List<string> { "Respuesta vacía de Velneo" }
+                        };
+                    }
+                }
+                catch (Exception velneoEx)
+                {
+                    return new VelneoSubmissionResult
+                    {
+                        Success = false,
+                        Message = $"Error en Velneo: {velneoEx.Message}",
+                        Errors = new List<string> { velneoEx.Message }
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new VelneoSubmissionResult
+                {
+                    Success = false,
+                    Message = $"Error general enviando póliza enriquecida: {ex.Message}",
+                    Errors = new List<string> { ex.Message }
+                };
+            }
+        }
+
+        // ✅ MÉTODO PARA CREAR PÓLIZA DIRECTA (uso interno)
         public async Task<PolizaDto> CreatePolizaAsync(PolizaDto polizaDto)
         {
             try
@@ -69,6 +139,7 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
+        // ✅ OTROS MÉTODOS (mantenidos como están)
         public async Task DeletePolizaAsync(int id)
         {
             try
@@ -163,68 +234,6 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        public async Task<PolizaDto> RenovarPolizaAsync(int polizaId, RenovationDto renovationDto)
-        {
-            try
-            {
-                var polizaOriginal = await _polizaRepository.GetPolizaDetalladaAsync(polizaId);
-                if (polizaOriginal == null)
-                {
-                    throw new ApplicationException($"Original policy with ID {polizaId} not found");
-                }
-
-                var nuevaPoliza = new Poliza
-                {
-                    Clinro = polizaOriginal.Clinro,
-                    Comcod = polizaOriginal.Comcod,
-                    Seccod = polizaOriginal.Seccod,
-                    Conpol = $"{polizaOriginal.Conpol}-R",
-                    Conmaraut = polizaOriginal.Conmaraut,
-                    Conanioaut = polizaOriginal.Conanioaut,
-                    Conmataut = polizaOriginal.Conmataut,
-                    Conmotor = polizaOriginal.Conmotor,
-                    Conpadaut = polizaOriginal.Conpadaut,
-                    Conchasis = polizaOriginal.Conchasis,
-                    Conpremio = polizaOriginal.Conpremio,
-                    Moncod = polizaOriginal.Moncod,
-                    Concuo = polizaOriginal.Concuo,
-                    Concomcorr = polizaOriginal.Concomcorr,
-                    Conpadre = polizaOriginal.Id,
-                    Ramo = polizaOriginal.Ramo,
-                    ComAlias = polizaOriginal.ComAlias,
-                    Convig = "1",
-                    Confchdes = DateTime.Now,
-                    Confchhas = DateTime.Now.AddYears(1),
-                    Observaciones = renovationDto.Observaciones,
-                    Activo = true,
-                    FechaCreacion = DateTime.Now,
-                    FechaModificacion = DateTime.Now
-                };
-
-                var polizaCreada = await _polizaRepository.AddAsync(nuevaPoliza);
-
-                var renovacion = new Renovation
-                {
-                    PolizaId = polizaId,
-                    PolizaNuevaId = polizaCreada.Id,
-                    FechaSolicitud = DateTime.Now,
-                    Estado = "COMPLETADA",
-                    Observaciones = renovationDto.Observaciones,
-                    UsuarioId = renovationDto.UsuarioId,
-                    FechaCreacion = DateTime.Now,
-                    FechaModificacion = DateTime.Now
-                };
-
-                await _renovationRepository.AddAsync(renovacion);
-
-                return _mapper.Map<PolizaDto>(polizaCreada);
-            }
-            catch (Exception ex)
-            {
-                throw new ApplicationException($"Error renewing policy: {ex.Message}", ex);
-            }
-        }
-
         public async Task<IEnumerable<PolizaDto>> SearchPolizasAsync(string searchTerm)
         {
             try
@@ -291,136 +300,6 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
-        public async Task<PolizaProcessResultDto> ProcessDocumentForFormAsync(PolizaDto extractedData)
-        {
-            try
-            {
-                var validationResult = await ValidatePolizaForVelneoAsync(extractedData);
-
-                return new PolizaProcessResultDto
-                {
-                    PolizaData = extractedData,
-                    ValidationWarnings = validationResult.Warnings,
-                    RequiresUserReview = validationResult.HasWarnings,
-                    ReadyForSubmission = validationResult.IsValid
-                };
-            }
-            catch (Exception ex)
-            {
-                throw new ApplicationException($"Error procesando documento: {ex.Message}", ex);
-            }
-        }
-
-        public async Task<ValidationResult> ValidatePolizaForVelneoAsync(PolizaDto polizaDto)
-        {
-            var result = new ValidationResult();
-
-            try
-            {
-                if (string.IsNullOrEmpty(polizaDto.Conpol))
-                    result.Errors.Add("Número de póliza es obligatorio");
-
-                if (!polizaDto.Clinro.HasValue)
-                    result.Errors.Add("Cliente es obligatorio");
-
-                if (!polizaDto.Comcod.HasValue)
-                    result.Errors.Add("Compañía es obligatoria");
-
-                if (!polizaDto.Confchdes.HasValue || !polizaDto.Confchhas.HasValue)
-                    result.Errors.Add("Fechas de vigencia son obligatorias");
-
-                if (polizaDto.Confchdes.HasValue && polizaDto.Confchhas.HasValue
-                    && polizaDto.Confchdes.Value >= polizaDto.Confchhas.Value)
-                    result.Errors.Add("Fecha desde debe ser menor a fecha hasta");
-
-                if (!string.IsNullOrEmpty(polizaDto.Conpol))
-                {
-                    var existing = await GetPolizaByNumeroAsync(polizaDto.Conpol);
-                    if (existing != null)
-                        result.Warnings.Add($"Ya existe una póliza con número {polizaDto.Conpol}");
-                }
-
-                if (polizaDto.Clinro.HasValue)
-                {
-                    var client = await _clientRepository.GetByIdAsync(polizaDto.Clinro.Value);
-                    if (client == null)
-                        result.Warnings.Add($"Cliente {polizaDto.Clinro} no encontrado en BD local");
-                }
-
-                result.IsValid = result.Errors.Count == 0;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Errors.Add($"Error en validación: {ex.Message}");
-                result.IsValid = false;
-                return result;
-            }
-        }
-
-        public async Task<VelneoSubmissionResult> SubmitPolizaToVelneoAsync(PolizaDto polizaDto, int userId)
-        {
-            try
-            {
-                var validation = await ValidatePolizaForVelneoAsync(polizaDto);
-                if (!validation.IsValid)
-                {
-                    return new VelneoSubmissionResult
-                    {
-                        Success = false,
-                        Errors = validation.Errors,
-                        Message = "Datos no válidos para envío"
-                    };
-                }
-
-                try
-                {
-                    var createdPolizaDto = await _velneoApiService.CreatePolizaAsync(polizaDto);
-
-                    if (createdPolizaDto != null)
-                    {
-                        var velneoId = createdPolizaDto.Id.ToString();
-                        await SavePolizaTrackingAsync(polizaDto, userId, velneoId);
-
-                        return new VelneoSubmissionResult
-                        {
-                            Success = true,
-                            VelneoPolizaId = velneoId,
-                            Message = "Póliza enviada exitosamente a Velneo",
-                            LocalTrackingId = createdPolizaDto.Id
-                        };
-                    }
-                    else
-                    {
-                        return new VelneoSubmissionResult
-                        {
-                            Success = false,
-                            Message = "Velneo retornó respuesta vacía",
-                            Errors = new List<string> { "Respuesta vacía de Velneo" }
-                        };
-                    }
-                }
-                catch (Exception velneoEx)
-                {
-                    return new VelneoSubmissionResult
-                    {
-                        Success = false,
-                        Message = $"Error en Velneo: {velneoEx.Message}",
-                        Errors = new List<string> { velneoEx.Message }
-                    };
-                }
-            }
-            catch (Exception ex)
-            {
-                return new VelneoSubmissionResult
-                {
-                    Success = false,
-                    Message = $"Error general enviando a Velneo: {ex.Message}",
-                    Errors = new List<string> { ex.Message }
-                };
-            }
-        }
-
         public async Task<PolizaDto> GetPolizaByNumeroAsync(string numeroPoliza)
         {
             try
@@ -437,6 +316,172 @@ namespace RegularizadorPolizas.Application.Services
             }
         }
 
+        // ✅ MÉTODOS AUXILIARES CORREGIDOS
+        
+        private async Task<ValidationResult> ValidatePolizaForVelneoAsync(PolizaCreateRequest request)
+        {
+            var result = new ValidationResult();
+
+            try
+            {
+                if (string.IsNullOrEmpty(request.Conpol))
+                    result.Errors.Add("Número de póliza es obligatorio");
+
+                if (!request.Clinro.HasValue)
+                    result.Errors.Add("Cliente es obligatorio");
+
+                if (!request.Comcod.HasValue)
+                    result.Errors.Add("Compañía es obligatoria");
+
+                if (string.IsNullOrEmpty(request.Confchdes) || string.IsNullOrEmpty(request.Confchhas))
+                    result.Errors.Add("Fechas de vigencia son obligatorias");
+
+                if (!string.IsNullOrEmpty(request.Confchdes) && !string.IsNullOrEmpty(request.Confchhas))
+                {
+                    if (DateTime.TryParse(request.Confchdes, out var fechaDesde) && 
+                        DateTime.TryParse(request.Confchhas, out var fechaHasta))
+                    {
+                        if (fechaDesde >= fechaHasta)
+                            result.Errors.Add("Fecha desde debe ser menor a fecha hasta");
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(request.Conpol))
+                {
+                    var existing = await GetPolizaByNumeroAsync(request.Conpol);
+                    if (existing != null)
+                        result.Warnings.Add($"Ya existe una póliza con número {request.Conpol}");
+                }
+
+                if (request.Clinro.HasValue)
+                {
+                    var client = await _clientRepository.GetByIdAsync(request.Clinro.Value);
+                    if (client == null)
+                        result.Warnings.Add($"Cliente {request.Clinro} no encontrado en BD local");
+                }
+
+                result.IsValid = result.Errors.Count == 0;
+                return result;
+            }
+            catch (Exception ex)
+            {
+                result.Errors.Add($"Error en validación: {ex.Message}");
+                result.IsValid = false;
+                return result;
+            }
+        }
+
+        private PolizaDto ConvertirRequestAPolizaDto(PolizaCreateRequest request)
+        {
+            return new PolizaDto
+            {
+                // Campos básicos
+                Comcod = request.Comcod,
+                Clinro = request.Clinro,
+                Conpol = request.Conpol,
+                Confchdes = TryParseDate(request.Confchdes),
+                Confchhas = TryParseDate(request.Confchhas),
+                Conpremio = request.Conpremio,
+                
+                // Datos del cliente (enriquecidos de Azure AI)
+                Clinom = request.Asegurado,
+                Condom = request.Direccion,
+                
+                // Datos del vehículo (enriquecidos de Azure AI)
+                Conmaraut = !string.IsNullOrEmpty(request.Vehiculo) ? request.Vehiculo : $"{request.Marca} {request.Modelo}".Trim(),
+                Conmotor = request.Motor,
+                Conchasis = request.Chasis,
+                Conmataut = request.Matricula,
+                Conanioaut = TryParseInt(request.Anio?.ToString()),
+                
+                // Datos financieros
+                Moncod = GetMonedaId(request.Moneda),
+                Contot = request.PremioTotal,
+                
+                // Otros datos enriquecidos
+                Ramo = request.Ramo ?? "AUTOMOVILES",
+                
+                // Observaciones enriquecidas con todos los datos de Azure AI
+                Observaciones = ConstruirObservacionesEnriquecidas(request),
+                
+                // Campos de control
+                Convig = "1", // Activa
+                Consta = "1", // Estado activo  
+                Contra = "2", // Tipo de contrato
+                Activo = true,
+                Procesado = true,
+                FechaCreacion = DateTime.Now,
+                FechaModificacion = DateTime.Now,
+                Ingresado = DateTime.Now,
+                Last_update = DateTime.Now
+            };
+        }
+
+        private DateTime? TryParseDate(string dateString)
+        {
+            if (string.IsNullOrEmpty(dateString)) return null;
+            return DateTime.TryParse(dateString, out var result) ? result : null;
+        }
+
+        private int? TryParseInt(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return null;
+            return int.TryParse(value, out var result) ? result : null;
+        }
+
+        private int GetMonedaId(string moneda)
+        {
+            return moneda?.ToUpper() switch
+            {
+                "UYU" => 1,
+                "USD" => 2, 
+                "EUR" => 3,
+                _ => 1 // Default UYU
+            };
+        }
+
+        private string ConstruirObservacionesEnriquecidas(PolizaCreateRequest request)
+        {
+            var observaciones = new List<string>();
+            
+            // Observaciones originales
+            if (!string.IsNullOrEmpty(request.Observaciones))
+            {
+                observaciones.Add(request.Observaciones);
+            }
+            
+            // Información enriquecida de Azure AI
+            observaciones.Add("🤖 Procesado automáticamente con Azure Document Intelligence");
+            
+            if (!string.IsNullOrEmpty(request.Vehiculo))
+                observaciones.Add($"🚗 Vehículo: {request.Vehiculo}");
+                
+            if (!string.IsNullOrEmpty(request.Combustible))
+                observaciones.Add($"⛽ Combustible: {request.Combustible}");
+                
+            if (request.PrimaComercial.HasValue && request.PremioTotal.HasValue)
+                observaciones.Add($"💰 Prima: ${request.PrimaComercial:N2} - Premio: ${request.PremioTotal:N2}");
+                
+            if (!string.IsNullOrEmpty(request.Corredor))
+                observaciones.Add($"🏢 Corredor: {request.Corredor}");
+                
+            // Contacto
+            var contacto = new List<string>();
+            if (!string.IsNullOrEmpty(request.Email)) contacto.Add($"✉️ {request.Email}");
+            if (!string.IsNullOrEmpty(request.Telefono)) contacto.Add($"📞 {request.Telefono}");
+            if (contacto.Any())
+                observaciones.Add($"📋 Contacto: {string.Join(" | ", contacto)}");
+                
+            // Ubicación
+            var ubicacion = new List<string>();
+            if (!string.IsNullOrEmpty(request.Localidad)) ubicacion.Add(request.Localidad);
+            if (!string.IsNullOrEmpty(request.Departamento)) ubicacion.Add(request.Departamento);
+            if (ubicacion.Any())
+                observaciones.Add($"📍 Ubicación: {string.Join(", ", ubicacion)}");
+            
+            return string.Join(" | ", observaciones);
+        }
+
         private async Task SavePolizaTrackingAsync(PolizaDto polizaDto, int userId, string velneoId)
         {
             var trackingPoliza = _mapper.Map<Poliza>(polizaDto);
@@ -448,7 +493,7 @@ namespace RegularizadorPolizas.Application.Services
             trackingPoliza.FechaCreacion = DateTime.Now;
             trackingPoliza.FechaModificacion = DateTime.Now;
             trackingPoliza.Activo = true;
-            trackingPoliza.Observaciones = $"Velneo ID: {velneoId}, User: {userId}";
+            trackingPoliza.Observaciones = $"Velneo ID: {velneoId}, User: {userId} | {polizaDto.Observaciones}";
 
             await _polizaRepository.AddAsync(trackingPoliza);
         }
