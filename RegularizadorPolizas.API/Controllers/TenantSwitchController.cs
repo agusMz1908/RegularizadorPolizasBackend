@@ -10,16 +10,13 @@ namespace RegularizadorPolizas.API.Controllers
     public class TenantSwitchController : ControllerBase
     {
         private readonly ITenantService _tenantService;
-        private readonly IHybridApiService _hybridApiService;
         private readonly ILogger<TenantSwitchController> _logger;
 
         public TenantSwitchController(
             ITenantService tenantService,
-            IHybridApiService hybridApiService,
             ILogger<TenantSwitchController> logger)
         {
             _tenantService = tenantService;
-            _hybridApiService = hybridApiService;
             _logger = logger;
         }
 

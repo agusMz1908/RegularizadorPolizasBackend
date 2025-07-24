@@ -25,7 +25,6 @@ namespace RegularizadorPolizas.Application
             services.AddScoped<IRoleService, RoleService>();
             services.AddScoped<IPermissionService, PermissionService>();
             services.AddScoped<ITenantService, TenantService>();
-            services.AddScoped<IHybridApiService, TenantAwareHybridService>();
             services.AddScoped<IFileStorageService, AzureBlobStorageService>();
             services.AddScoped<IVerificationService, VerificationService>();
 
