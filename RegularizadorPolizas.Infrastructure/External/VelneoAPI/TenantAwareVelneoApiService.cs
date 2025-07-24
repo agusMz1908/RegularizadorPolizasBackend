@@ -1162,8 +1162,26 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
+                // ✅ VALIDAR CAMPOS REQUERIDOS ANTES DE ENVIAR
+                var validationErrors = new List<string>();
+
+                if (request.Comcod <= 0) validationErrors.Add("comcod debe ser mayor a 0");
+                if (request.Clinro <= 0) validationErrors.Add("clinro debe ser mayor a 0");
+                if (string.IsNullOrEmpty(request.Conpol)) validationErrors.Add("conpol no puede estar vacío");
+                if (string.IsNullOrEmpty(request.Confchdes)) validationErrors.Add("confchdes no puede estar vacío");
+                if (string.IsNullOrEmpty(request.Confchhas)) validationErrors.Add("confchhas no puede estar vacío");
+
+                if (validationErrors.Any())
+                {
+                    var errors = string.Join(", ", validationErrors);
+                    _logger.LogError("❌ VALIDACIÓN FALLIDA: {Errors}", errors);
+                    throw new ArgumentException($"Datos requeridos faltantes: {errors}");
+                }
+
+                _logger.LogInformation("✅ Validación de campos críticos exitosa");
+
                 // ✅ USAR TU MÉTODO EXISTENTE PERO CON DATOS ENRIQUECIDOS
-                var velneoContrato = MapearCreateRequestAVelneo(request); // Reutilizar el que ya tienes
+                var velneoContrato = MapearCreateRequestAVelneo(request);
 
                 // Serializar el payload
                 var jsonPayload = JsonSerializer.Serialize(velneoContrato, _jsonOptions);
@@ -1171,11 +1189,26 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 
                 _logger.LogInformation("📤 PAYLOAD VELNEO ENRIQUECIDO: {JsonLength} caracteres para póliza {NumeroPoliza}",
                     jsonPayload.Length, request.Conpol);
-                _logger.LogDebug("📤 PAYLOAD DETALLE: {JsonPayload}", jsonPayload);
+
+                // ⚠️ HABILITAR SOLO PARA DEBUG - PAYLOAD COMPLETO
+                _logger.LogWarning("🔍 DEBUG - PAYLOAD COMPLETO ENVIADO A VELNEO:");
+                _logger.LogWarning("📄 {JsonPayload}", jsonPayload);
+
+                // ✅ LOGGING DE CAMPOS CRÍTICOS
+                _logger.LogInformation("🎯 CAMPOS CRÍTICOS: comcod={Comcod}, clinro={Clinro}, conpol={Conpol}, confchdes={FechaDesde}, confchhas={FechaHasta}",
+                    request.Comcod, request.Clinro, request.Conpol, request.Confchdes, request.Confchhas);
 
                 // ✅ REUTILIZAR TU LÓGICA EXISTENTE
                 var endpoint = "v1/contratos";
                 var url = await BuildVelneoUrlAsync(endpoint);
+
+                // ✅ LOGGING DE HEADERS DE LA REQUEST
+                _logger.LogInformation("📨 REQUEST HEADERS:");
+                foreach (var header in httpClient.DefaultRequestHeaders)
+                {
+                    _logger.LogInformation("   {HeaderName}: {HeaderValue}", header.Key, string.Join(", ", header.Value));
+                }
+                _logger.LogInformation("   Content-Type: {ContentType}", content.Headers.ContentType);
 
                 var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
                 var maskedUrl = url.Replace(tenantConfig.Key, "***");
@@ -1190,6 +1223,35 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 _logger.LogInformation("📡 Velneo CREATE response: Status {Status}, Duration: {Duration}ms, Content length: {Length}",
                     response.StatusCode, stopwatch.ElapsedMilliseconds, responseContent.Length);
 
+                // ✅ LOGGING DE HEADERS DE LA RESPUESTA
+                _logger.LogInformation("📨 RESPONSE HEADERS:");
+                foreach (var header in response.Headers)
+                {
+                    _logger.LogInformation("   {HeaderName}: {HeaderValue}", header.Key, string.Join(", ", header.Value));
+                }
+
+                // ✅ LOGGING DEL CONTENIDO DE LA RESPUESTA (SI NO ESTÁ VACÍO)
+                if (!string.IsNullOrWhiteSpace(responseContent))
+                {
+                    _logger.LogWarning("📄 RESPONSE CONTENT: {ResponseContent}", responseContent);
+                }
+                else
+                {
+                    _logger.LogWarning("📄 RESPONSE CONTENT: <VACÍO>");
+                }
+
+                // ✅ LOGGING DE STATUS CODE ESPECÍFICO
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation("✅ HTTP SUCCESS: {StatusCode} {ReasonPhrase}",
+                        (int)response.StatusCode, response.ReasonPhrase);
+                }
+                else
+                {
+                    _logger.LogError("❌ HTTP ERROR: {StatusCode} {ReasonPhrase}",
+                        (int)response.StatusCode, response.ReasonPhrase);
+                }
+
                 if (!response.IsSuccessStatusCode)
                 {
                     _logger.LogError("❌ Error en Velneo API: Status={Status}, Response={Response}",
@@ -1198,6 +1260,24 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                     var errorMessage = ExtractErrorMessage(responseContent, response.StatusCode);
                     throw new HttpRequestException($"Error creando póliza enriquecida en Velneo: {errorMessage}");
                 }
+
+                // ✅ NUEVA VERIFICACIÓN: Confirmar que se guardó realmente
+                _logger.LogInformation("🔍 Verificando que la póliza se guardó correctamente en Velneo...");
+
+                // Esperar un poco para que Velneo procese
+                await Task.Delay(3000);
+
+                var exists = await VerifyPolizaExistsAsync(request.Conpol);
+
+                if (!exists)
+                {
+                    _logger.LogError("❌ VERIFICACIÓN FALLIDA: La póliza {NumeroPoliza} NO se encontró en Velneo después de la creación",
+                        request.Conpol);
+                    throw new InvalidOperationException($"La póliza {request.Conpol} no se guardó correctamente en Velneo");
+                }
+
+                _logger.LogInformation("✅ VERIFICACIÓN EXITOSA: Póliza {NumeroPoliza} confirmada en Velneo en {Duration}ms",
+                    request.Conpol, stopwatch.ElapsedMilliseconds);
 
                 // ✅ REUTILIZAR TU LÓGICA DE MANEJO DE RESPUESTA VACÍA
                 if (string.IsNullOrWhiteSpace(responseContent))
@@ -1209,9 +1289,11 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                     return new
                     {
                         success = true,
-                        message = "Póliza enriquecida creada exitosamente en Velneo",
+                        message = "Póliza enriquecida creada y verificada exitosamente en Velneo",
                         numeroPoliza = request.Conpol,
-                        datosEnviados = GetDatosEnviadosSummary(request)
+                        datosEnviados = GetDatosEnviadosSummary(request),
+                        verificada = true,
+                        duracionMs = stopwatch.ElapsedMilliseconds
                     };
                 }
 
@@ -1226,10 +1308,12 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                     return new
                     {
                         success = true,
-                        message = "Póliza enriquecida creada exitosamente en Velneo",
+                        message = "Póliza enriquecida creada y verificada exitosamente en Velneo",
                         numeroPoliza = request.Conpol,
                         velneoResponse = velneoResponse,
-                        datosEnviados = GetDatosEnviadosSummary(request)
+                        datosEnviados = GetDatosEnviadosSummary(request),
+                        verificada = true,
+                        duracionMs = stopwatch.ElapsedMilliseconds
                     };
                 }
                 catch (JsonException jsonEx)
@@ -1239,10 +1323,12 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                     return new
                     {
                         success = true,
-                        message = "Póliza enriquecida creada exitosamente (respuesta no estándar)",
+                        message = "Póliza enriquecida creada y verificada exitosamente (respuesta no estándar)",
                         numeroPoliza = request.Conpol,
                         rawResponse = responseContent.Substring(0, Math.Min(200, responseContent.Length)),
-                        datosEnviados = GetDatosEnviadosSummary(request)
+                        datosEnviados = GetDatosEnviadosSummary(request),
+                        verificada = true,
+                        duracionMs = stopwatch.ElapsedMilliseconds
                     };
                 }
             }
@@ -1257,6 +1343,81 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 _logger.LogError(ex, "❌ ERROR creando póliza enriquecida {NumeroPoliza} en Velneo",
                     request.Conpol);
                 throw;
+            }
+        }
+
+        // ====================================================
+        // TAMBIÉN AGREGAR EL MÉTODO DE VERIFICACIÓN
+        // ====================================================
+
+        public async Task<bool> VerifyPolizaExistsAsync(string numeroPoliza)
+        {
+            try
+            {
+                var tenantId = _tenantService.GetCurrentTenantId();
+                _logger.LogDebug("🔍 Verificando que existe póliza {NumeroPoliza} en Velneo para tenant {TenantId}",
+                    numeroPoliza, tenantId);
+
+                using var httpClient = await GetConfiguredHttpClientAsync();
+
+                // ✅ BUSCAR POR NÚMERO DE PÓLIZA
+                var searchUrl = await BuildVelneoUrlAsync($"v1/contratos?filter[conpol]={Uri.EscapeDataString(numeroPoliza)}");
+
+                var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
+                var maskedUrl = searchUrl.Replace(tenantConfig.Key, "***");
+                _logger.LogInformation("🔍 Verificando URL: {Url}", maskedUrl);
+
+                var response = await httpClient.GetAsync(searchUrl);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("⚠️ Error verificando póliza {NumeroPoliza}: Status {Status}",
+                        numeroPoliza, response.StatusCode);
+                    return false;
+                }
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                _logger.LogDebug("📥 Respuesta verificación: {Length} caracteres", responseContent.Length);
+
+                // ✅ LOG DE LA RESPUESTA COMPLETA PARA DEBUG
+                _logger.LogWarning("🔍 RESPUESTA VERIFICACIÓN COMPLETA: {ResponseContent}", responseContent);
+
+                // ✅ PARSEAR RESPUESTA PARA VER SI EXISTE
+                using var jsonDocument = JsonDocument.Parse(responseContent);
+                var root = jsonDocument.RootElement;
+
+                // Buscar en la estructura que use Velneo
+                if (root.TryGetProperty("contratos", out var contratosElement))
+                {
+                    var contratos = contratosElement.EnumerateArray().ToList();
+                    var exists = contratos.Any();
+
+                    _logger.LogInformation(exists ?
+                        "✅ Póliza {NumeroPoliza} CONFIRMADA en Velneo - {Count} registro(s) encontrado(s)" :
+                        "❌ Póliza {NumeroPoliza} NO ENCONTRADA en Velneo",
+                        numeroPoliza, contratos.Count);
+
+                    return exists;
+                }
+
+                // ✅ INTENTAR OTRAS ESTRUCTURAS POSIBLES
+                if (root.TryGetProperty("data", out var dataElement))
+                {
+                    var hasData = dataElement.EnumerateArray().Any();
+                    _logger.LogInformation(hasData ?
+                        "✅ Póliza {NumeroPoliza} CONFIRMADA en Velneo (estructura 'data')" :
+                        "❌ Póliza {NumeroPoliza} NO ENCONTRADA en Velneo (estructura 'data')",
+                        numeroPoliza);
+                    return hasData;
+                }
+
+                _logger.LogWarning("⚠️ Estructura inesperada en respuesta de verificación para póliza {NumeroPoliza}", numeroPoliza);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error verificando existencia de póliza {NumeroPoliza} en Velneo", numeroPoliza);
+                return false;
             }
         }
 
@@ -1336,63 +1497,345 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 
         private object MapearCreateRequestAVelneo(PolizaCreateRequest request)
         {
-            // IMPORTANTE: Usar la misma estructura que tu método MapearPolizaRequestAVelneo existente
             var velneoContrato = new
             {
-                // Campos básicos de contrato
+                // ✅ CAMPOS BÁSICOS REQUERIDOS
+                id = 0,
                 comcod = request.Comcod,
+                seccod = request.SeccionId ?? 0, // ✅ YA FUNCIONA
                 clinro = request.Clinro,
-                conpol = request.Conpol,
-                confchdes = !string.IsNullOrEmpty(request.Confchdes) ? DateTime.Parse(request.Confchdes).ToString("yyyy-MM-dd") : null,
-                confchhas = !string.IsNullOrEmpty(request.Confchhas) ? DateTime.Parse(request.Confchhas).ToString("yyyy-MM-dd") : null,
+                conpol = request.Conpol ?? "",
+
+                // ✅ FECHAS
+                confchdes = !string.IsNullOrEmpty(request.Confchdes) ?
+                    DateTime.Parse(request.Confchdes).ToString("yyyy-MM-dd") :
+                    DateTime.Now.ToString("yyyy-MM-dd"),
+                confchhas = !string.IsNullOrEmpty(request.Confchhas) ?
+                    DateTime.Parse(request.Confchhas).ToString("yyyy-MM-dd") :
+                    DateTime.Now.AddYears(1).ToString("yyyy-MM-dd"),
+
+                // ✅ MONTOS
                 conpremio = request.Conpremio,
+                contot = request.PremioTotal ?? request.Conpremio,
 
-                // Campos del asegurado
-                asegurado = request.Asegurado,
-                documento = request.Documento,
-                email = request.Email,
-                telefono = request.Telefono,
-                direccion = request.Direccion,
-                localidad = request.Localidad,
-                departamento = request.Departamento,
+                // ✅ DATOS DEL VEHÍCULO
+                conmaraut = request.Marca ?? "",
+                conanioaut = TryParseInt(request.Anio?.ToString()) ?? 0,
+                conmataut = request.Matricula ?? "",
+                conmotor = request.Motor ?? "",
+                conchasis = request.Chasis ?? "",
 
-                // Campos del vehículo (datos enriquecidos de Azure AI)
-                vehiculo = request.Vehiculo,
-                marca = request.Marca,
-                modelo = request.Modelo,
-                motor = request.Motor,
-                chasis = request.Chasis,
-                matricula = request.Matricula,
-                combustible = request.Combustible,
-                anio = TryParseInt(request.Anio?.ToString()),
+                // ✅ CAMPOS FALTANTES MAPEADOS CORRECTAMENTE
+                conges = MapearTramite(request.Tramite),           // ← TRÁMITE
+                convig = MapearEstadoPoliza(request.EstadoPoliza), // ← ESTADO PÓLIZA
+                concar = request.Certificado ?? "",               // ← CERTIFICADO
+                tposegdsc = request.Cobertura ?? "",              // ← COBERTURA
+                forpagvid = MapearFormaPago(request.FormaPago),   // ← FORMA DE PAGO
+                concuo = request.CantidadCuotas ?? 0,             // ← CUOTAS
 
-                // Campos comerciales
-                prima_comercial = request.PrimaComercial,
-                premio_total = request.PremioTotal,
-                corredor = request.Corredor,
-                plan = request.Plan,
+                // ✅ CAMPOS DE CÓDIGOS/IDs
+                catdsc = request.CategoriaId ?? 0,        // ← Categoría
+                desdsc = request.DestinoId ?? 0,          // ← Destino  
+                caldsc = request.CalidadId ?? 0,          // ← Calidad
+
+                // ✅ DATOS DEL CLIENTE
+                clinom = request.Asegurado ?? "",
+                condom = request.Direccion ?? "",
+
+                // ✅ OBSERVACIONES ENRIQUECIDAS
+                observaciones = GenerarObservacionesCompletas(request),
+
+                // ✅ MONEDA CORREGIDA
+                moncod = MapearMonedaCodigo(request.Moneda),
+
+                // ✅ COMBUSTIBLE
+                combustibles = request.Combustible ?? "",
+
+                // ✅ RAMO
                 ramo = request.Ramo ?? "AUTOMOVILES",
-                moneda = request.Moneda ?? "UYU",
 
-                // Campos técnicos
-                observaciones = $"{request.Observaciones ?? ""} | Procesado automáticamente con Azure AI".Trim(),
-                procesado_con_ia = request.ProcesadoConIA,
-                fecha_creacion = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"),
+                // ✅ CAMPOS OBLIGATORIOS CON VALORES POR DEFECTO
+                concodrev = 0,
+                conficto = 0,
+                conclaaut = 0,
+                condedaut = 0,
+                conresciv = 0,
+                conbonnsin = 0,
+                conbonant = 0,
+                concaraut = 0,
+                concapaut = 0,
+                concomcorr = 0,
+                flocod = 0,
+                conimp = 0,
+                connroser = 0,
+                concan = 0,
+                concapla = 0,
+                conflota = 0,
+                condednum = 0,
+                conpadre = 0,
+                conobjtot = 0,
+                convalacr = 0,
+                convallet = 0,
+                conviakb = 0,
+                conviakn = 0,
+                conviacos = 0,
+                conviafle = 0,
+                dptnom = 0,
+                conedaret = 0,
+                congar = 0,
+                condecpri = 0,
+                condecpro = 0,
+                condecptj = 0,
+                conviagas = 0,
+                conviarec = 0,
+                conviapri = 0,
+                linobs = 0,
+                tpoconcod = 0,
+                tpovivcod = 0,
+                tporiecod = 0,
+                modcod = 0,
+                concapase = 0,
+                conpricap = 0,
+                conriecod = 0,
+                conrecfin = 0,
+                conimprf = 0,
+                conafesin = 0,
+                conautcor = 0,
+                conlinrie = 0,
+                conconesp = 0,
+                lincarta = 0,
+                cancecod = 0,
+                concomotr = 0,
+                conviamon = 0,
+                connroint = 0,
+                conpadend = 0,
+                contotpri = 0,
+                padreaux = 0,
+                conlinflot = 0,
+                conflotimp = 0,
+                conflottotal = 0,
+                conflotsaldo = 0,
+                otrcorrcod = 0,
+                clipcupfia = 0,
+                clinro1 = 0,
+                consumsal = 0,
+                com_sub_corr = 0,
+                tipos_de_alarma = 0,
+                coberturas_bicicleta = 0,
+                com_bro = 0,
+                com_bo = 0,
+                contotant = 0,
+                motivos_no_renovacion = 0,
+                max_aereo = 0,
+                max_mar = 0,
+                max_terrestre = 0,
+                tasa = 0,
+                cat_cli = 0,
+                comcod1 = 0,
+                comcod2 = 0,
+                pagos_efectivo = 0,
+                productos_de_vida = 0,
+                app_id = 0,
+                asignado = 0,
+                conidpad = 0,
+                tarcod = 0,
+                corrnom = 0,
 
-                // Campos de auditoría
-                usuario_creacion = "SISTEMA_IA",
-                origen = "REGULARIZADOR_POLIZAS"
+                // ✅ CAMPOS BOOLEAN REQUERIDOS
+                conautcort = true,
+                leer = true,
+                enviado = true,
+                sob_recib = true,
+                leer_obs = true,
+                tiene_alarma = false,
+                aereo = false,
+                maritimo = false,
+                terrestre = true,
+                importacion = false,
+                exportacion = false,
+                offshore = false,
+                transito_interno = false,
+                llamar = false,
+                granizo = false,
+                var_ubi = false,
+                mis_rie = false,
+
+                // ✅ CAMPOS STRING VACÍOS REQUERIDOS
+                conend = "",
+                rieres = "",
+                congesti = "",
+                congeses = "",
+                congrucon = "",
+                contipoemp = "",
+                conmatpar = "",
+                conmatte = "",
+                consta = "",
+                contra = "",
+                conconf = "",
+                concaucan = "",
+                contpoact = "",
+                conesp = "",
+                condecram = "",
+                conmedtra = "",
+                conviades = "",
+                conviaa = "",
+                conviaenb = "",
+                conviatra = "",
+                conubi = "",
+                concaudsc = "",
+                conincuno = "",
+                concalcom = "",
+                conriedsc = "",
+                conlimnav = "",
+                contpocob = "",
+                connomemb = "",
+                contpoemb = "",
+                conautcome = "",
+                conviafac = "",
+                conviatpo = "",
+                connrorc = "",
+                condedurc = "",
+                conautnd = "",
+                conaccicer = "",
+                condetemb = "",
+                conclaemb = "",
+                confabemb = "",
+                conbanemb = "",
+                conmatemb = "",
+                convelemb = "",
+                conmatriemb = "",
+                conptoemb = "",
+                condeta = "",
+                conclieda = "",
+                condecrea = "",
+                condecaju = "",
+                contpoemp = "",
+                congaran = "",
+                congarantel = "",
+                mot_no_ren = "",
+                condetrc = "",
+                condetail = "",
+                conespbon = "",
+                sublistas = "",
+                com_alias = "",
+                clausula = "",
+                facturacion = "",
+                coning = "",
+                idorden = "",
+                gestion = "",
+
+                // ✅ CAMPOS DE FECHA CON VALORES POR DEFECTO
+                congesfi = DateTime.Now.ToString("yyyy-MM-dd"),
+                confchcan = DateTime.Now.ToString("yyyy-MM-dd"),
+                concomdes = DateTime.Now.ToString("yyyy-MM-dd"),
+                concerfin = DateTime.Now.ToString("yyyy-MM-dd"),
+
+                // ✅ TIMESTAMPS
+                ingresado = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                last_update = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                update_date = DateTime.Now.ToString("yyyy-MM-dd")
             };
 
             return velneoContrato;
         }
 
-        // ✅ MÉTODO AUXILIAR QUE FALTA
-        private int? TryParseInt(string value)
+        // ====================================================
+        // MÉTODOS AUXILIARES PARA MAPEO ESPECÍFICO
+        // ====================================================
+
+        private static string MapearTramite(string? tramite)
         {
-            if (string.IsNullOrEmpty(value)) return null;
-            return int.TryParse(value, out var result) ? result : null;
+            return tramite?.ToUpperInvariant() switch
+            {
+                "NUEVO" => "N",
+                "RENOVACION" => "R",
+                "RENOVACIÓN" => "R",
+                "ENDOSO" => "E",
+                "ANULACION" => "A",
+                "ANULACIÓN" => "A",
+                _ => "N" // Default: Nuevo
+            };
         }
+
+        private static string MapearEstadoPoliza(string? estado)
+        {
+            return estado?.ToUpperInvariant() switch
+            {
+                "VIGENTE" => "1",
+                "VENCIDA" => "2",
+                "ANULADA" => "3",
+                "CANCELADA" => "4",
+                _ => "1" // Default: Vigente
+            };
+        }
+
+        private static string MapearFormaPago(string? formaPago)
+        {
+            return formaPago?.ToUpperInvariant() switch
+            {
+                "CONTADO" => "CON",
+                "TARJETA DE CREDITO" => "TAR",
+                "TARJETA DE CRÉDITO" => "TAR",
+                "DEBITO AUTOMATICO" => "DEB",
+                "DÉBITO AUTOMÁTICO" => "DEB",
+                "CUOTAS" => "CUO",
+                _ => "CON" // Default: Contado
+            };
+        }
+
+        private static int MapearMonedaCodigo(string? moneda)
+        {
+            return moneda?.ToUpperInvariant() switch
+            {
+                "USD" => 1,
+                "DOLARES" => 1,
+                "DÓLARES" => 1,
+                "EUR" => 2,
+                "EUROS" => 2,
+                "UYU" => 0,
+                "PESOS" => 0,
+                _ => 0 // Default: UYU
+            };
+        }
+
+        private static string GenerarObservacionesCompletas(PolizaCreateRequest request)
+        {
+            var observaciones = new List<string>();
+
+            // ✅ OBSERVACIÓN PRINCIPAL
+            if (!string.IsNullOrEmpty(request.Observaciones))
+            {
+                observaciones.Add(request.Observaciones);
+            }
+
+            // ✅ MARCA COMO PROCESADO CON IA
+            observaciones.Add("Procesado automáticamente con Azure Document Intelligence");
+
+            // ✅ DATOS ADICIONALES SI ESTÁN DISPONIBLES
+            if (!string.IsNullOrEmpty(request.Email))
+            {
+                observaciones.Add($"Email: {request.Email}");
+            }
+
+            if (!string.IsNullOrEmpty(request.Telefono))
+            {
+                observaciones.Add($"Teléfono: {request.Telefono}");
+            }
+
+            if (!string.IsNullOrEmpty(request.Plan))
+            {
+                observaciones.Add($"Plan: {request.Plan}");
+            }
+
+            return string.Join(" | ", observaciones);
+        }
+
+        private static int? TryParseInt(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return null;
+            return int.TryParse(value, out int result) ? result : null;
+        }
+
         #endregion
 
         #region Métodos de Secciones
