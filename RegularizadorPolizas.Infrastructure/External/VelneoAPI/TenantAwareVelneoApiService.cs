@@ -595,6 +595,119 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             }
         }
 
+        public async Task<CompanyDto?> GetCompanyByIdAsync(int id)
+        {
+            try
+            {
+                var tenantId = _tenantService.GetCurrentTenantId();
+                _logger.LogDebug("Getting company {CompanyId} from Velneo API for tenant {TenantId}", id, tenantId);
+
+                using var httpClient = await GetConfiguredHttpClientAsync();
+                var url = await BuildVelneoUrlAsync($"v1/companias/{id}");
+                var response = await httpClient.GetAsync(url);
+
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    _logger.LogWarning("Company {CompanyId} not found in Velneo API", id);
+                    return null;
+                }
+
+                response.EnsureSuccessStatusCode();
+
+                // ✅ INTENTAR PRIMERO COMO OBJETO DIRECTO
+                var velneoCompany = await DeserializeResponseAsync<VelneoCompany>(response);
+                if (velneoCompany != null)
+                {
+                    var result = velneoCompany.ToCompanyDto();
+                    _logger.LogInformation("Successfully retrieved company {CompanyId} from Velneo API", id);
+                    return result;
+                }
+
+                // ✅ SI FALLA, INTENTAR COMO WRAPPER - hacer nueva llamada
+                response = await httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+                var velneoResponse = await DeserializeResponseAsync<VelneoCompanyResponse>(response);
+                if (velneoResponse?.Compania != null)
+                {
+                    var result = velneoResponse.Compania.ToCompanyDto();
+                    _logger.LogInformation("Successfully retrieved company {CompanyId} from Velneo API (wrapped)", id);
+                    return result;
+                }
+
+                _logger.LogWarning("Company {CompanyId} not found or invalid format in Velneo API", id);
+                return null;
+            }
+            catch (HttpRequestException ex) when (ex.Message.Contains("404"))
+            {
+                _logger.LogWarning("Company {CompanyId} not found in Velneo API", id);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting company {CompanyId} from Velneo API", id);
+                throw;
+            }
+        }
+
+        public async Task<CompanyDto?> GetCompanyByCodigoAsync(string codigo)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(codigo))
+                {
+                    _logger.LogWarning("GetCompanyByCodigoAsync called with empty codigo");
+                    return null;
+                }
+
+                var tenantId = _tenantService.GetCurrentTenantId();
+                _logger.LogDebug("Getting company by codigo {Codigo} from Velneo API for tenant {TenantId}", codigo, tenantId);
+
+                // ✅ OPCIÓN 1: Si Velneo tiene endpoint específico para búsqueda por código
+                try
+                {
+                    using var httpClient = await GetConfiguredHttpClientAsync();
+                    var url = await BuildVelneoUrlAsync($"v1/companias/codigo/{Uri.EscapeDataString(codigo)}");
+                    var response = await httpClient.GetAsync(url);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var velneoCompany = await DeserializeResponseAsync<VelneoCompany>(response);
+                        if (velneoCompany != null)
+                        {
+                            var result = velneoCompany.ToCompanyDto();
+                            _logger.LogInformation("Successfully retrieved company by codigo {Codigo} from Velneo API", codigo);
+                            return result;
+                        }
+                    }
+                }
+                catch (HttpRequestException ex) when (ex.Message.Contains("404"))
+                {
+                    // Continuar con búsqueda en la lista completa
+                    _logger.LogDebug("Direct endpoint not found, searching in full list for codigo {Codigo}", codigo);
+                }
+
+                // ✅ OPCIÓN 2: FALLBACK - Buscar en la lista completa de compañías
+                var companies = await GetAllCompaniesAsync();
+                var company = companies.FirstOrDefault(c =>
+                    string.Equals(c.Cod_srvcompanias, codigo, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(c.Codigo, codigo, StringComparison.OrdinalIgnoreCase));
+
+                if (company != null)
+                {
+                    _logger.LogInformation("Successfully found company by codigo {Codigo} in full list", codigo);
+                    return company;
+                }
+
+                _logger.LogWarning("Company with codigo {Codigo} not found in Velneo API", codigo);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting company by codigo {Codigo} from Velneo API", codigo);
+                throw;
+            }
+        }
+
         #endregion
 
         #region Métodos de Contratos/Pólizas
