@@ -4,10 +4,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using RegularizadorPolizas.Application.DTOs;
-using RegularizadorPolizas.Application.Interfaces;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using RegularizadorPolizas.Application.Services;
+using RegularizadorPolizas.Application.Interfaces.External;
 
 namespace RegularizadorPolizas.Infrastructure.External
 {

@@ -1,6 +1,6 @@
 ﻿using RegularizadorPolizas.Application.DTOs;
 
-namespace RegularizadorPolizas.Application.Interfaces
+namespace RegularizadorPolizas.Application.Interfaces.External
 {
     public interface IVelneoApiService
     {
@@ -50,7 +50,14 @@ namespace RegularizadorPolizas.Application.Interfaces
         Task<IEnumerable<DestinoDto>> GetAllDestinosAsync();
         Task<IEnumerable<CategoriaDto>> GetAllCategoriasAsync();
         Task<IEnumerable<CalidadDto>> GetAllCalidadesAsync();
-
         Task<IEnumerable<MonedaDto>> GetAllMonedasAsync();
+
+        // ============================================================================
+        // 🆕 NUEVOS MÉTODOS PARA MAESTROS DINÁMICOS - AGREGAR ESTOS AL FINAL
+        // ============================================================================
+
+        Task<IEnumerable<CoberturaDto>> GetAllCoberturasAsync();
+        Task<IEnumerable<DepartamentoDto>> GetAllDepartamentosAsync();
+        Task<IEnumerable<FormaPagoDto>> GetAllFormasPagoAsync();
     }
 }

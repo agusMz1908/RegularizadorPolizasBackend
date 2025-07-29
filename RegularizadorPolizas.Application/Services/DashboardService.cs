@@ -2,6 +2,7 @@
 using RegularizadorPolizas.Application.DTOs; 
 using RegularizadorPolizas.Application.DTOs.Dashboard;
 using RegularizadorPolizas.Application.Interfaces;
+using RegularizadorPolizas.Application.Interfaces.External;
 
 namespace RegularizadorPolizas.Application.Services
 {

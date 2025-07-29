@@ -4,6 +4,7 @@ using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
 using Newtonsoft.Json.Linq;
 using System.Text.Json;
+using RegularizadorPolizas.Application.Interfaces.External;
 
 namespace RegularizadorPolizas.Application.Services
 {

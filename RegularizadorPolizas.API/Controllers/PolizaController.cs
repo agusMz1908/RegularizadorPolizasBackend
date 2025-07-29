@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RegularizadorPolizas.Application.DTOs;
-using RegularizadorPolizas.Application.Interfaces; 
+using RegularizadorPolizas.Application.Interfaces.External;
 using System.ComponentModel.DataAnnotations;
 
 namespace RegularizadorPolizas.API.Controllers

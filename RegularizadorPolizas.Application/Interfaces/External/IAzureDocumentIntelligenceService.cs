@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using RegularizadorPolizas.Application.DTOs;
 
-namespace RegularizadorPolizas.Application.Interfaces
+namespace RegularizadorPolizas.Application.Interfaces.External
 {
     public interface IAzureDocumentIntelligenceService
     {
