@@ -2,482 +2,472 @@
 using Microsoft.AspNetCore.Mvc;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces; 
+using System.ComponentModel.DataAnnotations;
 
 namespace RegularizadorPolizas.API.Controllers
 {
-    [ApiController]
     [Route("api/[controller]")]
+    [ApiController]
     [Authorize]
-    public class PolizasController : ControllerBase
+    public class PolizaController : ControllerBase
     {
+        // ✅ CAMBIO: Usar interfaz en lugar del tipo concreto
         private readonly IVelneoApiService _velneoApiService;
-        private readonly IPolizaService _polizaService; 
-        private readonly ILogger<PolizasController> _logger;
+        private readonly ILogger<PolizaController> _logger;
 
-        public PolizasController(
-            IVelneoApiService velneoApiService,
-            IPolizaService polizaService,
-            ILogger<PolizasController> logger)
+        public PolizaController(
+            IVelneoApiService velneoApiService, // ✅ CAMBIO: Interfaz
+            ILogger<PolizaController> logger)
         {
-            _velneoApiService = velneoApiService ?? throw new ArgumentNullException(nameof(velneoApiService));
-            _polizaService = polizaService ?? throw new ArgumentNullException(nameof(polizaService));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _velneoApiService = velneoApiService;
+            _logger = logger;
         }
 
-        [HttpGet("count")]
-        [ProducesResponseType(typeof(object), 200)]
-        [ProducesResponseType(500)]
-        public async Task<ActionResult> GetPolizasCount()
-        {
-            try
-            {
-                _logger.LogInformation("Getting polizas count from Velneo API");
-
-                var polizas = await _velneoApiService.GetPolizasAsync();
-                var count = polizas.Count();
-
-                var result = new
-                {
-                    total = count,  
-                    timestamp = DateTime.UtcNow,
-                    source = "Velneo API - Contratos",
-                    message = $"Total de {count} contratos/pólizas obtenidos exitosamente"
-                };
-
-                _logger.LogInformation("Successfully counted {Count} polizas from Velneo API", count);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error counting polizas via Velneo API");
-                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
-            }
-        }
-
-        [HttpGet]
-        [ProducesResponseType(typeof(object), 200)]
-        [ProducesResponseType(500)]
-        [Authorize]
-        public async Task<ActionResult> GetPolizas(
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 50,
-            [FromQuery] string? search = null)
-        {
-            try
-            {
-                _logger.LogInformation("🔄 REAL PAGINATION PÓLIZAS: Getting polizas - Page: {Page}, PageSize: {PageSize}, Search: {Search}",
-                    page, pageSize, search);
-
-                var velneoResponse = await _velneoApiService.GetPolizasPaginatedAsync(page, pageSize, search);
-
-                var result = new
-                {
-                    items = velneoResponse.Items,
-                    totalCount = velneoResponse.TotalCount,
-                    currentPage = velneoResponse.PageNumber,
-                    pageNumber = velneoResponse.PageNumber,
-                    pageSize = velneoResponse.PageSize,
-                    totalPages = velneoResponse.TotalPages,
-                    hasNextPage = velneoResponse.HasNextPage,
-                    hasPreviousPage = velneoResponse.HasPreviousPage,
-
-                    startItem = velneoResponse.Items.Any() ? ((page - 1) * pageSize + 1) : 0,
-                    endItem = Math.Min(page * pageSize, velneoResponse.TotalCount),
-
-                    requestDuration = velneoResponse.RequestDuration.TotalMilliseconds,
-                    dataSource = "velneo_polizas_pagination",
-                    velneoHasMoreData = velneoResponse.VelneoHasMoreData
-                };
-
-                _logger.LogInformation("✅ REAL PAGINATION PÓLIZAS SUCCESS: Page {Page}/{TotalPages} - {Count} pólizas in {Duration}ms",
-                    page, velneoResponse.TotalPages, velneoResponse.Items.Count(), velneoResponse.RequestDuration.TotalMilliseconds);
-
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "❌ Error with REAL PAGINATION PÓLIZAS - Page: {Page}, PageSize: {PageSize}", page, pageSize);
-                return StatusCode(500, new
-                {
-                    message = "Error obteniendo pólizas con paginación real",
-                    error = ex.Message,
-                    pagination = "real_polizas"
-                });
-            }
-        }
-
-        [HttpGet("{id}")]
-        [ProducesResponseType(typeof(PolizaDto), 200)]
-        [ProducesResponseType(404)]
-        [ProducesResponseType(500)]
-        [Authorize]
-        public async Task<ActionResult<PolizaDto>> GetPolizaById(int id)
-        {
-            try
-            {
-                _logger.LogInformation("Getting poliza {PolizaId} via Velneo API", id);
-
-                var poliza = await _velneoApiService.GetPolizaAsync(id);
-
-                _logger.LogInformation("Successfully retrieved poliza {PolizaId} via Velneo API", id);
-                return Ok(poliza);
-            }
-            catch (KeyNotFoundException)
-            {
-                _logger.LogWarning("Poliza {PolizaId} not found in Velneo API", id);
-                return NotFound(new { message = $"Póliza con ID {id} no encontrada" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting poliza {PolizaId} via Velneo API", id);
-                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
-            }
-        }
-
-        [HttpGet("all")]
-        [ProducesResponseType(typeof(object), 200)]
-        [ProducesResponseType(500)]
-        [Authorize]
-        public async Task<ActionResult> GetAllPolizas([FromQuery] string? search = null)
-        {
-            try
-            {
-                _logger.LogInformation("🔄 ALL PÓLIZAS: Getting all polizas (fallback to old method) - Search: {Search}", search);
-
-                var allPolizas = (await _velneoApiService.GetPolizasAsync()).ToList();
-                if (!string.IsNullOrWhiteSpace(search))
-                {
-                    var originalCount = allPolizas.Count;
-                    allPolizas = allPolizas.Where(p =>
-                        (p.Conpol?.Contains(search, StringComparison.OrdinalIgnoreCase) == true) ||
-                        (p.Ramo?.Contains(search, StringComparison.OrdinalIgnoreCase) == true) ||
-                        (p.Com_alias?.Contains(search, StringComparison.OrdinalIgnoreCase) == true) ||
-                        (p.Clinom?.Contains(search, StringComparison.OrdinalIgnoreCase) == true) 
-                    ).ToList();
-
-                    _logger.LogInformation("Search filter applied to pólizas: {FilteredCount} of {OriginalCount} pólizas",
-                        allPolizas.Count, originalCount);
-                }
-
-                var result = new
-                {
-                    items = allPolizas,
-                    totalCount = allPolizas.Count,
-                    retrievedAt = DateTime.UtcNow,
-                    dataSource = "velneo_polizas_full_load", 
-                    filtered = !string.IsNullOrWhiteSpace(search),
-                    note = "This endpoint loads all polizas from Velneo for backwards compatibility"
-                };
-
-                _logger.LogInformation("✅ ALL PÓLIZAS SUCCESS: {Count} total pólizas returned", allPolizas.Count);
-
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "❌ Error getting all pólizas");
-                return StatusCode(500, new
-                {
-                    message = "Error obteniendo todas las pólizas",
-                    error = ex.Message,
-                    dataSource = "velneo_polizas_full_load"
-                });
-            }
-        }
-
-        [HttpGet("cliente/{clienteId}")]
-        [ProducesResponseType(typeof(object), 200)]
-        [ProducesResponseType(404)]
-        [ProducesResponseType(500)]
-        [Authorize]
-        public async Task<ActionResult> GetPolizasByCliente(
-            int clienteId,
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 25,
-            [FromQuery] string? search = null)
-        {
-            try
-            {
-                _logger.LogInformation("🔄 PÓLIZAS POR CLIENTE: Getting polizas for client {ClienteId} - Page: {Page}, PageSize: {PageSize}, Search: {Search}",
-                    clienteId, page, pageSize, search);
-
-                // ✅ USAR PAGINACIÓN REAL PARA PÓLIZAS POR CLIENTE
-                var velneoResponse = await _velneoApiService.GetPolizasByClientPaginatedAsync(clienteId, page, pageSize, search);
-
-                var result = new
-                {
-                    clienteId = clienteId,
-                    items = velneoResponse.Items,
-                    totalCount = velneoResponse.TotalCount,
-                    currentPage = velneoResponse.PageNumber,
-                    pageNumber = velneoResponse.PageNumber,
-                    pageSize = velneoResponse.PageSize,
-                    totalPages = velneoResponse.TotalPages,
-                    hasNextPage = velneoResponse.HasNextPage,
-                    hasPreviousPage = velneoResponse.HasPreviousPage,
-
-                    // ✅ Metadatos útiles para el frontend
-                    startItem = velneoResponse.Items.Any() ? ((page - 1) * pageSize + 1) : 0,
-                    endItem = Math.Min(page * pageSize, velneoResponse.TotalCount),
-                    isEmpty = !velneoResponse.Items.Any(),
-
-                    // ✅ Info de performance
-                    requestDuration = velneoResponse.RequestDuration.TotalMilliseconds,
-                    dataSource = "velneo_client_polizas_pagination",
-                    velneoHasMoreData = velneoResponse.VelneoHasMoreData,
-
-                    // ✅ Info para UI
-                    searchApplied = !string.IsNullOrWhiteSpace(search),
-                    searchTerm = search
-                };
-
-                _logger.LogInformation("✅ PÓLIZAS POR CLIENTE SUCCESS: Client {ClienteId}, Page {Page}/{TotalPages} - {Count} pólizas in {Duration}ms",
-                    clienteId, page, velneoResponse.TotalPages, velneoResponse.Items.Count(), velneoResponse.RequestDuration.TotalMilliseconds);
-
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "❌ Error getting pólizas for client {ClienteId} - Page: {Page}, PageSize: {PageSize}",
-                    clienteId, page, pageSize);
-                return StatusCode(500, new
-                {
-                    message = $"Error obteniendo pólizas para cliente {clienteId}",
-                    error = ex.Message,
-                    clienteId = clienteId,
-                    pagination = "client_polizas"
-                });
-            }
-        }
-
-        [HttpGet("cliente/{clienteId}/count")]
-        [ProducesResponseType(typeof(object), 200)]
-        [ProducesResponseType(404)]
-        [ProducesResponseType(500)]
-        public async Task<ActionResult> GetPolizasCountByCliente(int clienteId)
-        {
-            try
-            {
-                _logger.LogInformation("Getting polizas count for client {ClienteId} from Velneo API", clienteId);
-
-                var polizas = await _velneoApiService.GetPolizasByClientAsync(clienteId);
-                var count = polizas.Count();
-
-                if (count == 0)
-                {
-                    return NotFound(new { message = $"No se encontraron pólizas para el cliente con ID {clienteId}" });
-                }
-
-                var result = new
-                {
-                    client_id = clienteId,
-                    total = count, 
-                    timestamp = DateTime.UtcNow,
-                    source = "Velneo API - Contratos filtrados por cliente"
-                };
-
-                _logger.LogInformation("Successfully counted {Count} polizas for client {ClienteId}", count, clienteId);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error counting polizas for client {ClienteId} via Velneo API", clienteId);
-                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
-            }
-        }
-
+        /// <summary>
+        /// Crear nueva póliza en Velneo con mapeo completo de campos
+        /// </summary>
+        /// <param name="request">Datos de la póliza a crear</param>
+        /// <returns>Resultado de la creación</returns>
         [HttpPost]
         [ProducesResponseType(typeof(object), 201)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(500)]
+        [ProducesResponseType(typeof(object), 400)]
+        [ProducesResponseType(typeof(object), 500)]
         public async Task<ActionResult> CreatePoliza([FromBody] PolizaCreateRequest request)
         {
             try
             {
+                // ✅ VALIDACIÓN INICIAL
                 if (request == null)
                 {
-                    return BadRequest(new { message = "Datos de póliza requeridos" });
+                    _logger.LogWarning("🚫 Request nulo recibido para crear póliza");
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Datos de póliza son requeridos"
+                    });
                 }
 
-                _logger.LogInformation("🚀 Creating enriched poliza {NumeroPoliza} with Azure AI data", request.Conpol);
+                _logger.LogInformation("🚀 INICIANDO CREACIÓN DE PÓLIZA: {NumeroPoliza} para cliente {ClienteId}",
+                    request.Conpol, request.Clinro);
 
-                // ✅ CONVERTIR PolizaCreateRequest a PolizaDto ENRIQUECIDO
-                var polizaDto = ConvertirRequestAPolizaDto(request);
-
-                // ✅ USAR EL MÉTODO ÚNICO QUE YA TIENES
-                var createdPoliza = await _velneoApiService.CreatePolizaFromRequestAsync(request);
-
-                if (createdPoliza != null)
+                // ✅ VALIDAR MODELO CON DATA ANNOTATIONS
+                if (!ModelState.IsValid)
                 {
-                    _logger.LogInformation("✅ Successfully created enriched poliza {NumeroPoliza}", request.Conpol);
+                    var errores = ModelState
+                        .Where(x => x.Value?.Errors.Count > 0)
+                        .SelectMany(x => x.Value!.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .ToList();
 
-                    return CreatedAtAction(nameof(GetPolizaById), new { id = request.Conpol }, new
+                    _logger.LogWarning("🚫 Validación del modelo fallida: {Errores}", string.Join(", ", errores));
+
+                    return BadRequest(new
                     {
-                        success = true,
-                        message = "Póliza enriquecida creada exitosamente en Velneo",
-                        numeroPoliza = request.Conpol,
-                        datosEnviados = GetDatosEnviadosSummary(request),
-                        polizaCreada = createdPoliza,
-                        timestamp = DateTime.UtcNow
+                        success = false,
+                        message = "Datos de póliza inválidos",
+                        errores = errores,
+                        numeroPoliza = request.Conpol
                     });
+                }
+
+                // ✅ LOG DE DATOS RECIBIDOS PARA DEBUG
+                LogDatosRecibidos(request);
+
+                // ✅ PROCESAR CAMPOS ANTES DEL ENVÍO
+                await ProcesarCamposAdicionales(request);
+
+                // ✅ ENVIAR A VELNEO CON EL NUEVO MÉTODO COMPLETO
+                var resultado = await _velneoApiService.CreatePolizaFromRequestAsync(request);
+
+                if (resultado != null)
+                {
+                    _logger.LogInformation("✅ PÓLIZA CREADA EXITOSAMENTE: {NumeroPoliza}", request.Conpol);
+
+                    return CreatedAtAction(
+                        nameof(GetPolizaById),
+                        new { id = request.Conpol },
+                        new
+                        {
+                            success = true,
+                            message = "Póliza creada exitosamente en Velneo",
+                            numeroPoliza = request.Conpol,
+                            clienteId = request.Clinro,
+                            companiaId = request.Comcod,
+                            seccionId = ResolverSeccionParaRespuesta(request),
+                            datosEnviados = GenerarResumenDatos(request),
+                            polizaCreada = resultado,
+                            timestamp = DateTime.UtcNow,
+                            procesadoConIA = request.ProcesadoConIA
+                        });
                 }
                 else
                 {
+                    _logger.LogError("❌ Velneo retornó respuesta vacía para póliza {NumeroPoliza}", request.Conpol);
+
                     return StatusCode(500, new
                     {
                         success = false,
                         message = "Velneo retornó respuesta vacía",
-                        numeroPoliza = request.Conpol
+                        numeroPoliza = request.Conpol,
+                        timestamp = DateTime.UtcNow
                     });
                 }
             }
+            catch (ArgumentException ex)
+            {
+                _logger.LogError(ex, "❌ Error de validación al crear póliza {NumeroPoliza}", request?.Conpol);
+
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Error de validación",
+                    error = ex.Message,
+                    numeroPoliza = request?.Conpol,
+                    timestamp = DateTime.UtcNow
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogError(ex, "❌ Error de operación al crear póliza {NumeroPoliza}", request?.Conpol);
+
+                return StatusCode(422, new
+                {
+                    success = false,
+                    message = "Error en la operación con Velneo",
+                    error = ex.Message,
+                    numeroPoliza = request?.Conpol,
+                    timestamp = DateTime.UtcNow
+                });
+            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating enriched poliza {NumeroPoliza}", request.Conpol);
+                _logger.LogError(ex, "❌ Error interno al crear póliza {NumeroPoliza}", request?.Conpol);
+
                 return StatusCode(500, new
                 {
                     success = false,
                     message = "Error interno del servidor",
                     error = ex.Message,
-                    numeroPoliza = request.Conpol
+                    numeroPoliza = request?.Conpol,
+                    timestamp = DateTime.UtcNow
                 });
             }
         }
 
-        // ✅ MÉTODO AUXILIAR: Convertir PolizaCreateRequest a PolizaDto enriquecido
-        private PolizaDto ConvertirRequestAPolizaDto(PolizaCreateRequest request)
+        [HttpGet("{id}")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(404)]
+        public async Task<ActionResult> GetPolizaById(int id)
         {
-            return new PolizaDto
+            try
             {
-                // ✅ CAMPOS BÁSICOS
-                Comcod = request.Comcod,
-                Clinro = request.Clinro,
-                Conpol = request.Conpol,
-                Confchdes = TryParseDate(request.Confchdes),
-                Confchhas = TryParseDate(request.Confchhas),
-                Conpremio = request.Conpremio,
+                _logger.LogInformation("🔍 Buscando póliza: {PolizaId}", id);
 
-                // ✅ DATOS DEL CLIENTE (enriquecidos de Azure AI)
-                Clinom = request.Asegurado,
-                Condom = request.Direccion,
+                var poliza = await _velneoApiService.GetPolizaAsync(id);
 
-                // ✅ DATOS DEL VEHÍCULO (enriquecidos de Azure AI)
-                Conmaraut = !string.IsNullOrEmpty(request.Vehiculo) ? request.Vehiculo : $"{request.Marca} {request.Modelo}".Trim(),
-                Conmotor = request.Motor,
-                Conchasis = request.Chasis,
-                Conmataut = request.Matricula,
-                Conanioaut = TryParseInt(request.Anio?.ToString()),
+                if (poliza == null)
+                {
+                    _logger.LogWarning("🚫 Póliza no encontrada: {PolizaId}", id);
+                    return NotFound(new { message = $"Póliza {id} no encontrada" });
+                }
 
-                // ✅ DATOS FINANCIEROS
-                Moncod = GetMonedaId(request.Moneda),
-                Contot = request.PremioTotal,
-
-                // ✅ OTROS DATOS ENRIQUECIDOS
-                Ramo = request.Ramo ?? "AUTOMOVILES",
-                Com_alias = GetCompaniaAlias(request.Comcod),
-
-                // ✅ OBSERVACIONES ENRIQUECIDAS con todos los datos de Azure AI
-                Observaciones = ConstruirObservacionesEnriquecidas(request),
-
-                // ✅ CAMPOS DE CONTROL
-                Convig = "1", // Activa
-                Consta = "1", // Estado activo  
-                Contra = "2", // Tipo de contrato
-                Activo = true,
-                Procesado = true,
-                FechaCreacion = DateTime.Now,
-                FechaModificacion = DateTime.Now,
-                Ingresado = DateTime.Now,
-                Last_update = DateTime.Now
-            };
-        }
-
-        // ✅ MÉTODOS AUXILIARES
-        private DateTime? TryParseDate(string dateString)
-        {
-            if (string.IsNullOrEmpty(dateString)) return null;
-            return DateTime.TryParse(dateString, out var result) ? result : null;
-        }
-
-        private int? TryParseInt(string value)
-        {
-            if (string.IsNullOrEmpty(value)) return null;
-            return int.TryParse(value, out var result) ? result : null;
-        }
-
-        private int GetMonedaId(string moneda)
-        {
-            return moneda?.ToUpper() switch
-            {
-                "UYU" => 1,
-                "USD" => 2,
-                "EUR" => 3,
-                _ => 1 // Default UYU
-            };
-        }
-
-        private string GetCompaniaAlias(int comcod)
-        {
-            return comcod switch
-            {
-                1 => "BSE",
-                2 => "MAPFRE",
-                3 => "SURA",
-                _ => "DESCONOCIDO"
-            };
-        }
-
-        private string ConstruirObservacionesEnriquecidas(PolizaCreateRequest request)
-        {
-            var observaciones = new List<string>();
-
-            // Observaciones originales
-            if (!string.IsNullOrEmpty(request.Observaciones))
-            {
-                observaciones.Add(request.Observaciones);
+                return Ok(poliza);
             }
-
-            // ✅ INFORMACIÓN ENRIQUECIDA DE AZURE AI
-            observaciones.Add("🤖 Procesado automáticamente con Azure Document Intelligence");
-
-            if (!string.IsNullOrEmpty(request.Vehiculo))
-                observaciones.Add($"🚗 Vehículo: {request.Vehiculo}");
-
-            if (!string.IsNullOrEmpty(request.Combustible))
-                observaciones.Add($"⛽ Combustible: {request.Combustible}");
-
-            if (request.PrimaComercial.HasValue && request.PremioTotal.HasValue)
-                observaciones.Add($"💰 Prima: ${request.PrimaComercial:N2} - Premio: ${request.PremioTotal:N2}");
-
-            if (!string.IsNullOrEmpty(request.Corredor))
-                observaciones.Add($"🏢 Corredor: {request.Corredor}");
-
-            // Contacto
-            var contacto = new List<string>();
-            if (!string.IsNullOrEmpty(request.Email)) contacto.Add($"✉️ {request.Email}");
-            if (!string.IsNullOrEmpty(request.Telefono)) contacto.Add($"📞 {request.Telefono}");
-            if (contacto.Any())
-                observaciones.Add($"📋 Contacto: {string.Join(" | ", contacto)}");
-
-            // Ubicación
-            var ubicacion = new List<string>();
-            if (!string.IsNullOrEmpty(request.Localidad)) ubicacion.Add(request.Localidad);
-            if (!string.IsNullOrEmpty(request.Departamento)) ubicacion.Add(request.Departamento);
-            if (ubicacion.Any())
-                observaciones.Add($"📍 Ubicación: {string.Join(", ", ubicacion)}");
-
-            return string.Join(" | ", observaciones);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error al buscar póliza {PolizaId}", id);
+                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
+            }
         }
 
-        private object GetDatosEnviadosSummary(PolizaCreateRequest request)
+        /// <summary>
+        /// Validar datos de póliza sin crear (dry-run)
+        /// </summary>
+        [HttpPost("validate")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(typeof(object), 400)]
+        public async Task<ActionResult> ValidatePoliza([FromBody] PolizaCreateRequest request)
+        {
+            try
+            {
+                if (request == null)
+                {
+                    return BadRequest(new { success = false, message = "Datos requeridos" });
+                }
+
+                _logger.LogInformation("🔍 VALIDANDO PÓLIZA: {NumeroPoliza}", request.Conpol);
+
+                var resultadoValidacion = new
+                {
+                    success = ModelState.IsValid,
+                    numeroPoliza = request.Conpol,
+                    camposValidados = GenerarResumenValidacion(request),
+                    errores = ModelState.IsValid ? new List<string>() :
+                        ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList(),
+                    warnings = GenerarAdvertencias(request),
+                    timestamp = DateTime.UtcNow
+                };
+
+                _logger.LogInformation("✅ Validación completada para póliza {NumeroPoliza}: {Resultado}",
+                    request.Conpol, resultadoValidacion.success ? "EXITOSA" : "FALLIDA");
+
+                return Ok(resultadoValidacion);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error validando póliza {NumeroPoliza}", request?.Conpol);
+                return StatusCode(500, new { message = "Error en validación", error = ex.Message });
+            }
+        }
+
+        #region MÉTODOS AUXILIARES
+
+        /// <summary>
+        /// Log detallado de los datos recibidos para debugging
+        /// </summary>
+        private void LogDatosRecibidos(PolizaCreateRequest request)
+        {
+            _logger.LogInformation("📊 DATOS RECIBIDOS PARA PÓLIZA {NumeroPoliza}:", request.Conpol);
+            _logger.LogInformation("   🏢 Compañía: {Comcod}", request.Comcod);
+            _logger.LogInformation("   📋 Sección: {Seccod} / {SeccionId}", request.Seccod, request.SeccionId);
+            _logger.LogInformation("   👤 Cliente: {Clinro} - {Asegurado}", request.Clinro, request.Asegurado);
+            _logger.LogInformation("   📅 Vigencia: {Desde} a {Hasta}", request.Confchdes, request.Confchhas);
+            _logger.LogInformation("   💰 Premio: {Premio} - Total: {Total}", request.Conpremio, request.Contot);
+            _logger.LogInformation("   🚗 Vehículo: {Marca} {Anio} - {Matricula}", request.Conmaraut ?? request.Marca, request.Conanioaut ?? request.Anio, request.Conmataut ?? request.Matricula);
+            _logger.LogInformation("   📄 Trámite: {Tramite} - Estado: {Estado}", request.Contra ?? request.Tramite, request.Convig ?? request.EstadoPoliza);
+            _logger.LogInformation("   💳 Forma Pago: {FormaPago} - Cuotas: {Cuotas}", request.Consta ?? request.FormaPago, request.Concuo ?? request.CantidadCuotas);
+            _logger.LogInformation("   🤖 Procesado con IA: {ProcesadoConIA}", request.ProcesadoConIA);
+        }
+
+        /// <summary>
+        /// Procesar campos adicionales antes del envío
+        /// </summary>
+        private async Task ProcesarCamposAdicionales(PolizaCreateRequest request)
+        {
+            // ✅ SINCRONIZAR CAMPOS DUPLICADOS
+            SincronizarCamposDuplicados(request);
+
+            // ✅ APLICAR DEFAULTS
+            AplicarValoresPorDefecto(request);
+
+            // ✅ VALIDAR CONSISTENCIA
+            await ValidarConsistenciaDatos(request);
+
+            _logger.LogInformation("✅ Campos adicionales procesados para póliza {NumeroPoliza}", request.Conpol);
+        }
+
+        /// <summary>
+        /// Sincronizar campos duplicados entre versiones legacy y nuevas
+        /// </summary>
+        private void SincronizarCamposDuplicados(PolizaCreateRequest request)
+        {
+            // Sincronizar sección
+            if (request.Seccod > 0 && (!request.SeccionId.HasValue || request.SeccionId <= 0))
+                request.SeccionId = request.Seccod;
+            else if (request.SeccionId.HasValue && request.SeccionId > 0 && request.Seccod <= 0)
+                request.Seccod = request.SeccionId.Value;
+
+            // Sincronizar marca/vehículo
+            if (string.IsNullOrEmpty(request.Conmaraut) && !string.IsNullOrEmpty(request.Marca))
+                request.Conmaraut = !string.IsNullOrEmpty(request.Modelo) ? $"{request.Marca} {request.Modelo}".Trim() : request.Marca;
+
+            // Sincronizar año
+            if (!request.Conanioaut.HasValue && request.Anio.HasValue)
+                request.Conanioaut = request.Anio;
+
+            // Sincronizar matrícula
+            if (string.IsNullOrEmpty(request.Conmataut) && !string.IsNullOrEmpty(request.Matricula))
+                request.Conmataut = request.Matricula;
+
+            // Sincronizar motor
+            if (string.IsNullOrEmpty(request.Conmotor) && !string.IsNullOrEmpty(request.Motor))
+                request.Conmotor = request.Motor;
+
+            // Sincronizar chasis
+            if (string.IsNullOrEmpty(request.Conchasis) && !string.IsNullOrEmpty(request.Chasis))
+                request.Conchasis = request.Chasis;
+
+            // Sincronizar total
+            if (!request.Contot.HasValue && request.PremioTotal.HasValue)
+                request.Contot = request.PremioTotal;
+
+            // Sincronizar cuotas
+            if (!request.Concuo.HasValue && request.CantidadCuotas.HasValue)
+                request.Concuo = request.CantidadCuotas;
+
+            // Sincronizar dirección
+            if (string.IsNullOrEmpty(request.Condom) && !string.IsNullOrEmpty(request.Direccion))
+                request.Condom = request.Direccion;
+
+            // Sincronizar nombre cliente
+            if (string.IsNullOrEmpty(request.Clinom) && !string.IsNullOrEmpty(request.Asegurado))
+                request.Clinom = request.Asegurado;
+        }
+
+        /// <summary>
+        /// Aplicar valores por defecto
+        /// </summary>
+        private void AplicarValoresPorDefecto(PolizaCreateRequest request)
+        {
+            // Defaults básicos
+            request.Ramo ??= "AUTOMOVILES";
+            request.Congesti ??= "1"; // Tipo gestión por defecto
+            request.Congeses ??= "1"; // Estado gestión: Pendiente
+            request.Convig ??= "VIG"; // Estado póliza: Vigente
+            request.Consta ??= "1";   // Forma pago: Contado
+
+            // Defaults de fechas
+            if (string.IsNullOrEmpty(request.Confchdes))
+                request.Confchdes = DateTime.Now.ToString("yyyy-MM-dd");
+
+            if (string.IsNullOrEmpty(request.Confchhas))
+                request.Confchhas = DateTime.Now.AddYears(1).ToString("yyyy-MM-dd");
+
+            // Defaults de cuotas y moneda
+            request.Concuo ??= 1;
+            request.Moncod ??= 1; // UYU
+
+            // Default de año si está vacío
+            if (!request.Conanioaut.HasValue || request.Conanioaut <= 0)
+                request.Conanioaut = DateTime.Now.Year;
+
+            // Default de total si está vacío
+            if (!request.Contot.HasValue || request.Contot <= 0)
+                request.Contot = request.Conpremio;
+        }
+
+        /// <summary>
+        /// Validar consistencia de datos
+        /// </summary>
+        private async Task ValidarConsistenciaDatos(PolizaCreateRequest request)
+        {
+            // TODO: Implementar validaciones de consistencia
+            // - Verificar que el cliente existe en Velneo
+            // - Verificar que la compañía existe
+            // - Validar que las fechas sean coherentes
+            // - Validar montos
+            await Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Resolver sección para respuesta
+        /// </summary>
+        private int ResolverSeccionParaRespuesta(PolizaCreateRequest request)
+        {
+            return request.Seccod > 0 ? request.Seccod : request.SeccionId ?? 0;
+        }
+
+        /// <summary>
+        /// Generar resumen de datos enviados
+        /// </summary>
+        private object GenerarResumenDatos(PolizaCreateRequest request)
         {
             return new
             {
-                vehiculo = new { marca = request.Marca, modelo = request.Modelo, anio = request.Anio },
-                cliente = new { nombre = request.Asegurado, documento = request.Documento, email = request.Email },
-                financiero = new { prima = request.Conpremio, premioTotal = request.PremioTotal },
-                otros = new { corredor = request.Corredor, ramo = request.Ramo }
+                datosBasicos = new
+                {
+                    numeroPoliza = request.Conpol,
+                    compania = request.Comcod,
+                    seccion = ResolverSeccionParaRespuesta(request),
+                    cliente = request.Clinro,
+                    asegurado = request.Asegurado,
+                    premio = request.Conpremio,
+                    total = request.Contot,
+                    moneda = request.Moncod
+                },
+                vehiculo = new
+                {
+                    marca = request.Conmaraut,
+                    anio = request.Conanioaut,
+                    matricula = request.Conmataut,
+                    motor = request.Conmotor,
+                    chasis = request.Conchasis
+                },
+                gestion = new
+                {
+                    tramite = request.Contra,
+                    estadoPoliza = request.Convig,
+                    estadoGestion = request.Congeses,
+                    formaPago = request.Consta,
+                    cuotas = request.Concuo
+                },
+                vigencia = new
+                {
+                    desde = request.Confchdes,
+                    hasta = request.Confchhas
+                }
             };
         }
+
+        /// <summary>
+        /// Generar resumen de validación
+        /// </summary>
+        private object GenerarResumenValidacion(PolizaCreateRequest request)
+        {
+            var camposRequeridos = new Dictionary<string, bool>
+            {
+                ["comcod"] = request.Comcod > 0,
+                ["clinro"] = request.Clinro > 0,
+                ["conpol"] = !string.IsNullOrWhiteSpace(request.Conpol),
+                ["confchdes"] = !string.IsNullOrWhiteSpace(request.Confchdes),
+                ["confchhas"] = !string.IsNullOrWhiteSpace(request.Confchhas),
+                ["conpremio"] = request.Conpremio > 0,
+                ["asegurado"] = !string.IsNullOrWhiteSpace(request.Asegurado)
+            };
+
+            var camposOpcionales = new Dictionary<string, bool>
+            {
+                ["seccod"] = request.Seccod > 0 || request.SeccionId > 0,
+                ["vehiculo"] = !string.IsNullOrWhiteSpace(request.Conmaraut) || !string.IsNullOrWhiteSpace(request.Marca),
+                ["matricula"] = !string.IsNullOrWhiteSpace(request.Conmataut) || !string.IsNullOrWhiteSpace(request.Matricula),
+                ["anio"] = request.Conanioaut > 0 || request.Anio > 0,
+                ["direccion"] = !string.IsNullOrWhiteSpace(request.Condom) || !string.IsNullOrWhiteSpace(request.Direccion)
+            };
+
+            return new
+            {
+                requeridos = camposRequeridos,
+                opcionales = camposOpcionales,
+                completitud = new
+                {
+                    requeridosCompletos = camposRequeridos.Values.Count(v => v),
+                    totalRequeridos = camposRequeridos.Count,
+                    opcionalesCompletos = camposOpcionales.Values.Count(v => v),
+                    totalOpcionales = camposOpcionales.Count
+                }
+            };
+        }
+
+        /// <summary>
+        /// Generar advertencias
+        /// </summary>
+        private List<string> GenerarAdvertencias(PolizaCreateRequest request)
+        {
+            var advertencias = new List<string>();
+
+            // Advertencias por campos faltantes importantes
+            if (request.Seccod <= 0 && (!request.SeccionId.HasValue || request.SeccionId <= 0))
+                advertencias.Add("Sección no especificada");
+
+            if (string.IsNullOrWhiteSpace(request.Conmaraut) && string.IsNullOrWhiteSpace(request.Marca))
+                advertencias.Add("Marca del vehículo no especificada");
+
+            if (!request.Conanioaut.HasValue && !request.Anio.HasValue)
+                advertencias.Add("Año del vehículo no especificado");
+
+            if (string.IsNullOrWhiteSpace(request.Conmataut) && string.IsNullOrWhiteSpace(request.Matricula))
+                advertencias.Add("Matrícula del vehículo no especificada");
+
+            // Advertencias por inconsistencias
+            if (request.Contot.HasValue && request.Contot < request.Conpremio)
+                advertencias.Add("El total es menor que el premio base");
+
+            if (request.Concuo.HasValue && request.Concuo > 1 && request.Consta == "1")
+                advertencias.Add("Forma de pago es contado pero se especificaron cuotas");
+
+            return advertencias;
+        }
+
+        #endregion
     }
 }

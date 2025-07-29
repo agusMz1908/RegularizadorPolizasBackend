@@ -1,8 +1,9 @@
 ﻿using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Domain.Entities;
 using System.Security.Claims;
-using Microsoft.Extensions.Logging;
 
 namespace RegularizadorPolizas.Application.Services
 {
@@ -447,6 +448,30 @@ namespace RegularizadorPolizas.Application.Services
         {
             var tenantId = GetCurrentTenantId();
             return await GetTenantUsageStatsAsync(tenantId, fromDate);
+        }
+
+        public async Task<TenantConfigurationDto> GetCurrentTenantConfigurationDtoAsync()
+        {
+            try
+            {
+                var apiKey = await GetCurrentTenantConfigurationAsync();
+
+                return new TenantConfigurationDto
+                {
+                    TenantId = apiKey.TenantId,
+                    BaseUrl = apiKey.BaseUrl,
+                    ApiKey = apiKey.Key,
+                    TimeoutSeconds = apiKey.TimeoutSeconds,
+                    IsActive = apiKey.Activo,
+                    ApiVersion = apiKey.ApiVersion,
+                    Environment = apiKey.Environment
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting current tenant configuration DTO");
+                throw;
+            }
         }
 
         #endregion

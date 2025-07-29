@@ -40,6 +40,7 @@ builder.Services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
 builder.Services.AddScoped<IApiKeyService, ApiKeyService>();
 builder.Services.AddScoped<ITenantService, TenantService>();
 builder.Services.AddScoped<IUserRoleService, UserRoleService>();
+builder.Services.AddScoped<IVelneoApiService, TenantAwareVelneoApiService>();
 
 builder.Services.AddHttpClient();
 #endregion

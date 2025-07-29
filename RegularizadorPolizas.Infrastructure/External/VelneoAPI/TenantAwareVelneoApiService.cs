@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
+using RegularizadorPolizas.Application.Services;
+using RegularizadorPolizas.Infrastructure.External.VelneoAPI.Extensions;
 using RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers;
 using RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models;
 using System.Diagnostics;
@@ -36,7 +38,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 
         private async Task<HttpClient> GetConfiguredHttpClientAsync()
         {
-            var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
+            var tenantConfig = await _tenantService.GetCurrentTenantConfigurationDtoAsync();
 
             _logger.LogDebug("Creating HttpClient for tenant {TenantId} with BaseUrl: {BaseUrl}",
                 tenantConfig.TenantId, tenantConfig.BaseUrl);
@@ -55,10 +57,10 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 
         private async Task<string> BuildVelneoUrlAsync(string endpoint)
         {
-            var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
+            var tenantConfig = await _tenantService.GetCurrentTenantConfigurationDtoAsync(); 
             var baseUrl = tenantConfig.BaseUrl.TrimEnd('/');
             var separator = endpoint.Contains('?') ? "&" : "?";
-            var fullUrl = $"{baseUrl}/{endpoint}{separator}api_key={tenantConfig.Key}";
+            var fullUrl = $"{baseUrl}/{endpoint}{separator}api_key={tenantConfig.ApiKey}";
 
             _logger.LogDebug("Built Velneo URL: {Url}", fullUrl);
             return fullUrl;
@@ -242,8 +244,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 }
 
                 var url = await BuildVelneoUrlAsync(endpoint);
-                var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
-                var maskedUrl = url.Replace(tenantConfig.Key, "***");
+                var tenantConfig = await _tenantService.GetCurrentTenantConfigurationDtoAsync(); 
+                var maskedUrl = url.Replace(tenantConfig.ApiKey, "***");
                 _logger.LogInformation("🌐 Velneo URL: {Url}", maskedUrl);
 
                 var response = await httpClient.GetAsync(url);
@@ -366,8 +368,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             {
                 _logger.LogInformation("🔍 BÚSQUEDA DIRECTA VELNEO: {SearchTerm}", searchTerm);
 
-                // ✅ OBTENER CONFIGURACIÓN DEL TENANT DINÁMICAMENTE
-                var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
+                var tenantConfig = await _tenantService.GetCurrentTenantConfigurationDtoAsync(); 
                 if (tenantConfig == null)
                 {
                     _logger.LogError("❌ No se pudo obtener configuración del tenant");
@@ -379,9 +380,9 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 httpClient.Timeout = TimeSpan.FromSeconds(30);
 
                 // ✅ CONSTRUIR URL CON FILTRO DIRECTO
-                var filterUrl = $"{tenantConfig.BaseUrl}/v1/clientes?filter[nombre]={Uri.EscapeDataString(searchTerm)}&api_key={tenantConfig.Key}";
+                var filterUrl = $"{tenantConfig.BaseUrl}/v1/clientes?filter[nombre]={Uri.EscapeDataString(searchTerm)}&api_key={tenantConfig.ApiKey}";
 
-                _logger.LogInformation("📤 URL filtrada: {FilterUrl}", filterUrl.Replace(tenantConfig.Key, "***"));
+                _logger.LogInformation("📤 URL filtrada: {FilterUrl}", filterUrl.Replace(tenantConfig.ApiKey, "***"));
 
                 var response = await httpClient.GetAsync(filterUrl);
 
@@ -903,8 +904,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 }
 
                 var url = await BuildVelneoUrlAsync(endpoint);
-                var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
-                var maskedUrl = url.Replace(tenantConfig.Key, "***");
+                var tenantConfig = await _tenantService.GetCurrentTenantConfigurationDtoAsync();
+                var maskedUrl = url.Replace(tenantConfig.ApiKey, "***");
                 _logger.LogInformation("🌐 Velneo Client Pólizas URL: {Url}", maskedUrl);
 
                 var response = await httpClient.GetAsync(url);
@@ -1024,8 +1025,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 }
 
                 var url = await BuildVelneoUrlAsync(endpoint);
-                var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
-                var maskedUrl = url.Replace(tenantConfig.Key, "***");
+                var tenantConfig = await _tenantService.GetCurrentTenantConfigurationDtoAsync();
+                var maskedUrl = url.Replace(tenantConfig.ApiKey, "***");
                 _logger.LogInformation("🌐 Velneo Pólizas URL: {Url}", maskedUrl);
 
                 var response = await httpClient.GetAsync(url);
@@ -1149,7 +1150,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 throw;
             }
         }
-
         public async Task<object> CreatePolizaFromRequestAsync(PolizaCreateRequest request)
         {
             var stopwatch = Stopwatch.StartNew();
@@ -1157,326 +1157,70 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             try
             {
                 var tenantId = _tenantService.GetCurrentTenantId();
-                _logger.LogInformation("🚀 CREANDO PÓLIZA ENRIQUECIDA EN VELNEO: Número={NumeroPoliza}, Cliente={ClienteId}, Tenant={TenantId}",
+                _logger.LogInformation("🚀 CREANDO PÓLIZA EN VELNEO: Número={NumeroPoliza}, Cliente={ClienteId}, Tenant={TenantId}",
                     request.Conpol, request.Clinro, tenantId);
+
+                // ✅ VALIDAR CAMPOS CRÍTICOS ANTES DE ENVIAR
+                ValidarCamposRequeridos(request);
 
                 using var httpClient = await GetConfiguredHttpClientAsync();
 
-                // ✅ VALIDAR CAMPOS REQUERIDOS ANTES DE ENVIAR
-                var validationErrors = new List<string>();
-
-                if (request.Comcod <= 0) validationErrors.Add("comcod debe ser mayor a 0");
-                if (request.Clinro <= 0) validationErrors.Add("clinro debe ser mayor a 0");
-                if (string.IsNullOrEmpty(request.Conpol)) validationErrors.Add("conpol no puede estar vacío");
-                if (string.IsNullOrEmpty(request.Confchdes)) validationErrors.Add("confchdes no puede estar vacío");
-                if (string.IsNullOrEmpty(request.Confchhas)) validationErrors.Add("confchhas no puede estar vacío");
-
-                if (validationErrors.Any())
-                {
-                    var errors = string.Join(", ", validationErrors);
-                    _logger.LogError("❌ VALIDACIÓN FALLIDA: {Errors}", errors);
-                    throw new ArgumentException($"Datos requeridos faltantes: {errors}");
-                }
-
-                _logger.LogInformation("✅ Validación de campos críticos exitosa");
-
-                // ✅ USAR TU MÉTODO EXISTENTE PERO CON DATOS ENRIQUECIDOS
-                var velneoContrato = MapearCreateRequestAVelneo(request);
+                // ✅ MAPEAR COMPLETAMENTE A ESTRUCTURA VELNEO (AHORA ASYNC)
+                var velneoContrato = await MapearCreateRequestAVelneoCompleto(request);
 
                 // Serializar el payload
                 var jsonPayload = JsonSerializer.Serialize(velneoContrato, _jsonOptions);
                 var content = new StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
 
-                _logger.LogInformation("📤 PAYLOAD VELNEO ENRIQUECIDO: {JsonLength} caracteres para póliza {NumeroPoliza}",
+                _logger.LogInformation("📤 PAYLOAD VELNEO: {JsonLength} caracteres para póliza {NumeroPoliza}",
                     jsonPayload.Length, request.Conpol);
 
-                // ⚠️ HABILITAR SOLO PARA DEBUG - PAYLOAD COMPLETO
-                _logger.LogWarning("🔍 DEBUG - PAYLOAD COMPLETO ENVIADO A VELNEO:");
-                _logger.LogWarning("📄 {JsonPayload}", jsonPayload);
-
-                // ✅ LOGGING DE CAMPOS CRÍTICOS
-                _logger.LogInformation("🎯 CAMPOS CRÍTICOS: comcod={Comcod}, clinro={Clinro}, conpol={Conpol}, confchdes={FechaDesde}, confchhas={FechaHasta}",
-                    request.Comcod, request.Clinro, request.Conpol, request.Confchdes, request.Confchhas);
-
-                // ✅ REUTILIZAR TU LÓGICA EXISTENTE
-                var endpoint = "v1/contratos";
-                var url = await BuildVelneoUrlAsync(endpoint);
-
-                // ✅ LOGGING DE HEADERS DE LA REQUEST
-                _logger.LogInformation("📨 REQUEST HEADERS:");
-                foreach (var header in httpClient.DefaultRequestHeaders)
-                {
-                    _logger.LogInformation("   {HeaderName}: {HeaderValue}", header.Key, string.Join(", ", header.Value));
-                }
-                _logger.LogInformation("   Content-Type: {ContentType}", content.Headers.ContentType);
-
-                var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
-                var maskedUrl = url.Replace(tenantConfig.Key, "***");
-                _logger.LogInformation("🌐 POST Velneo URL: {Url}", maskedUrl);
-
-                using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
-                var response = await httpClient.PostAsync(url, content, cts.Token);
+                // ✅ ENVIAR A VELNEO
+                var url = await BuildVelneoUrlAsync("v1/contratos");
+                var response = await httpClient.PostAsync(url, content);
 
                 var responseContent = await response.Content.ReadAsStringAsync();
-                stopwatch.Stop();
 
-                _logger.LogInformation("📡 Velneo CREATE response: Status {Status}, Duration: {Duration}ms, Content length: {Length}",
-                    response.StatusCode, stopwatch.ElapsedMilliseconds, responseContent.Length);
-
-                // ✅ LOGGING DE HEADERS DE LA RESPUESTA
-                _logger.LogInformation("📨 RESPONSE HEADERS:");
-                foreach (var header in response.Headers)
-                {
-                    _logger.LogInformation("   {HeaderName}: {HeaderValue}", header.Key, string.Join(", ", header.Value));
-                }
-
-                // ✅ LOGGING DEL CONTENIDO DE LA RESPUESTA (SI NO ESTÁ VACÍO)
-                if (!string.IsNullOrWhiteSpace(responseContent))
-                {
-                    _logger.LogWarning("📄 RESPONSE CONTENT: {ResponseContent}", responseContent);
-                }
-                else
-                {
-                    _logger.LogWarning("📄 RESPONSE CONTENT: <VACÍO>");
-                }
-
-                // ✅ LOGGING DE STATUS CODE ESPECÍFICO
                 if (response.IsSuccessStatusCode)
                 {
-                    _logger.LogInformation("✅ HTTP SUCCESS: {StatusCode} {ReasonPhrase}",
-                        (int)response.StatusCode, response.ReasonPhrase);
+                    stopwatch.Stop();
+                    _logger.LogInformation("✅ PÓLIZA CREADA EXITOSAMENTE en Velneo: {NumeroPoliza} - Duration: {Duration}ms",
+                        request.Conpol, stopwatch.ElapsedMilliseconds);
+
+                    var result = JsonSerializer.Deserialize<object>(responseContent, _jsonOptions);
+                    return result ?? new { success = true, numeroPoliza = request.Conpol };
                 }
                 else
                 {
-                    _logger.LogError("❌ HTTP ERROR: {StatusCode} {ReasonPhrase}",
-                        (int)response.StatusCode, response.ReasonPhrase);
+                    var errorMessage = ExtractErrorMessageFromResponse(response.StatusCode, responseContent);
+                    _logger.LogError("❌ ERROR al crear póliza en Velneo: {StatusCode} - {Error} - Póliza: {NumeroPoliza}",
+                        response.StatusCode, errorMessage, request.Conpol);
+
+                    throw new InvalidOperationException($"Error en Velneo: {errorMessage}");
                 }
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    _logger.LogError("❌ Error en Velneo API: Status={Status}, Response={Response}",
-                        response.StatusCode, responseContent);
-
-                    var errorMessage = ExtractErrorMessage(responseContent, response.StatusCode);
-                    throw new HttpRequestException($"Error creando póliza enriquecida en Velneo: {errorMessage}");
-                }
-
-                // ✅ NUEVA VERIFICACIÓN: Confirmar que se guardó realmente
-                _logger.LogInformation("🔍 Verificando que la póliza se guardó correctamente en Velneo...");
-
-                // Esperar un poco para que Velneo procese
-                await Task.Delay(3000);
-
-                var exists = await VerifyPolizaExistsAsync(request.Conpol);
-
-                if (!exists)
-                {
-                    _logger.LogError("❌ VERIFICACIÓN FALLIDA: La póliza {NumeroPoliza} NO se encontró en Velneo después de la creación",
-                        request.Conpol);
-                    throw new InvalidOperationException($"La póliza {request.Conpol} no se guardó correctamente en Velneo");
-                }
-
-                _logger.LogInformation("✅ VERIFICACIÓN EXITOSA: Póliza {NumeroPoliza} confirmada en Velneo en {Duration}ms",
-                    request.Conpol, stopwatch.ElapsedMilliseconds);
-
-                // ✅ REUTILIZAR TU LÓGICA DE MANEJO DE RESPUESTA VACÍA
-                if (string.IsNullOrWhiteSpace(responseContent))
-                {
-                    _logger.LogWarning("⚠️ Velneo retornó respuesta vacía, pero con status 200.");
-                    _logger.LogInformation("✅ PÓLIZA ENRIQUECIDA CREADA EN VELNEO: Número={NumeroPoliza} en {Duration}ms (respuesta vacía pero exitosa)",
-                        request.Conpol, stopwatch.ElapsedMilliseconds);
-
-                    return new
-                    {
-                        success = true,
-                        message = "Póliza enriquecida creada y verificada exitosamente en Velneo",
-                        numeroPoliza = request.Conpol,
-                        datosEnviados = GetDatosEnviadosSummary(request),
-                        verificada = true,
-                        duracionMs = stopwatch.ElapsedMilliseconds
-                    };
-                }
-
-                // ✅ REUTILIZAR TU LÓGICA DE DESERIALIZACIÓN
-                try
-                {
-                    var velneoResponse = JsonSerializer.Deserialize<object>(responseContent, _jsonOptions);
-
-                    _logger.LogInformation("✅ PÓLIZA ENRIQUECIDA CREADA EN VELNEO: Número={NumeroPoliza} en {Duration}ms con respuesta JSON",
-                        request.Conpol, stopwatch.ElapsedMilliseconds);
-
-                    return new
-                    {
-                        success = true,
-                        message = "Póliza enriquecida creada y verificada exitosamente en Velneo",
-                        numeroPoliza = request.Conpol,
-                        velneoResponse = velneoResponse,
-                        datosEnviados = GetDatosEnviadosSummary(request),
-                        verificada = true,
-                        duracionMs = stopwatch.ElapsedMilliseconds
-                    };
-                }
-                catch (JsonException jsonEx)
-                {
-                    _logger.LogWarning(jsonEx, "⚠️ Error deserializando respuesta JSON, pero status fue 200.");
-
-                    return new
-                    {
-                        success = true,
-                        message = "Póliza enriquecida creada y verificada exitosamente (respuesta no estándar)",
-                        numeroPoliza = request.Conpol,
-                        rawResponse = responseContent.Substring(0, Math.Min(200, responseContent.Length)),
-                        datosEnviados = GetDatosEnviadosSummary(request),
-                        verificada = true,
-                        duracionMs = stopwatch.ElapsedMilliseconds
-                    };
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.LogError("⏰ TIMEOUT creando póliza enriquecida {NumeroPoliza} en Velneo después de {Duration}ms",
-                    request.Conpol, stopwatch.ElapsedMilliseconds);
-                throw new TimeoutException($"Timeout creando póliza enriquecida {request.Conpol} en Velneo");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ ERROR creando póliza enriquecida {NumeroPoliza} en Velneo",
-                    request.Conpol);
+                stopwatch.Stop();
+                _logger.LogError(ex, "❌ EXCEPCIÓN al crear póliza {NumeroPoliza} - Duration: {Duration}ms",
+                    request.Conpol, stopwatch.ElapsedMilliseconds);
                 throw;
             }
         }
 
-        // ====================================================
-        // TAMBIÉN AGREGAR EL MÉTODO DE VERIFICACIÓN
-        // ====================================================
-
-        public async Task<bool> VerifyPolizaExistsAsync(string numeroPoliza)
+        private string ExtractErrorMessageFromResponse(HttpStatusCode statusCode, string responseContent)
         {
             try
             {
-                var tenantId = _tenantService.GetCurrentTenantId();
-                _logger.LogDebug("🔍 Verificando que existe póliza {NumeroPoliza} en Velneo para tenant {TenantId}",
-                    numeroPoliza, tenantId);
-
-                using var httpClient = await GetConfiguredHttpClientAsync();
-
-                // ✅ BUSCAR POR NÚMERO DE PÓLIZA
-                var searchUrl = await BuildVelneoUrlAsync($"v1/contratos?filter[conpol]={Uri.EscapeDataString(numeroPoliza)}");
-
-                var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
-                var maskedUrl = searchUrl.Replace(tenantConfig.Key, "***");
-                _logger.LogInformation("🔍 Verificando URL: {Url}", maskedUrl);
-
-                var response = await httpClient.GetAsync(searchUrl);
-
-                if (!response.IsSuccessStatusCode)
+                if (string.IsNullOrWhiteSpace(responseContent))
                 {
-                    _logger.LogWarning("⚠️ Error verificando póliza {NumeroPoliza}: Status {Status}",
-                        numeroPoliza, response.StatusCode);
-                    return false;
+                    return $"Error HTTP {(int)statusCode}: Sin contenido de respuesta";
                 }
 
-                var responseContent = await response.Content.ReadAsStringAsync();
-                _logger.LogDebug("📥 Respuesta verificación: {Length} caracteres", responseContent.Length);
+                // Intentar parsear como JSON para obtener mensaje específico
+                var doc = JsonDocument.Parse(responseContent);
 
-                // ✅ LOG DE LA RESPUESTA COMPLETA PARA DEBUG
-                _logger.LogWarning("🔍 RESPUESTA VERIFICACIÓN COMPLETA: {ResponseContent}", responseContent);
-
-                // ✅ PARSEAR RESPUESTA PARA VER SI EXISTE
-                using var jsonDocument = JsonDocument.Parse(responseContent);
-                var root = jsonDocument.RootElement;
-
-                // Buscar en la estructura que use Velneo
-                if (root.TryGetProperty("contratos", out var contratosElement))
-                {
-                    var contratos = contratosElement.EnumerateArray().ToList();
-                    var exists = contratos.Any();
-
-                    _logger.LogInformation(exists ?
-                        "✅ Póliza {NumeroPoliza} CONFIRMADA en Velneo - {Count} registro(s) encontrado(s)" :
-                        "❌ Póliza {NumeroPoliza} NO ENCONTRADA en Velneo",
-                        numeroPoliza, contratos.Count);
-
-                    return exists;
-                }
-
-                // ✅ INTENTAR OTRAS ESTRUCTURAS POSIBLES
-                if (root.TryGetProperty("data", out var dataElement))
-                {
-                    var hasData = dataElement.EnumerateArray().Any();
-                    _logger.LogInformation(hasData ?
-                        "✅ Póliza {NumeroPoliza} CONFIRMADA en Velneo (estructura 'data')" :
-                        "❌ Póliza {NumeroPoliza} NO ENCONTRADA en Velneo (estructura 'data')",
-                        numeroPoliza);
-                    return hasData;
-                }
-
-                _logger.LogWarning("⚠️ Estructura inesperada en respuesta de verificación para póliza {NumeroPoliza}", numeroPoliza);
-                return false;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "❌ Error verificando existencia de póliza {NumeroPoliza} en Velneo", numeroPoliza);
-                return false;
-            }
-        }
-
-        private object GetDatosEnviadosSummary(PolizaCreateRequest request)
-        {
-            return new
-            {
-                poliza = new
-                {
-                    numero = request.Conpol,
-                    prima = request.Conpremio,
-                    desde = request.Confchdes,
-                    hasta = request.Confchhas
-                },
-                vehiculo = new
-                {
-                    descripcion = request.Vehiculo,
-                    marca = request.Marca,
-                    modelo = request.Modelo,
-                    anio = request.Anio,
-                    motor = request.Motor,
-                    chasis = request.Chasis,
-                    matricula = request.Matricula,
-                    combustible = request.Combustible
-                },
-                cliente = new
-                {
-                    nombre = request.Asegurado,
-                    documento = request.Documento,
-                    email = request.Email,
-                    telefono = request.Telefono,
-                    direccion = request.Direccion,
-                    localidad = request.Localidad,
-                    departamento = request.Departamento
-                },
-                financiero = new
-                {
-                    prima = request.Conpremio,
-                    primaComercial = request.PrimaComercial,
-                    premioTotal = request.PremioTotal,
-                    moneda = request.Moneda
-                },
-                otros = new
-                {
-                    corredor = request.Corredor,
-                    plan = request.Plan,
-                    ramo = request.Ramo,
-                    procesadoConIA = request.ProcesadoConIA
-                }
-            };
-        }
-
-        private string ExtractErrorMessage(string responseContent, HttpStatusCode statusCode)
-        {
-            try
-            {
-                // Intentar extraer mensaje de error del response JSON
-                using var doc = JsonDocument.Parse(responseContent);
-
+                // Buscar propiedades comunes de error
                 if (doc.RootElement.TryGetProperty("error", out var errorProp))
                 {
                     return errorProp.GetString() ?? $"Error HTTP {(int)statusCode}";
@@ -1487,97 +1231,118 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                     return messageProp.GetString() ?? $"Error HTTP {(int)statusCode}";
                 }
 
+                if (doc.RootElement.TryGetProperty("detail", out var detailProp))
+                {
+                    return detailProp.GetString() ?? $"Error HTTP {(int)statusCode}";
+                }
+
+                if (doc.RootElement.TryGetProperty("title", out var titleProp))
+                {
+                    return titleProp.GetString() ?? $"Error HTTP {(int)statusCode}";
+                }
+
+                // Si no hay propiedades conocidas, retornar parte del contenido
                 return $"Error HTTP {(int)statusCode}: {responseContent.Substring(0, Math.Min(200, responseContent.Length))}";
             }
-            catch
+            catch (JsonException)
             {
+                // Si no es JSON válido, retornar el contenido truncado
                 return $"Error HTTP {(int)statusCode}: {responseContent.Substring(0, Math.Min(100, responseContent.Length))}";
+            }
+            catch (Exception)
+            {
+                return $"Error HTTP {(int)statusCode}: Error al procesar respuesta";
             }
         }
 
-        private object MapearCreateRequestAVelneo(PolizaCreateRequest request)
+        // ✅ MÉTODO COMPLETO CORREGIDO CON MAPEO DINÁMICO ASYNC
+
+        private async Task<object> MapearCreateRequestAVelneoCompleto(PolizaCreateRequest request)
         {
+            var now = DateTime.UtcNow;
+            var nowLocal = DateTime.Now;
+
             var velneoContrato = new
             {
-                // ✅ CAMPOS BÁSICOS REQUERIDOS
                 id = 0,
                 comcod = request.Comcod,
-                seccod = request.SeccionId ?? 0, // ✅ YA FUNCIONA
+                seccod = ResolverSeccion(request),
                 clinro = request.Clinro,
-                conpol = request.Conpol ?? "",
-
-                // ✅ FECHAS
-                confchdes = !string.IsNullOrEmpty(request.Confchdes) ?
-                    DateTime.Parse(request.Confchdes).ToString("yyyy-MM-dd") :
-                    DateTime.Now.ToString("yyyy-MM-dd"),
-                confchhas = !string.IsNullOrEmpty(request.Confchhas) ?
-                    DateTime.Parse(request.Confchhas).ToString("yyyy-MM-dd") :
-                    DateTime.Now.AddYears(1).ToString("yyyy-MM-dd"),
-
-                // ✅ MONTOS
-                conpremio = request.Conpremio,
-                contot = request.PremioTotal ?? request.Conpremio,
-
-                // ✅ DATOS DEL VEHÍCULO
-                conmaraut = request.Marca ?? "",
-                conanioaut = TryParseInt(request.Anio?.ToString()) ?? 0,
-                conmataut = request.Matricula ?? "",
-                conmotor = request.Motor ?? "",
-                conchasis = request.Chasis ?? "",
-
-                // ✅ CAMPOS FALTANTES MAPEADOS CORRECTAMENTE
-                conges = MapearTramite(request.Tramite),           // ← TRÁMITE
-                convig = MapearEstadoPoliza(request.EstadoPoliza), // ← ESTADO PÓLIZA
-                concar = request.Certificado ?? "",               // ← CERTIFICADO
-                tposegdsc = request.Cobertura ?? "",              // ← COBERTURA
-                forpagvid = MapearFormaPago(request.FormaPago),   // ← FORMA DE PAGO
-                concuo = request.CantidadCuotas ?? 0,             // ← CUOTAS
-
-                // ✅ CAMPOS DE CÓDIGOS/IDs
-                catdsc = request.CategoriaId ?? 0,        // ← Categoría
-                desdsc = request.DestinoId ?? 0,          // ← Destino  
-                caldsc = request.CalidadId ?? 0,          // ← Calidad
-
-                // ✅ DATOS DEL CLIENTE
-                clinom = request.Asegurado ?? "",
-                condom = request.Direccion ?? "",
-
-                // ✅ OBSERVACIONES ENRIQUECIDAS
-                observaciones = GenerarObservacionesCompletas(request),
-
-                // ✅ MONEDA CORREGIDA
-                moncod = MapearMonedaCodigo(request.Moneda),
-
-                // ✅ COMBUSTIBLE
-                combustibles = request.Combustible ?? "",
-
-                // ✅ RAMO
-                ramo = request.Ramo ?? "AUTOMOVILES",
-
-                // ✅ CAMPOS OBLIGATORIOS CON VALORES POR DEFECTO
+                condom = ResolverDireccion(request),
+                conmaraut = ResolverMarca(request),
+                conanioaut = ResolverAnio(request),
                 concodrev = 0,
+                conmataut = ResolverMatricula(request),
                 conficto = 0,
-                conclaaut = 0,
-                condedaut = 0,
-                conresciv = 0,
-                conbonnsin = 0,
-                conbonant = 0,
-                concaraut = 0,
-                concapaut = 0,
+                conmotor = ResolverMotor(request),
+                conpadaut = request.Conpadaut ?? "",
+                conchasis = ResolverChasis(request),
+                conclaaut = request.Conclaaut ?? 0,
+                condedaut = request.Condedaut ?? 0,
+                conresciv = request.Conresciv ?? 0,
+                conbonnsin = request.Conbonnsin ?? 0,
+                conbonant = request.Conbonant ?? 0,
+                concaraut = request.Concaraut ?? 0,
+                concesnom = request.Concesnom ?? "",
+                concestel = request.Concestel ?? "",
+                concapaut = request.Concapaut ?? 0,
+                conpremio = request.Conpremio,
+                contot = ResolverTotal(request),
+                moncod = ResolverMoneda(request),
+                concuo = ResolverCuotas(request),
                 concomcorr = 0,
-                flocod = 0,
-                conimp = 0,
+
+                // ✅ CAMPOS CON MAPEO DINÁMICO ASYNC
+                catdsc = await ResolverCategoria(request),
+                desdsc = await ResolverDestino(request),
+                caldsc = await ResolverCalidad(request),
+                combustibles = await ResolverCombustible(request),
+
+                flocod = request.Flocod ?? 0,
+                concar = ResolverCertificado(request),
+                conpol = request.Conpol ?? "",
+                conend = request.Conend ?? "0",
+
+                confchdes = FormatearFecha(request.Confchdes) ?? nowLocal.ToString("yyyy-MM-dd"),
+                confchhas = FormatearFecha(request.Confchhas) ?? nowLocal.AddYears(1).ToString("yyyy-MM-dd"),
+
+                conimp = request.Conimp ?? request.Conpremio,
                 connroser = 0,
+                rieres = "",
+                conges = request.Conges ?? "Procesado automáticamente",
+                congesti = ResolverTipoGestion(request),
+                congesfi = FormatearFecha(request.Congesfi) ?? nowLocal.ToString("yyyy-MM-dd"),
+                congeses = ResolverEstadoGestion(request),
+                convig = ResolverEstadoPoliza(request), // ✅ CORREGIDO PARA QUE USE VIG
                 concan = 0,
+                congrucon = "",
+                contipoemp = "",
+                conmatpar = "",
+                conmatte = "",
                 concapla = 0,
                 conflota = 0,
                 condednum = 0,
+                consta = ResolverFormaPago(request),
+
+                contra = ResolverTramite(request),
+                conconf = "",
                 conpadre = 0,
+
+                confchcan = nowLocal.ToString("yyyy-MM-dd"),
+                concaucan = "",
                 conobjtot = 0,
+                contpoact = "",
+                conesp = "",
                 convalacr = 0,
                 convallet = 0,
+                condecram = "",
+                conmedtra = "",
+                conviades = "",
+                conviaa = "",
+                conviaenb = "",
                 conviakb = 0,
                 conviakn = 0,
+                conviatra = "",
                 conviacos = 0,
                 conviafle = 0,
                 dptnom = 0,
@@ -1586,28 +1351,52 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 condecpri = 0,
                 condecpro = 0,
                 condecptj = 0,
+                conubi = "",
+                concaudsc = "",
+                conincuno = "",
                 conviagas = 0,
                 conviarec = 0,
                 conviapri = 0,
                 linobs = 0,
+                concomdes = nowLocal.ToString("yyyy-MM-dd"),
+                concalcom = "1",
                 tpoconcod = 0,
                 tpovivcod = 0,
                 tporiecod = 0,
                 modcod = 0,
                 concapase = 0,
                 conpricap = 0,
+                tposegdsc = ResolverCobertura(request),
                 conriecod = 0,
+                conriedsc = "",
                 conrecfin = 0,
                 conimprf = 0,
                 conafesin = 0,
                 conautcor = 0,
                 conlinrie = 0,
                 conconesp = 0,
+                conlimnav = "",
+                contpocob = "",
+                connomemb = "",
+                contpoemb = "",
                 lincarta = 0,
                 cancecod = 0,
                 concomotr = 0,
-                conviamon = 0,
+                conautcome = "",
+                conviafac = "",
+                conviamon = ResolverMoneda(request),
+                conviatpo = "1",
+                connrorc = "",
+                condedurc = "",
+                lininclu = 0,
+                linexclu = 0,
+                concapret = 0,
+                forpagvid = request.Forpagvid ?? "1",
+                clinom = ResolverNombreCliente(request),
+                tarcod = request.Tarcod ?? 0,
+                corrnom = request.Corrnom ?? 0,
                 connroint = 0,
+                conautnd = "",
                 conpadend = 0,
                 contotpri = 0,
                 padreaux = 0,
@@ -1615,88 +1404,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 conflotimp = 0,
                 conflottotal = 0,
                 conflotsaldo = 0,
-                otrcorrcod = 0,
-                clipcupfia = 0,
-                clinro1 = 0,
-                consumsal = 0,
-                com_sub_corr = 0,
-                tipos_de_alarma = 0,
-                coberturas_bicicleta = 0,
-                com_bro = 0,
-                com_bo = 0,
-                contotant = 0,
-                motivos_no_renovacion = 0,
-                max_aereo = 0,
-                max_mar = 0,
-                max_terrestre = 0,
-                tasa = 0,
-                cat_cli = 0,
-                comcod1 = 0,
-                comcod2 = 0,
-                pagos_efectivo = 0,
-                productos_de_vida = 0,
-                app_id = 0,
-                asignado = 0,
-                conidpad = 0,
-                tarcod = 0,
-                corrnom = 0,
-
-                // ✅ CAMPOS BOOLEAN REQUERIDOS
-                conautcort = true,
-                leer = true,
-                enviado = true,
-                sob_recib = true,
-                leer_obs = true,
-                tiene_alarma = false,
-                aereo = false,
-                maritimo = false,
-                terrestre = true,
-                importacion = false,
-                exportacion = false,
-                offshore = false,
-                transito_interno = false,
-                llamar = false,
-                granizo = false,
-                var_ubi = false,
-                mis_rie = false,
-
-                // ✅ CAMPOS STRING VACÍOS REQUERIDOS
-                conend = "",
-                rieres = "",
-                congesti = "",
-                congeses = "",
-                congrucon = "",
-                contipoemp = "",
-                conmatpar = "",
-                conmatte = "",
-                consta = "",
-                contra = "",
-                conconf = "",
-                concaucan = "",
-                contpoact = "",
-                conesp = "",
-                condecram = "",
-                conmedtra = "",
-                conviades = "",
-                conviaa = "",
-                conviaenb = "",
-                conviatra = "",
-                conubi = "",
-                concaudsc = "",
-                conincuno = "",
-                concalcom = "",
-                conriedsc = "",
-                conlimnav = "",
-                contpocob = "",
-                connomemb = "",
-                contpoemb = "",
-                conautcome = "",
-                conviafac = "",
-                conviatpo = "",
-                connrorc = "",
-                condedurc = "",
-                conautnd = "",
                 conaccicer = "",
+                concerfin = nowLocal.ToString("yyyy-MM-dd"),
                 condetemb = "",
                 conclaemb = "",
                 confabemb = "",
@@ -1705,467 +1414,1211 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 convelemb = "",
                 conmatriemb = "",
                 conptoemb = "",
+                otrcorrcod = 0,
                 condeta = "",
+                observaciones = ResolverObservaciones(request),
+                clipcupfia = 0,
                 conclieda = "",
                 condecrea = "",
                 condecaju = "",
+                conviatot = 0,
                 contpoemp = "",
                 congaran = "",
                 congarantel = "",
                 mot_no_ren = "",
                 condetrc = "",
+                conautcort = false,
                 condetail = "",
+                clinro1 = request.Clinro1 ?? 0,
+                consumsal = 0,
                 conespbon = "",
+                leer = false,
+                enviado = false,
+                sob_recib = false,
+                leer_obs = false,
                 sublistas = "",
-                com_alias = "",
-                clausula = "",
-                facturacion = "",
-                coning = "",
+                com_sub_corr = 0,
+                tipos_de_alarma = 0,
+                tiene_alarma = false,
+                coberturas_bicicleta = 0,
+                com_bro = 0,
+                com_bo = 0,
+                contotant = 0,
+                cotizacion = "",
+                motivos_no_renovacion = 0,
+                com_alias = request.Com_alias ?? "",
+                ramo = request.Ramo ?? "AUTOMOVILES",
+                clausula = "1",
+                aereo = false,
+                maritimo = false,
+                terrestre = true,
+                max_aereo = 0,
+                max_mar = 0,
+                max_terrestre = 0,
+                tasa = 0,
+                facturacion = "1",
+                importacion = false,
+                exportacion = false,
+                offshore = false,
+                transito_interno = false,
+                coning = GetUsuarioIngreso(),
+                cat_cli = 0,
+                llamar = false,
+                granizo = false,
                 idorden = "",
+                var_ubi = false,
+                mis_rie = false,
+                ingresado = now.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                last_update = now.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                comcod1 = 0,
+                comcod2 = 0,
+                pagos_efectivo = 0,
+                productos_de_vida = 0,
+                app_id = 1,
+                update_date = nowLocal.ToString("yyyy-MM-dd"),
                 gestion = "",
-
-                // ✅ CAMPOS DE FECHA CON VALORES POR DEFECTO
-                congesfi = DateTime.Now.ToString("yyyy-MM-dd"),
-                confchcan = DateTime.Now.ToString("yyyy-MM-dd"),
-                concomdes = DateTime.Now.ToString("yyyy-MM-dd"),
-                concerfin = DateTime.Now.ToString("yyyy-MM-dd"),
-
-                // ✅ TIMESTAMPS
-                ingresado = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-                last_update = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-                update_date = DateTime.Now.ToString("yyyy-MM-dd")
+                asignado = 0,
+                conidpad = 0
             };
 
             return velneoContrato;
         }
 
-        // ====================================================
-        // MÉTODOS AUXILIARES PARA MAPEO ESPECÍFICO
-        // ====================================================
+        #region MÉTODOS DE RESOLUCIÓN DE CAMPOS
+
+        private int ResolverSeccion(PolizaCreateRequest request)
+    {
+        return request.Seccod > 0 ? request.Seccod : request.SeccionId ?? 0;
+    }
+
+    private string ResolverDireccion(PolizaCreateRequest request)
+    {
+        return request.Condom ?? request.Direccion ?? "";
+    }
+
+    private string ResolverMarca(PolizaCreateRequest request)
+    {
+        if (!string.IsNullOrEmpty(request.Conmaraut))
+            return request.Conmaraut;
+
+        if (!string.IsNullOrEmpty(request.Vehiculo))
+            return request.Vehiculo;
+
+        if (!string.IsNullOrEmpty(request.Marca) && !string.IsNullOrEmpty(request.Modelo))
+            return $"{request.Marca} {request.Modelo}".Trim();
+
+        return request.Marca ?? "";
+    }
+
+    private int ResolverAnio(PolizaCreateRequest request)
+    {
+        if (request.Conanioaut.HasValue && request.Conanioaut > 0)
+            return request.Conanioaut.Value;
+
+        if (request.Anio.HasValue && request.Anio > 0)
+            return request.Anio.Value;
+
+        return DateTime.Now.Year;
+    }
+
+    private string ResolverMatricula(PolizaCreateRequest request)
+    {
+        return request.Conmataut ?? request.Matricula ?? "";
+    }
+
+    private string ResolverMotor(PolizaCreateRequest request)
+    {
+        return request.Conmotor ?? request.Motor ?? "";
+    }
+
+    private string ResolverChasis(PolizaCreateRequest request)
+    {
+        return request.Conchasis ?? request.Chasis ?? "";
+    }
+
+    private decimal ResolverTotal(PolizaCreateRequest request)
+    {
+        if (request.Contot.HasValue && request.Contot > 0)
+            return request.Contot.Value;
+
+        if (request.PremioTotal.HasValue && request.PremioTotal > 0)
+            return request.PremioTotal.Value;
+
+        return request.Conpremio;
+    }
+
+    private int ResolverMoneda(PolizaCreateRequest request)
+    {
+        if (request.Moncod.HasValue && request.Moncod > 0)
+            return request.Moncod.Value;
+
+        return request.Moneda?.ToUpperInvariant() switch
+        {
+            "UYU" => 1,
+            "USD" => 2,
+            "UI" => 3,
+            _ => 1
+        };
+    }
+    private async Task<int> ResolverCategoria(PolizaCreateRequest request)
+    {
+        try
+        {
+            // ✅ PRIORIDAD 1: Campo directo catdsc (código numérico)
+            if (request.Catdsc.HasValue && request.Catdsc.Value > 0)
+            {
+                _logger.LogInformation("📋 Usando categoría directa: código {Codigo}", request.Catdsc.Value);
+                return request.Catdsc.Value;
+            }
+    
+            // ✅ PRIORIDAD 2: Campo CategoriaId
+            if (request.CategoriaId.HasValue && request.CategoriaId.Value > 0)
+            {
+                _logger.LogInformation("📋 Usando categoría desde CategoriaId: código {Codigo}", request.CategoriaId.Value);
+                return request.CategoriaId.Value;
+            }
+    
+            // ✅ PRIORIDAD 3: Mapear desde texto usando API de Velneo
+            if (!string.IsNullOrEmpty(request.Categoria))
+            {
+                var categoriaCode = await MapearCategoriaConVelneo(request.Categoria);
+                if (categoriaCode > 0)
+                {
+                    _logger.LogInformation("📋 Mapeando categoría '{Categoria}' a código {Codigo} desde Velneo", request.Categoria, categoriaCode);
+                    return categoriaCode;
+                }
+            }
+    
+            // ✅ PRIORIDAD 4: Inferir desde vehículo y mapear con Velneo
+            if (!string.IsNullOrEmpty(request.Conmaraut) || !string.IsNullOrEmpty(request.Marca))
+            {
+                var categoriaInferida = InferirCategoriaDesdeVehiculo(request.Conmaraut ?? request.Marca ?? "", request.Vehiculo);
+                var categoriaCode = await MapearCategoriaConVelneo(categoriaInferida);
+                if (categoriaCode > 0)
+                {
+                    _logger.LogInformation("📋 Infiriendo categoría '{Categoria}' desde vehículo y mapeando a código {Codigo}", categoriaInferida, categoriaCode);
+                    return categoriaCode;
+                }
+            }
+    
+            // ✅ DEFAULT: Buscar "Automóvil" en Velneo
+            var defaultCode = await MapearCategoriaConVelneo("AUTOMOVIL");
+            _logger.LogWarning("⚠️ Usando categoría default 'AUTOMOVIL': código {Codigo}", defaultCode);
+            return defaultCode > 0 ? defaultCode : 20; // Fallback al código que vimos en tu lista
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ Error resolviendo categoría, usando fallback");
+            return 20; // Código de "Automóvil" según tu lista
+        }
+    }
+
+        private async Task<int> ResolverDestino(PolizaCreateRequest request)
+        {
+            try
+            {
+                // ✅ PRIORIDAD 1: Campo directo desdsc (código numérico)
+                if (request.Desdsc.HasValue && request.Desdsc.Value > 0)
+                {
+                    _logger.LogInformation("📋 Usando destino directo: código {Codigo}", request.Desdsc.Value);
+                    return request.Desdsc.Value;
+                }
+
+                // ✅ PRIORIDAD 2: Campo DestinoId
+                if (request.DestinoId.HasValue && request.DestinoId.Value > 0)
+                {
+                    _logger.LogInformation("📋 Usando destino desde DestinoId: código {Codigo}", request.DestinoId.Value);
+                    return request.DestinoId.Value;
+                }
+
+                // ✅ PRIORIDAD 3: Mapear desde texto usando API de Velneo
+                if (!string.IsNullOrEmpty(request.Destino))
+                {
+                    var destinoCode = await MapearDestinoConVelneo(request.Destino);
+                    if (destinoCode > 0)
+                    {
+                        _logger.LogInformation("📋 Mapeando destino '{Destino}' a código {Codigo} desde Velneo", request.Destino, destinoCode);
+                        return destinoCode;
+                    }
+                }
+
+                // ✅ PRIORIDAD 4: Mapear desde uso
+                if (!string.IsNullOrEmpty(request.Uso))
+                {
+                    var destinoCode = await MapearDestinoConVelneo(request.Uso);
+                    if (destinoCode > 0)
+                    {
+                        _logger.LogInformation("📋 Mapeando uso '{Uso}' a destino código {Codigo}", request.Uso, destinoCode);
+                        return destinoCode;
+                    }
+                }
+
+                // ✅ DEFAULT: Buscar "PARTICULAR" en Velneo
+                var defaultCode = await MapearDestinoConVelneo("PARTICULAR");
+                _logger.LogWarning("⚠️ Usando destino default 'PARTICULAR': código {Codigo}", defaultCode);
+                return defaultCode > 0 ? defaultCode : 1; // Fallback al código que vimos en tu lista
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error resolviendo destino, usando fallback");
+                return 1; // Código de "PARTICULAR" según tu lista
+            }
+        }
+
+        private async Task<string> ResolverCombustible(PolizaCreateRequest request)
+        {
+            try
+            {
+                // ✅ PRIORIDAD 1: Campo directo Combustible
+                if (!string.IsNullOrEmpty(request.Combustible))
+                {
+                    var combustibleCode = await MapearCombustibleConVelneo(request.Combustible);
+                    if (!string.IsNullOrEmpty(combustibleCode))
+                    {
+                        _logger.LogInformation("📋 Mapeando combustible '{Combustible}' a código '{Codigo}' desde Velneo", request.Combustible, combustibleCode);
+                        return combustibleCode;
+                    }
+                }
+
+                // ✅ PRIORIDAD 2: Inferir desde marca/modelo y mapear con Velneo
+                var marca = request.Conmaraut ?? request.Marca ?? "";
+                var modelo = request.Modelo ?? "";
+
+                if (!string.IsNullOrEmpty(marca))
+                {
+                    var combustibleInferido = InferirCombustibleDesdeVehiculo(marca, modelo);
+                    var combustibleCode = await MapearCombustibleConVelneo(combustibleInferido);
+                    if (!string.IsNullOrEmpty(combustibleCode))
+                    {
+                        _logger.LogInformation("📋 Infiriendo combustible '{Combustible}' desde vehículo y mapeando a código '{Codigo}'", combustibleInferido, combustibleCode);
+                        return combustibleCode;
+                    }
+                }
+
+                // ✅ DEFAULT: Buscar "GASOLINA" en Velneo
+                var defaultCode = await MapearCombustibleConVelneo("GASOLINA");
+                _logger.LogWarning("⚠️ Usando combustible default 'GASOLINA': código '{Codigo}'", defaultCode);
+                return !string.IsNullOrEmpty(defaultCode) ? defaultCode : "GAS"; // Fallback al código que vimos en tu lista
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error resolviendo combustible, usando fallback");
+                return "GAS"; // Código de "GASOLINA" según tu lista
+            }
+        }
+
+        private int ResolverCuotas(PolizaCreateRequest request)
+        {
+            // ✅ PRIORIDAD 1: Campo directo concuo
+            if (request.Concuo.HasValue && request.Concuo.Value > 0)
+            {
+                _logger.LogInformation("📋 Usando cuotas directo: {Cuotas}", request.Concuo.Value);
+                return request.Concuo.Value;
+            }
+
+            // ✅ PRIORIDAD 2: Campo CantidadCuotas
+            if (request.CantidadCuotas.HasValue && request.CantidadCuotas.Value > 0)
+            {
+                _logger.LogInformation("📋 Usando cuotas desde CantidadCuotas: {Cuotas}", request.CantidadCuotas.Value);
+                return request.CantidadCuotas.Value;
+            }
+
+            // ✅ PRIORIDAD 3: Inferir desde forma de pago
+            var formaPago = request.Consta ?? request.FormaPago ?? "";
+            var cuotasInferidas = InferirCuotasDesdeFormaPago(formaPago);
+
+            if (cuotasInferidas > 0)
+            {
+                _logger.LogInformation("📋 Infiriendo cuotas desde forma de pago '{FormaPago}': {Cuotas}", formaPago, cuotasInferidas);
+                return cuotasInferidas;
+            }
+
+            // ✅ PRIORIDAD 4: Calcular desde montos si hay valor de cuota
+            if (request.ValorCuota.HasValue && request.ValorCuota.Value > 0 && request.Contot.HasValue && request.Contot.Value > 0)
+            {
+                var cuotasCalculadas = (int)Math.Ceiling(request.Contot.Value / request.ValorCuota.Value);
+                cuotasCalculadas = Math.Min(cuotasCalculadas, 12); // Máximo 12 cuotas
+
+                _logger.LogInformation("📋 Calculando cuotas desde total/valor cuota: {Total}/{ValorCuota} = {Cuotas}",
+                    request.Contot.Value, request.ValorCuota.Value, cuotasCalculadas);
+                return cuotasCalculadas;
+            }
+
+            // ✅ DEFAULT: 1 cuota (contado)
+            _logger.LogInformation("📋 Usando cuotas default: 1 (contado)");
+            return 1;
+        }
+
+        private async Task<int> ResolverCalidad(PolizaCreateRequest request)
+        {
+            try
+            {
+                // ✅ PRIORIDAD 1: Campo directo caldsc (código numérico)
+                if (request.Caldsc.HasValue && request.Caldsc.Value > 0)
+                {
+                    _logger.LogInformation("📋 Usando calidad directa: código {Codigo}", request.Caldsc.Value);
+                    return request.Caldsc.Value;
+                }
+
+                // ✅ PRIORIDAD 2: Campo CalidadId
+                if (request.CalidadId.HasValue && request.CalidadId.Value > 0)
+                {
+                    _logger.LogInformation("📋 Usando calidad desde CalidadId: código {Codigo}", request.CalidadId.Value);
+                    return request.CalidadId.Value;
+                }
+
+                // ✅ PRIORIDAD 3: Mapear desde texto usando API de Velneo
+                if (!string.IsNullOrEmpty(request.Calidad))
+                {
+                    var calidadCode = await MapearCalidadConVelneo(request.Calidad);
+                    if (calidadCode > 0)
+                    {
+                        _logger.LogInformation("📋 Mapeando calidad '{Calidad}' a código {Codigo} desde Velneo", request.Calidad, calidadCode);
+                        return calidadCode;
+                    }
+                }
+
+                // ✅ DEFAULT: Buscar "PROPIETARIO" en Velneo (parece ser el más común según tu lista)
+                var defaultCode = await MapearCalidadConVelneo("PROPIETARIO");
+                _logger.LogWarning("⚠️ Usando calidad default 'PROPIETARIO': código {Codigo}", defaultCode);
+                return defaultCode > 0 ? defaultCode : 2; // Fallback al código que vimos en tu lista
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error resolviendo calidad, usando fallback");
+                return 2; // Código de "PROPIETARIO" según tu lista
+            }
+        }
+
+
+        private string ResolverCertificado(PolizaCreateRequest request)
+    {
+        return request.Concar ?? request.Certificado ?? "0";
+    }
+
+    private string ResolverTipoGestion(PolizaCreateRequest request)
+    {
+        return request.Congesti ?? "1";
+    }
+
+    private string ResolverEstadoGestion(PolizaCreateRequest request)
+    {
+        if (!string.IsNullOrEmpty(request.Congeses))
+            return request.Congeses;
+
+        if (!string.IsNullOrEmpty(request.Estado))
+            return MapearEstado(request.Estado);
+
+        return "1";
+    }
+
+        private string ResolverEstadoPoliza(PolizaCreateRequest request)
+        {
+            // ✅ PRIORIDAD 1: Campo directo
+            if (!string.IsNullOrEmpty(request.Convig))
+            {
+                _logger.LogInformation("📋 Usando estado póliza directo: '{Estado}'", request.Convig);
+                return request.Convig;
+            }
+
+            // ✅ PRIORIDAD 2: Campo EstadoPoliza
+            if (!string.IsNullOrEmpty(request.EstadoPoliza))
+            {
+                var estadoMapeado = MapearEstadoPolizaTextoACodigo(request.EstadoPoliza);
+                _logger.LogInformation("📋 Mapeando estado póliza '{Estado}' a código '{Codigo}'", request.EstadoPoliza, estadoMapeado);
+                return estadoMapeado;
+            }
+
+            // ✅ DEFAULT: Vigente
+            _logger.LogInformation("📋 Usando estado póliza default: VIG (Vigente)");
+            return "VIG";
+        }
+
+        private string ResolverFormaPago(PolizaCreateRequest request)
+    {
+        if (!string.IsNullOrEmpty(request.Consta))
+            return request.Consta;
+
+        if (!string.IsNullOrEmpty(request.FormaPago))
+            return MapearFormaPago(request.FormaPago);
+
+        return "1";
+    }
+
+    private string ResolverTramite(PolizaCreateRequest request)
+    {
+        if (!string.IsNullOrEmpty(request.Contra))
+            return request.Contra;
+
+        if (!string.IsNullOrEmpty(request.Tramite))
+            return MapearTramite(request.Tramite);
+
+        return "Nuevo";
+    }
+
+    private string ResolverCobertura(PolizaCreateRequest request)
+    {
+        return request.Tposegdsc ?? request.Cobertura ?? "Responsabilidad Civil";
+    }
+
+    private string ResolverNombreCliente(PolizaCreateRequest request)
+    {
+        return request.Clinom ?? request.Asegurado ?? "";
+    }
+
+    private string ResolverObservaciones(PolizaCreateRequest request)
+    {
+        var obs = new List<string>();
+
+        if (!string.IsNullOrEmpty(request.Observaciones))
+            obs.Add(request.Observaciones);
+
+        if (request.ProcesadoConIA)
+            obs.Add("Procesado automáticamente con Azure AI");
+
+        return string.Join(". ", obs);
+    }
+
+        private string GetUsuarioIngreso()
+        {
+        return "Sistema Automático";
+        }
+
+        // ============================================================================
+        // 🗺️ MÉTODOS DE MAPEO DE TEXTO A CÓDIGO
+        // ============================================================================
+
+        private async Task<int> MapearCategoriaConVelneo(string categoriaTexto)
+        {
+            try
+            {
+                var categorias = await GetAllCategoriasAsync();
+                var categoria = BuscarCategoriaPorTexto(categorias, categoriaTexto);
+                return categoria?.Id ?? 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error obteniendo categorías de Velneo");
+                return 0;
+            }
+        }
+
+        private async Task<int> MapearDestinoConVelneo(string destinoTexto)
+        {
+            try
+            {
+                var destinos = await GetAllDestinosAsync();
+                var destino = BuscarDestinoPorTexto(destinos, destinoTexto);
+                return destino?.Id ?? 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error obteniendo destinos de Velneo");
+                return 0;
+            }
+        }
+
+        private async Task<string> MapearCombustibleConVelneo(string combustibleTexto)
+        {
+            try
+            {
+                var combustibles = await GetAllCombustiblesAsync();
+                var combustible = BuscarCombustiblePorTexto(combustibles, combustibleTexto);
+                return combustible?.Id ?? "";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error obteniendo combustibles de Velneo");
+                return "";
+            }
+        }
+
+        private async Task<int> MapearCalidadConVelneo(string calidadTexto)
+        {
+            try
+            {
+                var calidades = await GetAllCalidadesAsync();
+                var calidad = BuscarCalidadPorTexto(calidades, calidadTexto);
+                return calidad?.Id ?? 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error obteniendo calidades de Velneo");
+                return 0;
+            }
+        }
+
+        private static DestinoDto? BuscarDestinoPorTexto(IEnumerable<DestinoDto> destinos, string texto)
+        {
+            var textoUpper = texto.ToUpperInvariant().Trim();
+
+            // Búsqueda exacta
+            var exacta = destinos.FirstOrDefault(d => d.Desnom?.ToUpperInvariant() == textoUpper);
+            if (exacta != null) return exacta;
+
+            // Búsqueda por palabras clave
+            return textoUpper switch
+            {
+                "PARTICULAR" or "PERSONAL" or "PRIVADO" => destinos.FirstOrDefault(d => d.Desnom?.Contains("PARTICULAR") == true),
+                "COMERCIAL" or "TRABAJO" or "LABORAL" => destinos.FirstOrDefault(d => d.Desnom?.Contains("TRABAJO") == true),
+                "UBER" => destinos.FirstOrDefault(d => d.Desnom?.Contains("UBER") == true),
+                _ => destinos.FirstOrDefault(d => d.Desnom?.ToUpperInvariant().Contains(textoUpper) == true)
+            };
+        }
+
+        private static CategoriaDto? BuscarCategoriaPorTexto(IEnumerable<CategoriaDto> categorias, string texto)
+        {
+            var textoUpper = texto.ToUpperInvariant().Trim();
+
+            // Búsqueda exacta
+            var exacta = categorias.FirstOrDefault(c => c.Catdsc?.ToUpperInvariant() == textoUpper);
+            if (exacta != null) return exacta;
+
+            // Búsqueda por palabras clave
+            var porPalabra = categorias.FirstOrDefault(c =>
+                c.Catdsc?.ToUpperInvariant().Contains(textoUpper) == true);
+            if (porPalabra != null) return porPalabra;
+
+            // Mapeo específico basado en tu lista
+            return textoUpper switch
+            {
+                "AUTOMOVIL" or "AUTO" or "COCHE" => categorias.FirstOrDefault(c => c.Catdsc?.Contains("Automóvil") == true),
+                "CAMIONETA" or "PICKUP" => categorias.FirstOrDefault(c => c.Catdsc?.Contains("Camioneta") == true || c.Catdsc?.Contains("Pick-Up") == true),
+                "MOTO" or "MOTOCICLETA" => categorias.FirstOrDefault(c => c.Catdsc?.Contains("MOTOS") == true),
+                "JEEP" or "SUV" => categorias.FirstOrDefault(c => c.Catdsc?.Contains("Jeeps") == true),
+                _ => null
+            };
+        }
+
+        private static CombustibleDto? BuscarCombustiblePorTexto(IEnumerable<CombustibleDto> combustibles, string texto)
+        {
+            var textoUpper = texto.ToUpperInvariant().Trim();
+
+            // Búsqueda exacta
+            var exacta = combustibles.FirstOrDefault(c => c.Name?.ToUpperInvariant() == textoUpper);
+            if (exacta != null) return exacta;
+
+            // Búsqueda por palabras clave
+            return textoUpper switch
+            {
+                "NAFTA" or "GASOLINA" or "BENZINA" => combustibles.FirstOrDefault(c => c.Name?.Contains("GASOLINA") == true),
+                "DIESEL" or "GASOIL" or "DIS" => combustibles.FirstOrDefault(c => c.Name?.Contains("DISEL") == true),
+                "ELECTRICO" or "ELECTRIC" => combustibles.FirstOrDefault(c => c.Name?.Contains("ELECTRICOS") == true),
+                "HIBRIDO" or "HYBRID" => combustibles.FirstOrDefault(c => c.Name?.Contains("HYBRIDO") == true),
+                _ => combustibles.FirstOrDefault(c => c.Name?.ToUpperInvariant().Contains(textoUpper) == true)
+            };
+        }
+
+        private static CalidadDto? BuscarCalidadPorTexto(IEnumerable<CalidadDto> calidades, string texto)
+        {
+            var textoUpper = texto.ToUpperInvariant().Trim();
+
+            // Búsqueda exacta
+            var exacta = calidades.FirstOrDefault(c => c.Caldsc?.ToUpperInvariant() == textoUpper);
+            if (exacta != null) return exacta;
+
+            // Mapeo específico basado en tu lista
+            return textoUpper switch
+            {
+                "PROPIETARIO" or "DUEÑO" or "OWNER" => calidades.FirstOrDefault(c => c.Caldsc?.Contains("PROPIETARIO") == true),
+                "USUARIO" or "USER" => calidades.FirstOrDefault(c => c.Caldsc?.Contains("USUARIO") == true),
+                "ARRENDATARIO" or "INQUILINO" => calidades.FirstOrDefault(c => c.Caldsc?.Contains("ARRENDATARIO") == true),
+                "COMPRADOR" => calidades.FirstOrDefault(c => c.Caldsc?.Contains("COMPRADOR") == true),
+                _ => calidades.FirstOrDefault(c => c.Caldsc?.ToUpperInvariant().Contains(textoUpper) == true)
+            };
+        }
+
+        // ============================================================================
+        // 🧠 MÉTODOS DE INFERENCIA INTELIGENTE
+        // ============================================================================
+
+        private static string InferirCategoriaDesdeVehiculo(string marca, string? vehiculoCompleto)
+        {
+            var marcaUpper = marca.ToUpperInvariant();
+            var vehiculoUpper = (vehiculoCompleto ?? "").ToUpperInvariant();
+
+            if (vehiculoUpper.Contains("PICKUP") || vehiculoUpper.Contains("CAMIONETA") ||
+                vehiculoUpper.Contains("SUV") || vehiculoUpper.Contains("4X4") ||
+                vehiculoUpper.Contains("MASTER") || vehiculoUpper.Contains("TRANSIT"))
+                return "CAMIONETA";
+
+            if (vehiculoUpper.Contains("MOTO") || vehiculoUpper.Contains("SCOOTER"))
+                return "MOTO";
+
+            if (vehiculoUpper.Contains("CAMION") || vehiculoUpper.Contains("TRUCK"))
+                return "CAMION";
+
+            if (vehiculoUpper.Contains("JEEP"))
+                return "JEEP";
+
+            return "AUTOMOVIL"; // Default
+        }
+
+        private static string InferirCombustibleDesdeVehiculo(string marca, string modelo)
+        {
+            var marcaUpper = marca.ToUpperInvariant();
+            var modeloUpper = modelo.ToUpperInvariant();
+
+            if (modeloUpper.Contains("DIESEL") || modeloUpper.Contains("TDI") ||
+                modeloUpper.Contains("HDI") || modeloUpper.Contains("CDI") ||
+                modeloUpper.Contains("MASTER") || modeloUpper.Contains("TRANSIT"))
+                return "DIESEL";
+
+            if (modeloUpper.Contains("ELECTRIC") || modeloUpper.Contains("EV") ||
+                marcaUpper == "TESLA")
+                return "ELECTRICO";
+
+            if (modeloUpper.Contains("HYBRID") || modeloUpper.Contains("HIBRIDO"))
+                return "HIBRIDO";
+
+            return "GASOLINA"; // Default
+        }
+
+        private static string MapearEstadoPolizaTextoACodigo(string estadoTexto)
+        {
+            var texto = estadoTexto.ToUpperInvariant().Trim();
+
+            return texto switch
+            {
+                "VIGENTE" or "VIG" or "ACTIVA" or "ACTIVO" => "VIG",
+                "VENCIDA" or "VEN" or "VENCIDO" => "VEN",
+                "CANCELADA" or "CAN" or "CANCELADO" => "CAN",
+                "ENDOSADA" or "END" or "ENDOSADO" => "END",
+                "ANTECEDENTE" or "ANT" => "ANT",
+                _ => "VIG" // DEFAULT: Vigente
+            };
+        }
+
+        private static int InferirCuotasDesdeFormaPago(string formaPago)
+        {
+            if (string.IsNullOrEmpty(formaPago))
+                return 0;
+
+            var formaPagoUpper = formaPago.ToUpperInvariant().Trim();
+
+            return formaPagoUpper switch
+            {
+                // Contado
+                "CONTADO" or "1" or "EFECTIVO" or "CASH" => 1,
+
+                // Tarjeta (típicamente se financian)
+                "TARJETA" or "TARJETA DE CREDITO" or "TARJETA DE CRÉDITO" or "T" => 6,
+                "CREDIT CARD" => 6,
+
+                // Débito automático (típicamente financiado)
+                "DEBITO" or "DEBITO AUTOMATICO" or "DÉBITO AUTOMÁTICO" => 10,
+                "DEBIT" => 10,
+
+                // Financiado
+                "FINANCIADO" or "2" or "CUOTAS" => 12,
+                "FINANCING" => 12,
+
+                // Cheque (típicamente contado o pocas cuotas)
+                "CHEQUE" => 3,
+
+                // Transferencia (típicamente contado)
+                "TRANSFERENCIA" or "WIRE" => 1,
+
+                _ => 0 // No se puede inferir
+            };
+        }
+
+        #endregion
+
+        #region MÉTODOS DE MAPEO ESPECÍFICO
 
         private static string MapearTramite(string? tramite)
+    {
+        return tramite?.ToUpperInvariant() switch
         {
-            return tramite?.ToUpperInvariant() switch
-            {
-                "NUEVO" => "N",
-                "RENOVACION" => "R",
-                "RENOVACIÓN" => "R",
-                "ENDOSO" => "E",
-                "ANULACION" => "A",
-                "ANULACIÓN" => "A",
-                _ => "N" // Default: Nuevo
-            };
+            "NUEVO" => "Nuevo",
+            "RENOVACION" => "Renovacion",
+            "RENOVACIÓN" => "Renovacion",
+            "ENDOSO" => "Endoso",
+            "ANULACION" => "Cancelacion",
+            "ANULACIÓN" => "Cancelacion",
+            "CAMBIO" => "Cambio",
+            _ => "Nuevo"
+        };
+    }
+
+    private static string MapearEstadoPoliza(string? estado)
+    {
+        return estado?.ToUpperInvariant() switch
+        {
+            "VIGENTE" => "VIG",
+            "VENCIDA" => "VEN",
+            "VENCIDO" => "VEN",
+            "ENDOSADA" => "END",
+            "ENDOSADO" => "END",
+            "CANCELADA" => "CAN",
+            "CANCELADO" => "CAN",
+            "ANULADA" => "CAN",
+            "ANULADO" => "CAN",
+            "ANTECEDENTE" => "ANT",
+            _ => "VIG"
+        };
+    }
+
+    private static string MapearFormaPago(string? formaPago)
+    {
+        return formaPago?.ToUpperInvariant() switch
+        {
+            "CONTADO" => "1",
+            "TARJETA" => "2",
+            "TARJETA DE CREDITO" => "2",
+            "TARJETA DE CRÉDITO" => "2",
+            "DEBITO" => "3",
+            "DEBITO AUTOMATICO" => "3",
+            "DÉBITO AUTOMÁTICO" => "3",
+            "CUOTAS" => "4",
+            _ => "1"
+        };
+    }
+
+    private static string MapearEstado(string? estado)
+    {
+        return estado?.ToUpperInvariant() switch
+        {
+            "PENDIENTE" => "1",
+            "PENDIENTE C/PLAZO" => "2",
+            "PENDIENTE S/PLAZO" => "3",
+            "TERMINADO" => "4",
+            "EN PROCESO" => "5",
+            "MODIFICACIONES" => "6",
+            "EN EMISIÓN" => "7",
+            "ENVIADO A CIA" => "8",
+            "ENVIADO A AGENTE MAIL" => "9",
+            "DEVUELTO A EJECUTIVO" => "10",
+            "DECLINADO" => "11",
+            _ => "1"
+        };
+    }
+
+    #endregion
+
+    #region MÉTODOS AUXILIARES
+
+    private void ValidarCamposRequeridos(PolizaCreateRequest request)
+    {
+        var errores = new List<string>();
+
+        if (request.Comcod <= 0)
+            errores.Add("Código de compañía debe ser mayor a 0");
+
+        if (request.Clinro <= 0)
+            errores.Add("Código de cliente debe ser mayor a 0");
+
+        if (string.IsNullOrWhiteSpace(request.Conpol))
+            errores.Add("Número de póliza es requerido");
+
+        if (string.IsNullOrWhiteSpace(request.Confchdes))
+            errores.Add("Fecha de inicio es requerida");
+
+        if (string.IsNullOrWhiteSpace(request.Confchhas))
+            errores.Add("Fecha de fin es requerida");
+
+        if (request.Conpremio <= 0)
+            errores.Add("Premio debe ser mayor a 0");
+
+        if (string.IsNullOrWhiteSpace(request.Asegurado))
+            errores.Add("Nombre del asegurado es requerido");
+
+        if (errores.Any())
+        {
+            var mensajeError = string.Join(", ", errores);
+            _logger.LogError("❌ VALIDACIÓN FALLIDA: {Errores}", mensajeError);
+            throw new ArgumentException($"Datos requeridos faltantes: {mensajeError}");
         }
 
-        private static string MapearEstadoPoliza(string? estado)
+        _logger.LogInformation("✅ Validación de campos requeridos exitosa");
+    }
+
+    private static string? FormatearFecha(object? fecha)
+    {
+        if (fecha == null) return null;
+
+        if (fecha is DateTime dt)
+            return dt.ToString("yyyy-MM-dd");
+
+        if (fecha is string str && DateTime.TryParse(str, out var parsedDate))
+            return parsedDate.ToString("yyyy-MM-dd");
+
+        return null;
+    }
+
+    private static int? TryParseInt(string? value)
+    {
+        return int.TryParse(value, out var result) ? result : null;
+    }
+
+    #endregion
+        
+    #endregion
+
+    #region Métodos de Secciones
+    public async Task<IEnumerable<SeccionDto>> GetActiveSeccionesAsync()
+    {
+        try
         {
-            return estado?.ToUpperInvariant() switch
-            {
-                "VIGENTE" => "1",
-                "VENCIDA" => "2",
-                "ANULADA" => "3",
-                "CANCELADA" => "4",
-                _ => "1" // Default: Vigente
-            };
-        }
+            var tenantId = _tenantService.GetCurrentTenantId();
+            _logger.LogDebug("Getting active secciones from Velneo API for tenant {TenantId}", tenantId);
 
-        private static string MapearFormaPago(string? formaPago)
+            using var httpClient = await GetConfiguredHttpClientAsync();
+            var url = await BuildVelneoUrlAsync("v1/secciones");
+            var response = await httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            // ✅ Usar el método helper unificado
+            var velneoResponse = await DeserializeResponseAsync<VelneoSeccionesResponse>(response);
+
+            if (velneoResponse?.Secciones != null)
+            {
+                var secciones = velneoResponse.Secciones.ToSeccionDtos().ToList();
+                _logger.LogInformation("Successfully retrieved {Count} secciones from Velneo API", secciones.Count);
+                return secciones;
+            }
+
+            _logger.LogWarning("No secciones found in Velneo API response");
+            return new List<SeccionDto>();
+        }
+        catch (Exception ex)
         {
-            return formaPago?.ToUpperInvariant() switch
-            {
-                "CONTADO" => "CON",
-                "TARJETA DE CREDITO" => "TAR",
-                "TARJETA DE CRÉDITO" => "TAR",
-                "DEBITO AUTOMATICO" => "DEB",
-                "DÉBITO AUTOMÁTICO" => "DEB",
-                "CUOTAS" => "CUO",
-                _ => "CON" // Default: Contado
-            };
+            _logger.LogError(ex, "Error getting secciones from Velneo API");
+            throw new ApplicationException($"Error getting secciones from Velneo API: {ex.Message}", ex);
         }
+    }
 
-        private static int MapearMonedaCodigo(string? moneda)
+    public async Task<SeccionDto> GetSeccionAsync(int id)
+    {
+        try
         {
-            return moneda?.ToUpperInvariant() switch
-            {
-                "USD" => 1,
-                "DOLARES" => 1,
-                "DÓLARES" => 1,
-                "EUR" => 2,
-                "EUROS" => 2,
-                "UYU" => 0,
-                "PESOS" => 0,
-                _ => 0 // Default: UYU
-            };
-        }
+            _logger.LogInformation("🔍 Obteniendo sección: {SeccionId}", id);
 
-        private static string GenerarObservacionesCompletas(PolizaCreateRequest request)
+            // Opción 1: Usar el método existente que ya funciona
+            var secciones = await GetActiveSeccionesAsync();
+            var seccion = secciones.FirstOrDefault(s => s.Id == id);
+
+            if (seccion == null)
+            {
+                _logger.LogWarning("⚠️ Sección no encontrada: {SeccionId}", id);
+                throw new KeyNotFoundException($"Sección con ID {id} no encontrada en Velneo API");
+            }
+
+            _logger.LogInformation("✅ Sección obtenida: {SeccionId} - {Nombre}", id, seccion.Seccion);
+            return seccion;
+        }
+        catch (Exception ex)
         {
-            var observaciones = new List<string>();
-
-            // ✅ OBSERVACIÓN PRINCIPAL
-            if (!string.IsNullOrEmpty(request.Observaciones))
-            {
-                observaciones.Add(request.Observaciones);
-            }
-
-            // ✅ MARCA COMO PROCESADO CON IA
-            observaciones.Add("Procesado automáticamente con Azure Document Intelligence");
-
-            // ✅ DATOS ADICIONALES SI ESTÁN DISPONIBLES
-            if (!string.IsNullOrEmpty(request.Email))
-            {
-                observaciones.Add($"Email: {request.Email}");
-            }
-
-            if (!string.IsNullOrEmpty(request.Telefono))
-            {
-                observaciones.Add($"Teléfono: {request.Telefono}");
-            }
-
-            if (!string.IsNullOrEmpty(request.Plan))
-            {
-                observaciones.Add($"Plan: {request.Plan}");
-            }
-
-            return string.Join(" | ", observaciones);
+            _logger.LogError(ex, "❌ Error obteniendo sección: {SeccionId}", id);
+            throw;
         }
-
-        private static int? TryParseInt(string? value)
-        {
-            if (string.IsNullOrWhiteSpace(value)) return null;
-            return int.TryParse(value, out int result) ? result : null;
-        }
-
-        #endregion
-
-        #region Métodos de Secciones
-
-        public async Task<SeccionDto> GetSeccionAsync(int id)
-        {
-            try
-            {
-                var secciones = await GetActiveSeccionesAsync();
-                var seccion = secciones.FirstOrDefault(s => s.Id == id);
-
-                if (seccion == null)
-                {
-                    throw new KeyNotFoundException($"Seccion with ID {id} not found in Velneo API");
-                }
-
-                return seccion;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting seccion {SeccionId} from Velneo API", id);
-                throw;
-            }
-        }
-
-        public async Task<IEnumerable<SeccionDto>> GetActiveSeccionesAsync()
-        {
-            try
-            {
-                var tenantId = _tenantService.GetCurrentTenantId();
-                _logger.LogDebug("Getting active secciones from Velneo API for tenant {TenantId}", tenantId);
-
-                using var httpClient = await GetConfiguredHttpClientAsync();
-                var url = await BuildVelneoUrlAsync("v1/secciones");
-                var response = await httpClient.GetAsync(url);
-                response.EnsureSuccessStatusCode();
-
-                // ✅ Usar el método helper unificado
-                var velneoResponse = await DeserializeResponseAsync<VelneoSeccionesResponse>(response);
-
-                if (velneoResponse?.Secciones != null)
-                {
-                    var secciones = velneoResponse.Secciones.ToSeccionDtos().ToList();
-                    _logger.LogInformation("Successfully retrieved {Count} secciones from Velneo API", secciones.Count);
-                    return secciones;
-                }
-
-                _logger.LogWarning("No secciones found in Velneo API response");
-                return new List<SeccionDto>();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting secciones from Velneo API");
-                throw new ApplicationException($"Error getting secciones from Velneo API: {ex.Message}", ex);
-            }
-        }
+    }
 
         public async Task<IEnumerable<SeccionLookupDto>> GetSeccionesForLookupAsync()
+    {
+        try
         {
-            try
+            var tenantId = _tenantService.GetCurrentTenantId();
+            _logger.LogInformation("🔍 Getting secciones for lookup from Velneo API for tenant {TenantId}", tenantId);
+
+            using var httpClient = await GetConfiguredHttpClientAsync();
+            var url = await BuildVelneoUrlAsync("v1/secciones");
+            var response = await httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            // ✅ Usar el método helper unificado
+            var velneoResponse = await DeserializeResponseAsync<VelneoSeccionesResponse>(response);
+
+            if (velneoResponse?.Secciones != null)
             {
-                var tenantId = _tenantService.GetCurrentTenantId();
-                _logger.LogInformation("🔍 Getting secciones for lookup from Velneo API for tenant {TenantId}", tenantId);
-
-                using var httpClient = await GetConfiguredHttpClientAsync();
-                var url = await BuildVelneoUrlAsync("v1/secciones");
-                var response = await httpClient.GetAsync(url);
-                response.EnsureSuccessStatusCode();
-
-                // ✅ Usar el método helper unificado
-                var velneoResponse = await DeserializeResponseAsync<VelneoSeccionesResponse>(response);
-
-                if (velneoResponse?.Secciones != null)
-                {
-                    var seccionesLookup = velneoResponse.Secciones
-                        .Select(s => new SeccionLookupDto
-                        {
-                            Id = s.Id,
-                            Name = s.Seccion,
-                            Icono = SeccionMappers.GetIconoForSeccion(s.Seccion),
-                            Activo = true
-                        })
-                        .OrderBy(s => s.Name)
-                        .ToList();
-
-                    _logger.LogInformation("✅ Successfully retrieved {Count} secciones for lookup from Velneo API", seccionesLookup.Count);
-
-                    foreach (var seccion in seccionesLookup.Take(5))
+                var seccionesLookup = velneoResponse.Secciones
+                    .Select(s => new SeccionLookupDto
                     {
-                        _logger.LogDebug("📋 Sección: {Name} (ID: {Id}) {Icono}", seccion.Name, seccion.Id, seccion.Icono);
-                    }
+                        Id = s.Id,
+                        Name = s.Seccion,
+                        Icono = SeccionMappers.GetIconoForSeccion(s.Seccion),
+                        Activo = true
+                    })
+                    .OrderBy(s => s.Name)
+                    .ToList();
 
-                    return seccionesLookup;
+                _logger.LogInformation("✅ Successfully retrieved {Count} secciones for lookup from Velneo API", seccionesLookup.Count);
+
+                foreach (var seccion in seccionesLookup.Take(5))
+                {
+                    _logger.LogDebug("📋 Sección: {Name} (ID: {Id}) {Icono}", seccion.Name, seccion.Id, seccion.Icono);
                 }
 
-                return new List<SeccionLookupDto>();
+                return seccionesLookup;
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting secciones for lookup from Velneo API");
-                throw;
-            }
-        }
 
-        public async Task<IEnumerable<SeccionDto>> GetSeccionesByCompanyAsync(int companyId)
+            return new List<SeccionLookupDto>();
+        }
+        catch (Exception ex)
         {
-            _logger.LogInformation("Getting secciones for company {CompanyId} (returning all for now)", companyId);
-            return await GetActiveSeccionesAsync();
+            _logger.LogError(ex, "Error getting secciones for lookup from Velneo API");
+            throw;
         }
+    }
 
-        public async Task<IEnumerable<SeccionDto>> SearchSeccionesAsync(string searchTerm)
+    public async Task<IEnumerable<SeccionDto>> GetSeccionesByCompanyAsync(int companyId)
+    {
+        _logger.LogInformation("Getting secciones for company {CompanyId} (returning all for now)", companyId);
+        return await GetActiveSeccionesAsync();
+    }
+
+    public async Task<IEnumerable<SeccionDto>> SearchSeccionesAsync(string searchTerm)
+    {
+        try
         {
-            try
-            {
-                var allSecciones = await GetActiveSeccionesAsync();
-                var filtered = allSecciones.Where(s =>
-                    s.Seccion?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) == true
-                ).ToList();
+            var allSecciones = await GetActiveSeccionesAsync();
+            var filtered = allSecciones.Where(s =>
+                s.Seccion?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) == true
+            ).ToList();
 
-                _logger.LogInformation("Found {Count} secciones matching search term '{SearchTerm}'", filtered.Count, searchTerm);
-                return filtered;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error searching secciones with term '{SearchTerm}' from Velneo API", searchTerm);
-                throw;
-            }
+            _logger.LogInformation("Found {Count} secciones matching search term '{SearchTerm}'", filtered.Count, searchTerm);
+            return filtered;
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error searching secciones with term '{SearchTerm}' from Velneo API", searchTerm);
+            throw;
+        }
+    }
+
+    #endregion
+
+    #region Métodos de Combustibles
+    public async Task<IEnumerable<CombustibleDto>> GetAllCombustiblesAsync()
+    {
+        try
+        {
+            var tenantId = _tenantService.GetCurrentTenantId();
+            _logger.LogDebug("Getting all combustibles from Velneo API for tenant {TenantId}", tenantId);
+
+            using var httpClient = await GetConfiguredHttpClientAsync();
+            var url = await BuildVelneoUrlAsync("v1/combustibles");
+            var response = await httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            // ✅ PRIMERO: Intentar como wrapper (formato esperado de Velneo)
+            var velneoResponse = await DeserializeResponseAsync<VelneoCombustiblesResponse>(response);
+            if (velneoResponse?.Combustibles != null && velneoResponse.Combustibles.Any())
+            {
+                var combustibles = velneoResponse.Combustibles.ToCombustibleDtos().ToList();
+                _logger.LogInformation("Successfully retrieved {Count} combustibles from Velneo API (wrapper format)",
+                    combustibles.Count);
+                return combustibles;
+            }
+
+            // ✅ SEGUNDO: Si falla, intentar como array directo (fallback)
+            response = await httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+            var velneoCombustibles = await DeserializeResponseAsync<List<VelneoCombustible>>(response);
+            if (velneoCombustibles != null && velneoCombustibles.Any())
+            {
+                var combustibles = velneoCombustibles.ToCombustibleDtos().ToList();
+                _logger.LogInformation("Successfully retrieved {Count} combustibles from Velneo API (array format)",
+                    combustibles.Count);
+                return combustibles;
+            }
+
+            _logger.LogWarning("No combustibles found in Velneo API response");
+            return new List<CombustibleDto>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting combustibles from Velneo API");
+            throw new ApplicationException($"Error retrieving combustibles from Velneo API: {ex.Message}", ex);
+        }
+    }
+
+    #endregion
+
+    #region Métodos de Destinos
+    public async Task<IEnumerable<DestinoDto>> GetAllDestinosAsync()
+    {
+        try
+        {
+            var tenantId = _tenantService.GetCurrentTenantId();
+            _logger.LogDebug("Getting all destinos from Velneo API for tenant {TenantId}", tenantId);
+
+            using var httpClient = await GetConfiguredHttpClientAsync();
+            var url = await BuildVelneoUrlAsync("v1/destinos");
+            var response = await httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            // ✅ PRIMERO: Intentar como wrapper (formato esperado de Velneo)
+            var velneoResponse = await DeserializeResponseAsync<VelneoDestinosResponse>(response);
+            if (velneoResponse?.Destinos != null && velneoResponse.Destinos.Any())
+            {
+                var destinos = velneoResponse.Destinos.ToDestinoDtos().ToList();
+                _logger.LogInformation("Successfully retrieved {Count} destinos from Velneo API (wrapper format)",
+                    destinos.Count);
+                return destinos;
+            }
+
+            // ✅ SEGUNDO: Si falla, intentar como array directo (fallback)
+            response = await httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+            var velneoDestinos = await DeserializeResponseAsync<List<VelneoDestino>>(response);
+            if (velneoDestinos != null && velneoDestinos.Any())
+            {
+                var destinos = velneoDestinos.ToDestinoDtos().ToList();
+                _logger.LogInformation("Successfully retrieved {Count} destinos from Velneo API (array format)",
+                    destinos.Count);
+                return destinos;
+            }
+
+            _logger.LogWarning("No destinos found in Velneo API response");
+            return new List<DestinoDto>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting destinos from Velneo API");
+            throw new ApplicationException($"Error retrieving destinos from Velneo API: {ex.Message}", ex);
+        }
+    }
+
+    #endregion
+
+    #region Métodos de Categorías
+    public async Task<IEnumerable<CategoriaDto>> GetAllCategoriasAsync()
+    {
+        try
+        {
+            var tenantId = _tenantService.GetCurrentTenantId();
+            _logger.LogDebug("Getting all categorias from Velneo API for tenant {TenantId}", tenantId);
+
+            using var httpClient = await GetConfiguredHttpClientAsync();
+            var url = await BuildVelneoUrlAsync("v1/categorias");
+            var response = await httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            // ✅ PRIMERO: Intentar como wrapper (formato esperado de Velneo)
+            var velneoResponse = await DeserializeResponseAsync<VelneoCategoriasResponse>(response);
+            if (velneoResponse?.Categorias != null && velneoResponse.Categorias.Any())
+            {
+                var categorias = velneoResponse.Categorias.ToCategoriaDtos().ToList();
+                _logger.LogInformation("Successfully retrieved {Count} categorias from Velneo API (wrapper format)",
+                    categorias.Count);
+                return categorias;
+            }
+
+            // ✅ SEGUNDO: Si falla, intentar como array directo (fallback)
+            response = await httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+            var velneoCategorias = await DeserializeResponseAsync<List<VelneoCategoria>>(response);
+            if (velneoCategorias != null && velneoCategorias.Any())
+            {
+                var categorias = velneoCategorias.ToCategoriaDtos().ToList();
+                _logger.LogInformation("Successfully retrieved {Count} categorias from Velneo API (array format)",
+                    categorias.Count);
+                return categorias;
+            }
+
+            _logger.LogWarning("No categorias found in Velneo API response");
+            return new List<CategoriaDto>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting categorias from Velneo API");
+            throw new ApplicationException($"Error retrieving categorias from Velneo API: {ex.Message}", ex);
+        }
+    }
+
+    #endregion
+
+    #region Métodos de Calidades
+    public async Task<IEnumerable<CalidadDto>> GetAllCalidadesAsync()
+    {
+        try
+        {
+            var tenantId = _tenantService.GetCurrentTenantId();
+            _logger.LogDebug("Getting all calidades from Velneo API for tenant {TenantId}", tenantId);
+
+            using var httpClient = await GetConfiguredHttpClientAsync();
+            var url = await BuildVelneoUrlAsync("v1/calidades");
+            var response = await httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            // ✅ PRIMERO: Intentar como wrapper (formato esperado de Velneo)
+            var velneoResponse = await DeserializeResponseAsync<VelneoCalidadesResponse>(response);
+            if (velneoResponse?.Calidades != null && velneoResponse.Calidades.Any())
+            {
+                var calidades = velneoResponse.Calidades.ToCalidadDtos().ToList();
+                _logger.LogInformation("Successfully retrieved {Count} calidades from Velneo API (wrapper format)",
+                    calidades.Count);
+                return calidades;
+            }
+
+            // ✅ SEGUNDO: Si falla, intentar como array directo (fallback)
+            response = await httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+            var velneoCalidades = await DeserializeResponseAsync<List<VelneoCalidad>>(response);
+            if (velneoCalidades != null && velneoCalidades.Any())
+            {
+                var calidades = velneoCalidades.ToCalidadDtos().ToList();
+                _logger.LogInformation("Successfully retrieved {Count} calidades from Velneo API (array format)",
+                    calidades.Count);
+                return calidades;
+            }
+
+            _logger.LogWarning("No calidades found in Velneo API response");
+            return new List<CalidadDto>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting calidades from Velneo API");
+            throw new ApplicationException($"Error retrieving calidades from Velneo API: {ex.Message}", ex);
+        }
+    }
 
         #endregion
 
-        #region Métodos de Combustibles
-
-        /// <summary>
-        /// Obtiene todos los combustibles desde Velneo API
-        /// </summary>
-        public async Task<IEnumerable<CombustibleDto>> GetAllCombustiblesAsync()
+    #region Métodos de Monedas
+        public async Task<IEnumerable<MonedaDto>> GetAllMonedasAsync()
         {
             try
             {
                 var tenantId = _tenantService.GetCurrentTenantId();
-                _logger.LogDebug("Getting all combustibles from Velneo API for tenant {TenantId}", tenantId);
+                _logger.LogDebug("Getting all monedas from Velneo API for tenant {TenantId}", tenantId);
 
                 using var httpClient = await GetConfiguredHttpClientAsync();
-                var url = await BuildVelneoUrlAsync("v1/combustibles");
+                var url = await BuildVelneoUrlAsync("v1/monedas");
                 var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
                 // ✅ PRIMERO: Intentar como wrapper (formato esperado de Velneo)
-                var velneoResponse = await DeserializeResponseAsync<VelneoCombustiblesResponse>(response);
-                if (velneoResponse?.Combustibles != null && velneoResponse.Combustibles.Any())
+                var velneoResponse = await DeserializeResponseAsync<VelneeMonedasResponse>(response);
+                if (velneoResponse?.Monedas != null && velneoResponse.Monedas.Any())
                 {
-                    var combustibles = velneoResponse.Combustibles.ToCombustibleDtos().ToList();
-                    _logger.LogInformation("Successfully retrieved {Count} combustibles from Velneo API (wrapper format)",
-                        combustibles.Count);
-                    return combustibles;
+                    var monedas = velneoResponse.Monedas.ToMonedaDtos().ToList();
+                    _logger.LogInformation("Successfully retrieved {Count} monedas from Velneo API (wrapper format). Total: {Total}",
+                        monedas.Count, velneoResponse.TotalCount);
+                    return monedas;
                 }
 
                 // ✅ SEGUNDO: Si falla, intentar como array directo (fallback)
                 response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
-                var velneoCombustibles = await DeserializeResponseAsync<List<VelneoCombustible>>(response);
-                if (velneoCombustibles != null && velneoCombustibles.Any())
+                var velneoMonedas = await DeserializeResponseAsync<List<VelneoMoneda>>(response);
+                if (velneoMonedas != null && velneoMonedas.Any())
                 {
-                    var combustibles = velneoCombustibles.ToCombustibleDtos().ToList();
-                    _logger.LogInformation("Successfully retrieved {Count} combustibles from Velneo API (array format)",
-                        combustibles.Count);
-                    return combustibles;
+                    var monedas = velneoMonedas.ToMonedaDtos().ToList();
+                    _logger.LogInformation("Successfully retrieved {Count} monedas from Velneo API (array format)",
+                        monedas.Count);
+                    return monedas;
                 }
 
-                _logger.LogWarning("No combustibles found in Velneo API response");
-                return new List<CombustibleDto>();
+                _logger.LogWarning("No monedas found in Velneo API response");
+                return new List<MonedaDto>();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting combustibles from Velneo API");
-                throw new ApplicationException($"Error retrieving combustibles from Velneo API: {ex.Message}", ex);
-            }
-        }
-
-        #endregion
-
-        #region Métodos de Destinos
-
-        /// <summary>
-        /// Obtiene todos los destinos desde Velneo API
-        /// </summary>
-        public async Task<IEnumerable<DestinoDto>> GetAllDestinosAsync()
-        {
-            try
-            {
-                var tenantId = _tenantService.GetCurrentTenantId();
-                _logger.LogDebug("Getting all destinos from Velneo API for tenant {TenantId}", tenantId);
-
-                using var httpClient = await GetConfiguredHttpClientAsync();
-                var url = await BuildVelneoUrlAsync("v1/destinos");
-                var response = await httpClient.GetAsync(url);
-                response.EnsureSuccessStatusCode();
-
-                // ✅ PRIMERO: Intentar como wrapper (formato esperado de Velneo)
-                var velneoResponse = await DeserializeResponseAsync<VelneoDestinosResponse>(response);
-                if (velneoResponse?.Destinos != null && velneoResponse.Destinos.Any())
-                {
-                    var destinos = velneoResponse.Destinos.ToDestinoDtos().ToList();
-                    _logger.LogInformation("Successfully retrieved {Count} destinos from Velneo API (wrapper format)",
-                        destinos.Count);
-                    return destinos;
-                }
-
-                // ✅ SEGUNDO: Si falla, intentar como array directo (fallback)
-                response = await httpClient.GetAsync(url);
-                response.EnsureSuccessStatusCode();
-                var velneoDestinos = await DeserializeResponseAsync<List<VelneoDestino>>(response);
-                if (velneoDestinos != null && velneoDestinos.Any())
-                {
-                    var destinos = velneoDestinos.ToDestinoDtos().ToList();
-                    _logger.LogInformation("Successfully retrieved {Count} destinos from Velneo API (array format)",
-                        destinos.Count);
-                    return destinos;
-                }
-
-                _logger.LogWarning("No destinos found in Velneo API response");
-                return new List<DestinoDto>();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting destinos from Velneo API");
-                throw new ApplicationException($"Error retrieving destinos from Velneo API: {ex.Message}", ex);
-            }
-        }
-
-        #endregion
-
-        #region Métodos de Categorías
-
-        /// <summary>
-        /// Obtiene todas las categorías desde Velneo API
-        /// </summary>
-        public async Task<IEnumerable<CategoriaDto>> GetAllCategoriasAsync()
-        {
-            try
-            {
-                var tenantId = _tenantService.GetCurrentTenantId();
-                _logger.LogDebug("Getting all categorias from Velneo API for tenant {TenantId}", tenantId);
-
-                using var httpClient = await GetConfiguredHttpClientAsync();
-                var url = await BuildVelneoUrlAsync("v1/categorias");
-                var response = await httpClient.GetAsync(url);
-                response.EnsureSuccessStatusCode();
-
-                // ✅ PRIMERO: Intentar como wrapper (formato esperado de Velneo)
-                var velneoResponse = await DeserializeResponseAsync<VelneoCategoriasResponse>(response);
-                if (velneoResponse?.Categorias != null && velneoResponse.Categorias.Any())
-                {
-                    var categorias = velneoResponse.Categorias.ToCategoriaDtos().ToList();
-                    _logger.LogInformation("Successfully retrieved {Count} categorias from Velneo API (wrapper format)",
-                        categorias.Count);
-                    return categorias;
-                }
-
-                // ✅ SEGUNDO: Si falla, intentar como array directo (fallback)
-                response = await httpClient.GetAsync(url);
-                response.EnsureSuccessStatusCode();
-                var velneoCategorias = await DeserializeResponseAsync<List<VelneoCategoria>>(response);
-                if (velneoCategorias != null && velneoCategorias.Any())
-                {
-                    var categorias = velneoCategorias.ToCategoriaDtos().ToList();
-                    _logger.LogInformation("Successfully retrieved {Count} categorias from Velneo API (array format)",
-                        categorias.Count);
-                    return categorias;
-                }
-
-                _logger.LogWarning("No categorias found in Velneo API response");
-                return new List<CategoriaDto>();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting categorias from Velneo API");
-                throw new ApplicationException($"Error retrieving categorias from Velneo API: {ex.Message}", ex);
-            }
-        }
-
-        #endregion
-
-        #region Métodos de Calidades
-
-        /// <summary>
-        /// Obtiene todas las calidades desde Velneo API
-        /// </summary>
-        public async Task<IEnumerable<CalidadDto>> GetAllCalidadesAsync()
-        {
-            try
-            {
-                var tenantId = _tenantService.GetCurrentTenantId();
-                _logger.LogDebug("Getting all calidades from Velneo API for tenant {TenantId}", tenantId);
-
-                using var httpClient = await GetConfiguredHttpClientAsync();
-                var url = await BuildVelneoUrlAsync("v1/calidades");
-                var response = await httpClient.GetAsync(url);
-                response.EnsureSuccessStatusCode();
-
-                // ✅ PRIMERO: Intentar como wrapper (formato esperado de Velneo)
-                var velneoResponse = await DeserializeResponseAsync<VelneoCalidadesResponse>(response);
-                if (velneoResponse?.Calidades != null && velneoResponse.Calidades.Any())
-                {
-                    var calidades = velneoResponse.Calidades.ToCalidadDtos().ToList();
-                    _logger.LogInformation("Successfully retrieved {Count} calidades from Velneo API (wrapper format)",
-                        calidades.Count);
-                    return calidades;
-                }
-
-                // ✅ SEGUNDO: Si falla, intentar como array directo (fallback)
-                response = await httpClient.GetAsync(url);
-                response.EnsureSuccessStatusCode();
-                var velneoCalidades = await DeserializeResponseAsync<List<VelneoCalidad>>(response);
-                if (velneoCalidades != null && velneoCalidades.Any())
-                {
-                    var calidades = velneoCalidades.ToCalidadDtos().ToList();
-                    _logger.LogInformation("Successfully retrieved {Count} calidades from Velneo API (array format)",
-                        calidades.Count);
-                    return calidades;
-                }
-
-                _logger.LogWarning("No calidades found in Velneo API response");
-                return new List<CalidadDto>();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting calidades from Velneo API");
-                throw new ApplicationException($"Error retrieving calidades from Velneo API: {ex.Message}", ex);
+                _logger.LogError(ex, "Error getting monedas from Velneo API");
+                throw new ApplicationException($"Error retrieving monedas from Velneo API: {ex.Message}", ex);
             }
         }
 

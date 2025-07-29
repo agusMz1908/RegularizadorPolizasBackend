@@ -19,7 +19,6 @@ namespace RegularizadorPolizas.Application
             services.AddScoped<IDocumentValidationService, DocumentValidationService>();
             services.AddScoped<ICompanyService, CompanyService>();
             services.AddScoped<IBrokerService, BrokerService>();
-            services.AddScoped<ICurrencyService, CurrencyService>();
             services.AddScoped<IAuditService, AuditService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IRoleService, RoleService>();

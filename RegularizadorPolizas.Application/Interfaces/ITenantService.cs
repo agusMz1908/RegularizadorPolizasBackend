@@ -1,4 +1,5 @@
-﻿using RegularizadorPolizas.Domain.Entities;
+﻿using RegularizadorPolizas.Application.DTOs;
+using RegularizadorPolizas.Domain.Entities;
 
 namespace RegularizadorPolizas.Application.Interfaces
 {
@@ -27,6 +28,7 @@ namespace RegularizadorPolizas.Application.Interfaces
         Task<IEnumerable<ApiKey>> GetActiveTenantsByModeAsync(string mode);
         Task<TenantUsageStatsDto> GetTenantUsageStatsAsync(string tenantId, DateTime? fromDate = null);
         Task<TenantUsageStatsDto> GetCurrentTenantUsageStatsAsync(DateTime? fromDate = null);
+        Task<TenantConfigurationDto> GetCurrentTenantConfigurationDtoAsync();
     }
 
     // DTOs para las nuevas funcionalidades

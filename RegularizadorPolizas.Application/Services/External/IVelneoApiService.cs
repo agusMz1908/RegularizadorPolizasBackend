@@ -50,5 +50,7 @@ namespace RegularizadorPolizas.Application.Interfaces
         Task<IEnumerable<DestinoDto>> GetAllDestinosAsync();
         Task<IEnumerable<CategoriaDto>> GetAllCategoriasAsync();
         Task<IEnumerable<CalidadDto>> GetAllCalidadesAsync();
+
+        Task<IEnumerable<MonedaDto>> GetAllMonedasAsync();
     }
 }

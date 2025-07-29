@@ -29,7 +29,6 @@ namespace RegularizadorPolizas.Infrastructure
                         errorNumbersToAdd: null
                     )
                 ));
-
             services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
             services.AddScoped<IClientRepository, ClientRepository>();
             services.AddScoped<IPolizaRepository, PolizaRepository>();
@@ -37,9 +36,7 @@ namespace RegularizadorPolizas.Infrastructure
             services.AddScoped<IRenovationRepository, RenovationRepository>();
             services.AddScoped<ICompanyRepository, CompanyRepository>();
             services.AddScoped<IBrokerRepository, BrokerRepository>();
-            services.AddScoped<ICurrencyRepository, CurrencyRepository>();
             services.AddScoped<IAuditRepository, AuditRepository>();
-
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IUserRoleRepository, UserRoleRepository>();
             services.AddScoped<IRoleRepository, RoleRepository>();
@@ -49,10 +46,8 @@ namespace RegularizadorPolizas.Infrastructure
             services.AddScoped<IVerificationRepository, VerificationRepository>();
             services.AddScoped<IAzureDocumentIntelligenceService, AzureDocumentIntelligenceService>();
             services.AddScoped<IFileStorageService, AzureBlobStorageService>();
-            services.AddScoped<IVelneoApiService, TenantAwareVelneoApiService>();
             services.AddScoped<IDashboardService, DashboardService>();
             services.AddScoped<SmartDocumentParser>();
-
             services.AddSingleton(provider =>
             {
                 var connectionString = configuration.GetConnectionString("AzureStorage");
@@ -63,7 +58,8 @@ namespace RegularizadorPolizas.Infrastructure
                 return new BlobServiceClient(connectionString);
             });
 
-            services.AddHttpClient<TenantAwareVelneoApiService>((serviceProvider, client) =>
+            services.AddScoped<ITenantService, TenantService>();
+            services.AddHttpClient("VelneoApi", (serviceProvider, client) =>
             {
                 var baseUrl = configuration["VelneoAPI:BaseUrl"];
                 if (!string.IsNullOrEmpty(baseUrl))
@@ -71,7 +67,7 @@ namespace RegularizadorPolizas.Infrastructure
                     client.BaseAddress = new Uri(baseUrl);
                 }
 
-                var timeoutSeconds = configuration.GetValue<int>("VelneoAPI:TimeoutSeconds", 120); 
+                var timeoutSeconds = configuration.GetValue<int>("VelneoAPI:TimeoutSeconds", 120);
                 client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
 
                 var apiKey = configuration["VelneoAPI:ApiKey"];
@@ -88,7 +84,7 @@ namespace RegularizadorPolizas.Infrastructure
                     client.DefaultRequestHeaders.Add("Api-Version", apiVersion);
                 }
             });
-
+            services.AddScoped<IVelneoApiService, TenantAwareVelneoApiService>();
 
             return services;
         }
