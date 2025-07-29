@@ -58,6 +58,5 @@ namespace RegularizadorPolizas.Application.Interfaces.External
 
         Task<IEnumerable<CoberturaDto>> GetAllCoberturasAsync();
         Task<IEnumerable<DepartamentoDto>> GetAllDepartamentosAsync();
-        Task<IEnumerable<FormaPagoDto>> GetAllFormasPagoAsync();
     }
 }

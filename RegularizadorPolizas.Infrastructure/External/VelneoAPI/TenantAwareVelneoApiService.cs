@@ -2729,60 +2729,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
         }
     }
 
-        #endregion
-
-    #region Metodos Forma de Pago
-
-    public async Task<IEnumerable<FormaPagoDto>> GetAllFormasPagoAsync()
-    {
-        try
-        {
-            var tenantId = _tenantService.GetCurrentTenantId();
-            _logger.LogDebug("💳 Getting all formas de pago from Velneo API for tenant {TenantId}", tenantId);
-
-            using var httpClient = await GetConfiguredHttpClientAsync();
-            var url = await BuildVelneoUrlAsync("v1/formaspago");
-            var response = await httpClient.GetAsync(url);
-            response.EnsureSuccessStatusCode();
-
-            try
-            {
-                var velneoResponse = await DeserializeResponseAsync<VelneoFormasPagoResponse>(response);
-                if (velneoResponse?.FormasPago != null && velneoResponse.FormasPago.Any())
-                {
-                    var formasPago = velneoResponse.FormasPago.ToFormasPagoDtos().ToList();
-                    _logger.LogInformation("✅ Successfully retrieved {Count} formas de pago from Velneo API (wrapper format)",
-                        formasPago.Count);
-                    return formasPago;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "⚠️ Failed to parse formas de pago as wrapper, trying array format");
-            }
-
-            response = await httpClient.GetAsync(url);
-            response.EnsureSuccessStatusCode();
-            var velneoFormasPago = await DeserializeResponseAsync<List<VelneoFormaPago>>(response);
-            if (velneoFormasPago != null && velneoFormasPago.Any())
-            {
-                var formasPago = velneoFormasPago.ToFormasPagoDtos().ToList();
-                _logger.LogInformation("✅ Successfully retrieved {Count} formas de pago from Velneo API (array format)",
-                    formasPago.Count);
-                return formasPago;
-            }
-
-            _logger.LogWarning("⚠️ No formas de pago found in Velneo API response");
-            return new List<FormaPagoDto>();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "❌ Error getting formas de pago from Velneo API");
-            throw new ApplicationException($"Error retrieving formas de pago from Velneo API: {ex.Message}", ex);
-        }
-    }
-
-    #endregion
+        #endregion 
 
     }
 }

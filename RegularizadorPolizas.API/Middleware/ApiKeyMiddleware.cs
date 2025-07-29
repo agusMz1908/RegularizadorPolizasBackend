@@ -45,7 +45,7 @@ namespace RegularizadorPolizas.API.Middleware
                 "/api/moneda",
                 "/api/cobertura",
                 "/api/departamento",
-                "/api/formasPago",
+                "/api/formaspago",
                 "/error",
                 "/debug-config",
                 "/debug-jwt",

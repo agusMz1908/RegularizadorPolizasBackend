@@ -44,26 +44,5 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Extensions
         }
 
         #endregion
-
-        #region Extensiones para Formas de Pago
-
-        public static FormaPagoDto ToFormaPagoDto(this VelneoFormaPago velneo)
-        {
-            return new FormaPagoDto
-            {
-                Id = velneo.Id,
-                Descripcion = velneo.Descripcion,
-                Codigo = velneo.Codigo,
-                Activo = velneo.Activo,
-                Observaciones = velneo.Observaciones
-            };
-        }
-
-        public static IEnumerable<FormaPagoDto> ToFormasPagoDtos(this IEnumerable<VelneoFormaPago> velneos)
-        {
-            return velneos.Select(v => v.ToFormaPagoDto());
-        }
-
-        #endregion
     }
 }
