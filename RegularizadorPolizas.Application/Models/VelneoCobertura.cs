@@ -7,17 +7,19 @@ namespace RegularizadorPolizas.Application.Models
         [JsonPropertyName("id")]
         public int Id { get; set; }
 
-        [JsonPropertyName("descripcion")]
-        public string Descripcion { get; set; } = string.Empty;
+        [JsonPropertyName("cobdsc")]  
+        public string Cobdsc { get; set; } = string.Empty;
 
-        [JsonPropertyName("codigo")]
-        public string Codigo { get; set; } = string.Empty;
+        [JsonPropertyName("codigo")] 
+        public string? Codigo { get; set; } = string.Empty;
 
         [JsonPropertyName("activo")]
         public bool Activo { get; set; } = true;
 
         [JsonPropertyName("observaciones")]
         public string? Observaciones { get; set; }
+
+        public string Descripcion => Cobdsc; 
     }
 
     public class VelneoCoberturasResponse

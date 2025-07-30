@@ -7,17 +7,28 @@ namespace RegularizadorPolizas.Application.Models
         [JsonPropertyName("id")]
         public int Id { get; set; }
 
-        [JsonPropertyName("nombre")]
-        public string Nombre { get; set; } = string.Empty;
+        [JsonPropertyName("dptnom")] 
+        public string Dptnom { get; set; } = string.Empty;
 
-        [JsonPropertyName("bonificacion_interior")]
-        public decimal BonificacionInterior { get; set; }
+        [JsonPropertyName("dptbonint")]  
+        public string DptBonintString { get; set; } = "0";
 
-        [JsonPropertyName("codigo_sc")]
-        public string CodigoSC { get; set; } = string.Empty;
+        [JsonPropertyName("sc_cod")]  
+        public string ScCod { get; set; } = string.Empty;
 
         [JsonPropertyName("activo")]
         public bool Activo { get; set; } = true;
+
+        public string Nombre => Dptnom;  
+        public string CodigoSC => ScCod;  
+
+        public decimal BonificacionInterior
+        {
+            get
+            {
+                return decimal.TryParse(DptBonintString, out var result) ? result : 0;
+            }
+        }
     }
 
     public class VelneoDepartamentosResponse

@@ -2,22 +2,31 @@
 
 namespace RegularizadorPolizas.Application.Models
 {
+    /// <summary>
+    /// ✅ VelneoSeccion - CORREGIDA para usar "seccion" en lugar de "secdsc"
+    /// </summary>
     public class VelneoSeccion
     {
         [JsonPropertyName("id")]
         public int Id { get; set; }
 
-        [JsonPropertyName("secdsc")]
-        public string Secdsc { get; set; } = string.Empty;
+        [JsonPropertyName("seccion")]  // ✅ CAMBIO: era "secdsc", ahora "seccion"
+        public string Seccion { get; set; } = string.Empty;
 
-        [JsonPropertyName("seccod")]
-        public string Seccod { get; set; } = string.Empty;
+        [JsonPropertyName("icono")]  // ✅ NUEVO: campo icono que viene de Velneo
+        public string Icono { get; set; } = string.Empty;
 
-        [JsonPropertyName("comcod")]
+        [JsonPropertyName("seccod")]  // ✅ Campo código (puede estar o no)
+        public string? Seccod { get; set; } = string.Empty;
+
+        [JsonPropertyName("comcod")]  // ✅ Campo compañía (puede estar o no)
         public int? CompanyId { get; set; }
 
-        [JsonPropertyName("activo")]
+        [JsonPropertyName("activo")]  // ✅ Campo activo (puede no venir, asumir true)
         public bool Activo { get; set; } = true;
+
+        // ✅ Propiedades de compatibilidad para mappers existentes
+        public string Secdsc => Seccion;  // Alias para mantener compatibilidad con código existente
     }
 
     public class VelneoSeccionesResponse

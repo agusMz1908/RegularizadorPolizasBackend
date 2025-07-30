@@ -10,7 +10,7 @@ namespace RegularizadorPolizas.Application.Mappers
             return new CoberturaDto
             {
                 Id = velneoCobertura.Id,
-                Descripcion = velneoCobertura.Descripcion,
+                Descripcion = velneoCobertura.Cobdsc, 
                 Codigo = velneoCobertura.Codigo ?? string.Empty,
                 Activo = velneoCobertura.Activo,
                 Observaciones = velneoCobertura.Observaciones

@@ -10,9 +10,9 @@ namespace RegularizadorPolizas.Application.Mappers
             return new DepartamentoDto
             {
                 Id = velneoDepartamento.Id,
-                Nombre = velneoDepartamento.Nombre,
-                BonificacionInterior = velneoDepartamento.BonificacionInterior,
-                CodigoSC = velneoDepartamento.CodigoSC,
+                Nombre = velneoDepartamento.Dptnom, 
+                BonificacionInterior = velneoDepartamento.BonificacionInterior,  
+                CodigoSC = velneoDepartamento.ScCod, 
                 Activo = velneoDepartamento.Activo
             };
         }

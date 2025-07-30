@@ -6,7 +6,6 @@ using Microsoft.Extensions.Logging;
 using RegularizadorPolizas.Application.DTOs;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using RegularizadorPolizas.Application.Services;
 using RegularizadorPolizas.Application.Interfaces.External.AzureDocumentIntelligence;
 
 namespace RegularizadorPolizas.Infrastructure.External
@@ -17,7 +16,7 @@ namespace RegularizadorPolizas.Infrastructure.External
         private readonly string _apiKey;
         private readonly string _modelId;
         private readonly DocumentIntelligenceClient _client;
-        private readonly VelneoDocumentResultParser _parser;
+        private readonly DocumentResultParser _parser;
         private readonly ILogger<AzureDocumentIntelligenceService> _logger;
 
         public AzureDocumentIntelligenceService(
@@ -38,7 +37,7 @@ namespace RegularizadorPolizas.Infrastructure.External
                 new Uri(_endpoint),
                 new AzureKeyCredential(_apiKey));
 
-            _parser = new VelneoDocumentResultParser(null);
+            _parser = new DocumentResultParser(); // ✅ Sin logger para evitar type mismatch
 
             _logger.LogInformation("Azure Document Intelligence Service initialized:");
             _logger.LogInformation("- Endpoint: {Endpoint}", _endpoint);
@@ -70,8 +69,6 @@ namespace RegularizadorPolizas.Infrastructure.External
                     file.FileName, file.Length);
 
                 using var stream = file.OpenReadStream();
-
-                // Usar BinaryData directamente desde el stream
                 var binaryData = BinaryData.FromStream(stream);
 
                 var operation = await _client.AnalyzeDocumentAsync(
@@ -80,9 +77,8 @@ namespace RegularizadorPolizas.Infrastructure.External
                     binaryData);
 
                 var analyzeResult = operation.Value;
-                var azureResultJson = ConvertAnalyzeResultToJObject(analyzeResult);
-                var polizaDto = _parser.ParseToPolizaDto(azureResultJson);
-                var camposExtraidos = ExtractFieldsDictionary(azureResultJson);
+                var polizaDto = _parser.ParseToPolizaDto(analyzeResult);
+                var camposExtraidos = ExtractFieldsDictionary(analyzeResult);
                 stopwatch.Stop();
 
                 var resultado = new DocumentResultDto
@@ -94,13 +90,11 @@ namespace RegularizadorPolizas.Infrastructure.External
                     RequiereRevision = DetermineIfReviewRequired(polizaDto, analyzeResult),
                     FechaProcesamiento = DateTime.Now,
                     TiempoProcesamiento = stopwatch.ElapsedMilliseconds,
-
-                    // Datos de la póliza procesada para Velneo
                     PolizaProcesada = polizaDto
                 };
 
                 _logger.LogInformation("Document processed successfully in {ElapsedMs}ms. Policy: {PolicyNumber}, Client: {ClientName}",
-                    stopwatch.ElapsedMilliseconds, polizaDto.Conpol, polizaDto.Clinom);
+                    stopwatch.ElapsedMilliseconds, polizaDto?.Conpol, polizaDto?.Clinom);
 
                 return resultado;
             }
@@ -142,19 +136,16 @@ namespace RegularizadorPolizas.Infrastructure.External
                     file.FileName, file.Length, modelId);
 
                 using var stream = file.OpenReadStream();
-
                 var binaryData = BinaryData.FromStream(stream);
 
-                // Usar el modelId pasado como parámetro en lugar del predeterminado
                 var operation = await _client.AnalyzeDocumentAsync(
                     WaitUntil.Completed,
                     modelId,
                     binaryData);
 
                 var analyzeResult = operation.Value;
-                var azureResultJson = ConvertAnalyzeResultToJObject(analyzeResult);
-                var polizaDto = _parser.ParseToPolizaDto(azureResultJson);
-                var camposExtraidos = ExtractFieldsDictionary(azureResultJson);
+                var polizaDto = _parser.ParseToPolizaDto(analyzeResult);
+                var camposExtraidos = ExtractFieldsDictionary(analyzeResult);
                 stopwatch.Stop();
 
                 var resultado = new DocumentResultDto
@@ -166,12 +157,11 @@ namespace RegularizadorPolizas.Infrastructure.External
                     RequiereRevision = DetermineIfReviewRequired(polizaDto, analyzeResult),
                     FechaProcesamiento = DateTime.Now,
                     TiempoProcesamiento = stopwatch.ElapsedMilliseconds,
-
                     PolizaProcesada = polizaDto
                 };
 
                 _logger.LogInformation("Document processed successfully in {ElapsedMs}ms. Policy: {PolicyNumber}, Client: {ClientName}",
-                    stopwatch.ElapsedMilliseconds, polizaDto.Conpol, polizaDto.Clinom);
+                    stopwatch.ElapsedMilliseconds, polizaDto?.Conpol, polizaDto?.Clinom);
 
                 return resultado;
             }
@@ -203,124 +193,67 @@ namespace RegularizadorPolizas.Infrastructure.External
                 }
 
                 _logger.LogWarning("Using fallback mapping for document {DocumentName}", documento.NombreArchivo);
-
-                var poliza = new PolizaDto
-                {
-                    Comcod = 1,
-                    Seccod = 4,
-                    Moncod = 1,
-                    Convig = "1",
-                    Consta = "1",
-                    Contra = "2",
-                    Ramo = "AUTOMOVILES",
-                    Last_update = DateTime.Now,
-                    Ingresado = DateTime.Now,
-                    Observaciones = "Procesado con mapeo de fallback - revisar manualmente"
-                };
-
-                if (documento.CamposExtraidos != null)
-                {
-                    MapFromExtractedFields(poliza, documento.CamposExtraidos);
-                }
-
-                return poliza;
+                return _parser.ParseToPolizaDto(documento);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error mapping document {DocumentName} to PolizaDto", documento.NombreArchivo);
+                _logger.LogError(ex, "Error mapping document {DocumentName} to poliza", documento.NombreArchivo);
 
                 return new PolizaDto
                 {
-                    Comcod = 1,
-                    Seccod = 4,
-                    Moncod = 1,
-                    Convig = "1",
-                    Consta = "1",
-                    Contra = "2",
-                    Ramo = "AUTOMOVILES",
-                    Last_update = DateTime.Now,
-                    Ingresado = DateTime.Now,
-                    Observaciones = $"Error en mapeo: {ex.Message}"
+                    Activo = true,
+                    FechaCreacion = DateTime.Now,
+                    FechaModificacion = DateTime.Now,
+                    Procesado = false
                 };
             }
         }
 
         #endregion
 
-        #region Métodos de Conversión y Utilidades
+        #region Métodos Auxiliares
 
-        private JObject ConvertAnalyzeResultToJObject(AnalyzeResult analyzeResult)
-        {
-            try
-            {
-                var azureJson = JsonConvert.SerializeObject(analyzeResult, new JsonSerializerSettings
-                {
-                    NullValueHandling = NullValueHandling.Include,
-                    DateFormatHandling = DateFormatHandling.IsoDateFormat
-                });
-
-                var result = new JObject
-                {
-                    ["status"] = "succeeded",
-                    ["createdDateTime"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-                    ["lastUpdatedDateTime"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-                    ["analyzeResult"] = JObject.Parse(azureJson)
-                };
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error converting AnalyzeResult to JObject");
-
-                return new JObject
-                {
-                    ["status"] = "succeeded",
-                    ["analyzeResult"] = new JObject
-                    {
-                        ["content"] = analyzeResult.Content ?? "",
-                        ["documents"] = new JArray(),
-                        ["tables"] = new JArray(),
-                        ["paragraphs"] = new JArray()
-                    }
-                };
-            }
-        }
-
-        private Dictionary<string, string> ExtractFieldsDictionary(JObject azureResult)
+        private Dictionary<string, string> ExtractFieldsDictionary(AnalyzeResult analyzeResult)
         {
             var campos = new Dictionary<string, string>();
 
             try
             {
-                var analyzeResult = azureResult["analyzeResult"];
-                if (analyzeResult == null) return campos;
+                if (analyzeResult?.Documents == null)
+                    return campos;
 
-                var documents = analyzeResult["documents"] as JArray;
-                if (documents?.Count > 0)
+                foreach (var document in analyzeResult.Documents)
                 {
-                    var document = documents[0];
-                    var fields = document["fields"];
+                    if (document.Fields == null) continue;
 
-                    if (fields != null)
+                    foreach (var field in document.Fields)
                     {
-                        foreach (var field in fields.Children<JProperty>())
+                        var value = ExtractFieldValue(field.Value);
+                        if (!string.IsNullOrEmpty(value))
                         {
-                            var fieldValue = field.Value["content"]?.ToString() ??
-                                           field.Value["valueString"]?.ToString() ?? "";
-
-                            if (!string.IsNullOrEmpty(fieldValue))
-                            {
-                                campos[field.Name] = fieldValue;
-                            }
+                            campos[field.Key] = value;
                         }
                     }
                 }
 
-                var content = analyzeResult["content"]?.ToString();
-                if (!string.IsNullOrEmpty(content))
+                // También extraer de key-value pairs si están disponibles
+                if (analyzeResult.KeyValuePairs != null)
                 {
-                    campos["_content_completo"] = content;
+                    foreach (var kvp in analyzeResult.KeyValuePairs)
+                    {
+                        var key = kvp.Key?.Content?.ToLowerInvariant()
+                            .Replace(" ", "_")
+                            .Replace(":", "")
+                            .Replace(".", "")
+                            .Replace("-", "_") ?? "";
+
+                        var value = kvp.Value?.Content?.Trim() ?? "";
+
+                        if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(value) && value.Length > 1)
+                        {
+                            campos[key] = value;
+                        }
+                    }
                 }
 
                 _logger.LogDebug("Extracted {FieldCount} fields from Azure result", campos.Count);
@@ -333,11 +266,29 @@ namespace RegularizadorPolizas.Infrastructure.External
             return campos;
         }
 
-        private bool DetermineIfReviewRequired(PolizaDto poliza, AnalyzeResult analyzeResult)
+        private string ExtractFieldValue(DocumentField field)
         {
+            if (field == null) return string.Empty;
+
+            // ✅ CORREGIDO: Solo usar propiedades que realmente existen
+            if (!string.IsNullOrEmpty(field.Content))
+                return field.Content;
+
+            // Fallback a ValueString si Content está vacío
+            if (!string.IsNullOrEmpty(field.ValueString))
+                return field.ValueString;
+
+            return string.Empty;
+        }
+
+        private bool DetermineIfReviewRequired(PolizaDto? poliza, AnalyzeResult analyzeResult)
+        {
+            if (poliza == null) return true;
+
             var requiresReview = false;
             var reasons = new List<string>();
 
+            // Verificar confianza general
             var confidence = analyzeResult.Documents?.FirstOrDefault()?.Confidence ?? 0;
             if (confidence < 0.8)
             {
@@ -345,6 +296,7 @@ namespace RegularizadorPolizas.Infrastructure.External
                 reasons.Add($"Confianza baja del modelo: {confidence:P1}");
             }
 
+            // Verificar campos críticos
             if (string.IsNullOrEmpty(poliza.Conpol))
             {
                 requiresReview = true;
@@ -376,29 +328,15 @@ namespace RegularizadorPolizas.Infrastructure.External
                 if (poliza.Observaciones == null)
                     poliza.Observaciones = "";
 
-                poliza.Observaciones += "\nREQUIERE REVISIÓN:\n" + string.Join("\n- ", reasons);
+                poliza.Observaciones += "\nREQUIERE REVISIÓN:\n- " + string.Join("\n- ", reasons);
             }
 
             return requiresReview;
         }
 
-        private void MapFromExtractedFields(PolizaDto poliza, Dictionary<string, string> campos)
-        {
-            if (campos.TryGetValue("poliza.numero", out var numeroPoliza))
-                poliza.Conpol = numeroPoliza;
-
-            if (campos.TryGetValue("asegurado.nombre", out var nombreAsegurado))
-                poliza.Clinom = nombreAsegurado;
-
-            if (campos.TryGetValue("vehiculo.matricula", out var matricula))
-                poliza.Conmataut = matricula;
-
-            // Agregar más mapeos según sea necesario...
-        }
-
         #endregion
 
-        #region Métodos de Diagnóstico - CORREGIDOS
+        #region Métodos de Diagnóstico
 
         public async Task<string> GetModelInfoAsync()
         {
@@ -406,24 +344,15 @@ namespace RegularizadorPolizas.Infrastructure.External
             {
                 _logger.LogInformation("Getting model information for model: {ModelId}", _modelId);
 
-                // Usar HttpClient directo con las URLs correctas
                 using var httpClient = new HttpClient();
                 httpClient.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", _apiKey);
 
-                // PROBAR MÚLTIPLES ENDPOINTS HASTA ENCONTRAR EL CORRECTO
                 var endpointsToTry = new[]
                 {
-                    // Document Intelligence v3.1 (más nuevo)
                     $"{_endpoint.TrimEnd('/')}/documentintelligence/documentModels/{_modelId}?api-version=2023-07-31",
-                    
-                    // Document Intelligence v3.0  
                     $"{_endpoint.TrimEnd('/')}/formrecognizer/documentModels/{_modelId}?api-version=2022-08-31",
-                    
-                    // Document Intelligence v2.1 (legacy)
-                    $"{_endpoint.TrimEnd('/')}/formrecognizer/v2.1/custom/models/{_modelId}",
-                    
-                    // Nuevo endpoint 2024
-                    $"{_endpoint.TrimEnd('/')}/documentintelligence/documentModels/{_modelId}?api-version=2024-02-29-preview"
+                    $"{_endpoint.TrimEnd('/')}/documentintelligence/documentModels/{_modelId}?api-version=2024-02-29-preview",
+                    $"{_endpoint.TrimEnd('/')}/formrecognizer/v2.1/custom/models/{_modelId}"
                 };
 
                 foreach (var url in endpointsToTry)
@@ -445,38 +374,33 @@ namespace RegularizadorPolizas.Infrastructure.External
                                 Status = "Model Found",
                                 WorkingApiUrl = url,
                                 HttpStatus = response.StatusCode,
-                                Timestamp = DateTime.UtcNow,
-                                ModelDetails = content.Substring(0, Math.Min(500, content.Length)) + "..."
+                                ModelDetails = JObject.Parse(content)
                             };
 
                             return JsonConvert.SerializeObject(result, Formatting.Indented);
                         }
                         else
                         {
-                            _logger.LogWarning("❌ Failed with {Url}: {Status}", url, response.StatusCode);
+                            _logger.LogWarning("❌ Failed with endpoint: {Url}, Status: {Status}", url, response.StatusCode);
                         }
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning("❌ Exception with {Url}: {Message}", url, ex.Message);
+                        _logger.LogError(ex, "Error with endpoint: {Url}", url);
                     }
                 }
 
-                // Si ningún endpoint funciona
-                var failInfo = new
+                return JsonConvert.SerializeObject(new
                 {
                     ModelId = _modelId,
                     Endpoint = _endpoint,
                     Status = "Model Not Found",
-                    Message = "Tried multiple API versions, none worked",
-                    Timestamp = DateTime.UtcNow
-                };
-
-                return JsonConvert.SerializeObject(failInfo, Formatting.Indented);
+                    Error = "No working endpoint found"
+                }, Formatting.Indented);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting model info for {ModelId}", _modelId);
+                _logger.LogError(ex, "Error getting model information");
 
                 var errorInfo = new
                 {
@@ -497,7 +421,6 @@ namespace RegularizadorPolizas.Infrastructure.External
             {
                 _logger.LogInformation("Testing Azure Document Intelligence connection");
 
-                // MÉTODO 1: Probar listando todos los modelos disponibles
                 using var httpClient = new HttpClient();
                 httpClient.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", _apiKey);
 
@@ -520,38 +443,30 @@ namespace RegularizadorPolizas.Infrastructure.External
                             var content = await response.Content.ReadAsStringAsync();
                             _logger.LogInformation("✅ Successfully connected! Found models list.");
 
-                            // Verificar si nuestro modelo está en la lista
                             if (content.Contains(_modelId))
                             {
                                 _logger.LogInformation("✅ Model '{ModelId}' found in models list!", _modelId);
-                                return true;
                             }
                             else
                             {
-                                _logger.LogWarning("⚠️ Connected but model '{ModelId}' not found in list", _modelId);
-                                _logger.LogInformation("Available models: {Content}", content.Substring(0, Math.Min(1000, content.Length)));
-                                return false; // Conexión OK, pero modelo no existe
+                                _logger.LogWarning("⚠️ Model '{ModelId}' not found in models list", _modelId);
                             }
-                        }
-                        else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-                        {
-                            _logger.LogError("❌ Authentication failed: Invalid API key");
-                            return false;
+
+                            return true;
                         }
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning("Failed with {Url}: {Message}", listUrl, ex.Message);
+                        _logger.LogWarning(ex, "Failed to test endpoint: {Url}", listUrl);
                     }
                 }
 
-                // MÉTODO 2: Si falla el listado, probar con documento mínimo
-                _logger.LogInformation("Models list failed, trying with minimal document test...");
-                return await TestConnectionWithDocumentAsync();
+                _logger.LogError("❌ All connection tests failed");
+                return false;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Connection test failed for Azure Document Intelligence");
+                _logger.LogError(ex, "Error testing connection");
                 return false;
             }
         }
@@ -560,42 +475,43 @@ namespace RegularizadorPolizas.Infrastructure.External
         {
             try
             {
-                _logger.LogInformation("Testing connection with minimal document (fallback method)");
+                _logger.LogInformation("Testing connection with a small document");
 
-                var minimalPdf = CreateMinimalPdf();
-                var binaryData = BinaryData.FromBytes(minimalPdf);
+                // Crear un PDF mínimo para testing
+                var testPdfBytes = Convert.FromBase64String(
+                    "JVBERi0xLjMKJcTl8uXrp/Og0MTGCjEgMCBvYmoKPDwKL1R5cGUgL0NhdGFsb2cKL091dGxpbmVzIDIgMCBSCi9QYWdlcyAzIDAgUgo+PgplbmRvYmoKMiAwIG9iago8PAovVHlwZSAvT3V0bGluZXMKL0NvdW50IDAKPD4KZW5kb2JqCjMgMCBvYmoKPDwKL1R5cGUgL1BhZ2VzCi9Db3VudCAxCi9LaWRzIFs0IDAgUl0KPj4KZW5kb2JqCjQgMCBvYmoKPDwKL1R5cGUgL1BhZ2UKL1BhcmVudCAzIDAgUgovUmVzb3VyY2VzIDw8Ci9Gb250IDw8Ci9GMSA5IDAgUgo+Pgo+PgovTWVkaWFCb3ggWzAgMCA2MTIgNzkyXQovQ29udGVudHMgNSAwIFIKPj4KZW5kb2JqCjUgMCBvYmoKPDwKL0xlbmd0aCA0NAo+PgpzdHJlYW0KQlQKL0YxIDEyIFRmCjEwMCA3MDAgVGQKKFRlc3QpIFRqCkVUCmVuZHN0cmVhbQplbmRvYmoKOSAwIG9iago8PAovVHlwZSAvRm9udAovU3VidHlwZSAvVHlwZTEKL0Jhc2VGb250IC9UaW1lcy1Sb21hbgo+PgplbmRvYmoKeHJlZgowIDEwCjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAwOSAwMDAwMCBuIAowMDAwMDAwMDc0IDAwMDAwIG4gCjAwMDAwMDAxMjAgMDAwMDAgbiAKMDAwMDAwMDE3NyAwMDAwMCBuIAowMDAwMDAwMzY0IDAwMDAwIG4gCjAwMDAwMDA0NTggMDAwMDAgbiAKdHJhaWxlcgo8PAovU2l6ZSAxMAovUm9vdCAxIDAgUgo+PgpzdGFydHhyZWYKNTE4CiUlRU9G");
+
+                using var memoryStream = new MemoryStream(testPdfBytes);
+                var binaryData = BinaryData.FromStream(memoryStream);
 
                 var operation = await _client.AnalyzeDocumentAsync(
-                    WaitUntil.Started,
+                    WaitUntil.Completed,
                     _modelId,
                     binaryData);
 
-                if (operation != null && !string.IsNullOrEmpty(operation.Id))
-                {
-                    _logger.LogInformation("Connection successful - Operation started with ID: {OperationId}", operation.Id);
-                    return true;
-                }
+                var result = operation.Value;
+                _logger.LogInformation("✅ Document processing test successful!");
 
-                return false;
+                return true;
             }
             catch (Azure.RequestFailedException ex) when (ex.Status == 401)
             {
-                _logger.LogError("Authentication failed: {Message}", ex.Message);
+                _logger.LogError("❌ Authentication failed: {Message}", ex.Message);
                 return false;
             }
             catch (Azure.RequestFailedException ex) when (ex.Status == 404)
             {
-                _logger.LogError("Model not found: {Message}", ex.Message);
+                _logger.LogError("❌ Model not found: {Message}", ex.Message);
                 return false;
             }
             catch (Azure.RequestFailedException ex) when (ex.Status == 400)
             {
-                _logger.LogWarning("Document format issue but authentication works: {Message}", ex.Message);
+                _logger.LogWarning("⚠️ Document format issue but authentication works: {Message}", ex.Message);
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during document connection test");
+                _logger.LogError(ex, "❌ Error during document connection test");
                 return false;
             }
         }
@@ -616,7 +532,6 @@ namespace RegularizadorPolizas.Infrastructure.External
                 using var httpClient = new HttpClient();
                 httpClient.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", _apiKey);
 
-                // PASO 1: Listar todos los modelos con diferentes APIs
                 var listEndpoints = new[]
                 {
                     ($"{_endpoint.TrimEnd('/')}/documentintelligence/documentModels?api-version=2023-07-31", "Document Intelligence v3.1"),
@@ -636,66 +551,53 @@ namespace RegularizadorPolizas.Infrastructure.External
                             var content = await response.Content.ReadAsStringAsync();
                             results.Add($"✅ SUCCESS with {name}");
 
-                            // Parsear y mostrar modelos disponibles
                             try
                             {
                                 var jsonResponse = JsonConvert.DeserializeObject<dynamic>(content);
-
-                                // Diferentes estructuras según la API
                                 var models = jsonResponse?.value ?? jsonResponse?.modelList;
 
                                 if (models != null)
                                 {
-                                    results.Add("Available models:");
+                                    results.Add($"📋 Available Models ({((IEnumerable<dynamic>)models).Count()}):");
                                     foreach (var model in models)
                                     {
-                                        var modelIdFound = model?.modelId?.ToString() ?? model?.modelInfo?.modelId?.ToString();
-                                        var description = model?.description?.ToString() ?? model?.modelInfo?.description?.ToString() ?? "No description";
-                                        var status = model?.status?.ToString() ?? model?.modelInfo?.status?.ToString() ?? "Unknown";
+                                        var modelId = model?.modelId?.ToString() ?? "unknown";
+                                        var status = model?.status?.ToString() ?? "unknown";
+                                        var createdDate = model?.createdDateTime?.ToString() ?? "unknown";
 
-                                        results.Add($"  - {modelIdFound} | Status: {status} | Desc: {description}");
-
-                                        // Marcar si es nuestro modelo
-                                        if (modelIdFound == _modelId)
-                                        {
-                                            results.Add($"    ⭐ THIS IS YOUR MODEL! Use API: {name}");
-                                        }
+                                        var indicator = modelId == _modelId ? "👉 [TARGET MODEL]" : "   ";
+                                        results.Add($"{indicator} ID: {modelId} | Status: {status} | Created: {createdDate}");
                                     }
                                 }
                                 else
                                 {
-                                    results.Add($"No 'value' or 'modelList' property found. Raw structure:");
-                                    results.Add($"{content.Substring(0, Math.Min(500, content.Length))}...");
+                                    results.Add("⚠️ No models array found in response");
                                 }
                             }
                             catch (Exception parseEx)
                             {
-                                results.Add($"Parse error: {parseEx.Message}");
-                                results.Add($"Raw response: {content.Substring(0, Math.Min(500, content.Length))}...");
+                                results.Add($"⚠️ Error parsing models list: {parseEx.Message}");
+                                results.Add($"Raw response preview: {content.Substring(0, Math.Min(200, content.Length))}...");
                             }
                         }
                         else
                         {
-                            results.Add($"❌ {name}: {response.StatusCode} - {response.ReasonPhrase}");
-                            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                            results.Add($"❌ FAILED with {name}: {response.StatusCode}");
+                            if (response.Content != null)
                             {
-                                results.Add("   → Check your API key");
-                            }
-                            else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                            {
-                                results.Add("   → This API version/endpoint is not available");
+                                var errorContent = await response.Content.ReadAsStringAsync();
+                                results.Add($"   Error: {errorContent.Substring(0, Math.Min(100, errorContent.Length))}");
                             }
                         }
                     }
                     catch (Exception ex)
                     {
-                        results.Add($"❌ {name}: ERROR - {ex.Message}");
+                        results.Add($"❌ EXCEPTION with {name}: {ex.Message}");
                     }
                     results.Add("");
                 }
 
-                // PASO 2: Probar acceso directo al modelo específico
-                results.Add("--- TESTING DIRECT MODEL ACCESS ---");
+                // Test direct model access
                 var modelEndpoints = new[]
                 {
                     ($"{_endpoint.TrimEnd('/')}/documentintelligence/documentModels/{_modelId}?api-version=2023-07-31", "Document Intelligence v3.1"),
@@ -704,6 +606,7 @@ namespace RegularizadorPolizas.Infrastructure.External
                     ($"{_endpoint.TrimEnd('/')}/formrecognizer/v2.1/custom/models/{_modelId}", "Form Recognizer v2.1 (Legacy)")
                 };
 
+                results.Add("=== DIRECT MODEL ACCESS TESTS ===");
                 foreach (var (url, name) in modelEndpoints)
                 {
                     try
@@ -728,38 +631,21 @@ namespace RegularizadorPolizas.Infrastructure.External
                     }
                 }
 
+                results.Add("");
+                results.Add("=== SUMMARY ===");
+                results.Add($"Target Model ID: {_modelId}");
+                results.Add($"Model Found: {(results.Any(r => r.Contains("[TARGET MODEL]")) ? "YES" : "NO")}");
+                results.Add($"Connection Working: {(results.Any(r => r.Contains("SUCCESS")) ? "YES" : "NO")}");
+                results.Add("");
+                results.Add("Debug completed successfully!");
+
                 return string.Join("\n", results);
             }
             catch (Exception ex)
             {
-                results.Add($"CRITICAL ERROR: {ex.Message}");
+                results.Add($"FATAL ERROR during debug: {ex.Message}");
                 return string.Join("\n", results);
             }
-        }
-
-        // Método auxiliar para crear un PDF mínimo válido
-        private byte[] CreateMinimalPdf()
-        {
-            var pdfContent = "%PDF-1.4\n" +
-                            "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n" +
-                            "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n" +
-                            "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj\n" +
-                            "4 0 obj << /Length 44 >> stream\n" +
-                            "BT /F1 12 Tf 100 700 Td (Test Document) Tj ET\n" +
-                            "endstream endobj\n" +
-                            "xref\n" +
-                            "0 5\n" +
-                            "0000000000 65535 f \n" +
-                            "0000000009 00000 n \n" +
-                            "0000000058 00000 n \n" +
-                            "0000000115 00000 n \n" +
-                            "0000000205 00000 n \n" +
-                            "trailer << /Size 5 /Root 1 0 R >>\n" +
-                            "startxref\n" +
-                            "284\n" +
-                            "%%EOF";
-
-            return System.Text.Encoding.ASCII.GetBytes(pdfContent);
         }
 
         #endregion
