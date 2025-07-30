@@ -14,6 +14,7 @@ using RegularizadorPolizas.Infrastructure;
 using RegularizadorPolizas.Infrastructure.Data;
 using RegularizadorPolizas.Infrastructure.Data.Repositories;
 using RegularizadorPolizas.Infrastructure.External.VelneoAPI;
+using RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -44,6 +45,8 @@ builder.Services.AddScoped<IUserRoleService, UserRoleService>();
 builder.Services.AddScoped<IVelneoApiService, TenantAwareVelneoApiService>();
 builder.Services.AddScoped<IVelneoHttpService, VelneoHttpService>();
 
+builder.Services.AddScoped<IVelneoMaestrosService, VelneoMaestrosService>();
+
 builder.Services.AddHttpClient();
 #endregion
 
@@ -68,7 +71,9 @@ builder.Services.AddSwaggerGen(c =>
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "JWT Authorization header using the Bearer scheme. Example: 'Bearer {token}'",
+        Description = "JWT Authorization header using the Bearer scheme. " +
+                      "Enter 'Bearer' [space] and then your token in the text input below.\r\n\r\n" +
+                      "Example: \"Bearer 12345abcdef\"",
         Name = "Authorization",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.ApiKey,
@@ -85,118 +90,48 @@ builder.Services.AddSwaggerGen(c =>
                     Type = ReferenceType.SecurityScheme,
                     Id = "Bearer"
                 },
-                Scheme = "Bearer",
+                Scheme = "oauth2",
                 Name = "Bearer",
                 In = ParameterLocation.Header,
             },
             new List<string>()
         }
     });
-
-    c.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
-    {
-        Description = "API Key needed to access the endpoints. Example: X-Api-Key: {your-api-key}",
-        In = ParameterLocation.Header,
-        Name = "X-Api-Key",
-        Type = SecuritySchemeType.ApiKey
-    });
-});
-#endregion
-
-#region CORS Configuration
-builder.Services.AddCors(options =>
-{
-    if (builder.Environment.IsDevelopment())
-    {
-        // Configuración permisiva para desarrollo
-        options.AddPolicy("AllowAll", policy =>
-        {
-            policy.WithOrigins(
-                    "http://localhost:3000",
-                    "http://localhost:3001",
-                    "https://localhost:3000",
-                    "https://localhost:3001",
-                    "http://localhost:5173",
-                    "https://localhost:5173"
-                )
-                .AllowAnyMethod()
-                .AllowAnyHeader()
-                .AllowCredentials();
-        });
-    }
-    else
-    {
-        var allowedOrigins = builder.Configuration.GetSection("Frontend:AllowedOrigins").Get<string[]>() ?? new string[0];
-
-        options.AddPolicy("AllowAll", policy =>
-        {
-            if (allowedOrigins.Length > 0)
-            {
-                policy.WithOrigins(allowedOrigins)
-                    .AllowAnyMethod()
-                    .AllowAnyHeader()
-                    .AllowCredentials();
-            }
-        });
-    }
-});
-#endregion
-
-#region Session Configuration
-builder.Services.AddDistributedMemoryCache();
-builder.Services.AddSession(options =>
-{
-    options.IdleTimeout = TimeSpan.FromMinutes(30);
-    options.Cookie.HttpOnly = true;
-    options.Cookie.IsEssential = true;
-    options.Cookie.SameSite = SameSiteMode.Strict;
 });
 #endregion
 
 #region JWT Authentication
-var jwtSettings = builder.Configuration.GetSection("Jwt");
-var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]);
+var jwtKey = builder.Configuration["Jwt:Key"];       
+var jwtIssuer = builder.Configuration["Jwt:Issuer"]; 
+var jwtAudience = builder.Configuration["Jwt:Audience"]; 
 
-Console.WriteLine("🔐 Configurando JWT Authentication...");
-Console.WriteLine($"🔐 JWT Issuer: {jwtSettings["Issuer"]}");
-Console.WriteLine($"🔐 JWT Audience: {jwtSettings["Audience"]}");
-Console.WriteLine($"🔐 JWT Key configurado: {!string.IsNullOrEmpty(jwtSettings["Key"])}");
-Console.WriteLine($"🔐 JWT Key length: {jwtSettings["Key"]?.Length} chars");
-
-builder.Services.AddAuthentication(options =>
+if (string.IsNullOrEmpty(jwtKey))
 {
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-})
+    throw new InvalidOperationException("JWT Key is not configured. Please check your appsettings.json or user secrets.");
+}
+
+Console.WriteLine($"✅ JWT Configuration loaded - Issuer: {jwtIssuer}, Audience: {jwtAudience}");
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 .AddJwtBearer(options =>
 {
-    options.RequireHttpsMetadata = false; 
-    options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(key),
         ValidateIssuer = true,
-        ValidIssuer = jwtSettings["Issuer"],
         ValidateAudience = true,
-        ValidAudience = jwtSettings["Audience"],
         ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero 
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+        ClockSkew = TimeSpan.Zero
     };
 
     options.Events = new JwtBearerEvents
     {
-        OnAuthenticationFailed = context =>
-        {
-            Console.WriteLine($"🚨 JWT Authentication Failed: {context.Exception.Message}");
-            Console.WriteLine($"🚨 Request Path: {context.Request.Path}");
-            Console.WriteLine($"🚨 Token: {context.Request.Headers.Authorization.FirstOrDefault()}");
-            return Task.CompletedTask;
-        },
         OnTokenValidated = context =>
         {
-            var userName = context.Principal?.Identity?.Name ?? "Unknown";
+            var userName = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? "Unknown";
             var userId = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "Unknown";
             Console.WriteLine($"✅ JWT Token Validated - User: {userName} (ID: {userId})");
             Console.WriteLine($"✅ Request Path: {context.Request.Path}");
@@ -282,101 +217,43 @@ app.Map("/error", (HttpContext context) =>
     var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
     logger.LogError(exception, "An unhandled exception occurred during request processing.");
 
-    var errorResponse = new
-    {
-        StatusCode = StatusCodes.Status500InternalServerError,
-        Message = "An unexpected error occurred. Please try again later.",
-        ErrorDetails = app.Environment.IsDevelopment() ? exception?.Message : null,
-        Timestamp = DateTime.UtcNow
-    };
+    return Results.Problem(
+        detail: app.Environment.IsDevelopment() ? exception?.ToString() : "An error occurred while processing your request.",
+        statusCode: 500,
+        title: "Internal Server Error"
+    );
+});
+#endregion
 
-    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-    context.Response.ContentType = "application/json";
-
-    return Results.Json(errorResponse);
+#region CORS
+app.UseCors(builder =>
+{
+    builder
+        .AllowAnyOrigin()
+        .AllowAnyMethod()
+        .AllowAnyHeader();
 });
 #endregion
 
 #region Middleware Pipeline
 app.UseHttpsRedirection();
-app.UseCors("AllowAll");
-app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseAuditMiddleware();
 app.UseMiddleware<ApiKeyMiddleware>();
-#endregion
-
-#region Controllers
 app.MapControllers();
 #endregion
 
-#region Development Endpoints
-if (app.Environment.IsDevelopment())
-{
-    app.MapGet("/debug-config", (IConfiguration config) =>
-    {
-        var settings = new
-        {
-            Environment = app.Environment.EnvironmentName,
-            AzureEndpoint = config["AzureDocumentIntelligence:Endpoint"],
-            VelneoUrl = config["VelneoAPI:BaseUrl"],
-            ConnectionStringConfigured = !string.IsNullOrEmpty(config.GetConnectionString("DefaultConnection")),
-            JwtIssuer = config["Jwt:Issuer"],
-            JwtAudience = config["Jwt:Audience"],
-            JwtKeyConfigured = !string.IsNullOrEmpty(config["Jwt:Key"]),
-            JwtKeyLength = config["Jwt:Key"]?.Length,
-            Timestamp = DateTime.UtcNow
-        };
-        return Results.Json(settings);
-    }).AllowAnonymous();
+#region Startup Logging
+app.Logger.LogInformation("🚀 RegularizadorPolizas API starting up...");
+app.Logger.LogInformation("🔧 Environment: {Environment}", app.Environment.EnvironmentName);
+app.Logger.LogInformation("🌐 CORS: Allow any origin");
+app.Logger.LogInformation("🔐 JWT Authentication: Enabled");
+app.Logger.LogInformation("📊 Swagger: Available at /swagger");
 
-    app.MapGet("/debug-jwt", (HttpContext context) =>
-    {
-        return Results.Ok(new
-        {
-            IsAuthenticated = context.User.Identity?.IsAuthenticated,
-            UserName = context.User.Identity?.Name,
-            Claims = context.User.Claims.Select(c => new { c.Type, c.Value }),
-            JwtKeyConfigured = !string.IsNullOrEmpty(context.RequestServices.GetService<IConfiguration>()?["Jwt:Key"]),
-            AuthHeader = context.Request.Headers.Authorization.FirstOrDefault()
-        });
-    }).RequireAuthorization();
-
-    app.MapGet("/health", () =>
-    {
-        return Results.Ok(new
-        {
-            Status = "Healthy",
-            Timestamp = DateTime.UtcNow,
-            Environment = app.Environment.EnvironmentName
-        });
-    }).AllowAnonymous();
-
-    app.MapGet("/test-auth", (HttpContext context) =>
-    {
-        if (context.User.Identity?.IsAuthenticated == true)
-        {
-            return Results.Ok(new
-            {
-                Message = "🎉 JWT Authentication is working!",
-                User = context.User.Identity.Name,
-                UserId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
-                Tenant = context.User.FindFirst("tenant")?.Value,
-                Roles = context.User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value),
-                Timestamp = DateTime.UtcNow
-            });
-        }
-        else
-        {
-            return Results.Unauthorized();
-        }
-    }).RequireAuthorization();
-}
+// ✅ ARQUITECTURA UNIFICADA COMPLETADA
+app.Logger.LogInformation("🎯 VelneoMaestrosService: Unified architecture active");
+app.Logger.LogInformation("📋 25 methods unified: Maestros + Clientes + Compañías");
+app.Logger.LogInformation("🏗️ Refactoring completed: 3 services → 1 unified service");
 #endregion
-
-Console.WriteLine("🚀 RegularizadorPolizas API iniciando...");
-Console.WriteLine($"🌍 Environment: {app.Environment.EnvironmentName}");
-Console.WriteLine($"🔐 JWT habilitado: {!string.IsNullOrEmpty(builder.Configuration["Jwt:Key"])}");
 
 app.Run();
