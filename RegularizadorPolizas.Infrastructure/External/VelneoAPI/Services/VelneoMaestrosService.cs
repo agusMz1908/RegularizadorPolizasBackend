@@ -4,7 +4,7 @@ using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Application.Models;
 using RegularizadorPolizas.Application.Mappers;
 
-namespace RegularizadorPolizas.Application.Services
+namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
 {
     /// <summary>
     /// Servicio especializado para maestros/catálogos en Velneo API

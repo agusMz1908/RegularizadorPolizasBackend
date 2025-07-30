@@ -2,16 +2,10 @@
 {
     public static class HttpResponseExtensions
     {
-        /// <summary>
-        /// Extrae el total count de los headers de respuesta de Velneo API
-        /// </summary>
-        /// <param name="response">HttpResponseMessage de Velneo API</param>
-        /// <returns>Total count si está presente en headers, null si no</returns>
         public static int? GetTotalCountFromHeaders(this HttpResponseMessage response)
         {
             if (response == null) return null;
 
-            // ✅ Headers comunes de paginación en APIs REST
             var possibleHeaders = new[]
             {
                 "X-Total-Count",      // Header estándar

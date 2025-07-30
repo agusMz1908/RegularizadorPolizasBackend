@@ -1,9 +1,10 @@
 ﻿using Microsoft.Extensions.Logging;
 using RegularizadorPolizas.Application.Interfaces;
+using RegularizadorPolizas.Infrastructure.External.VelneoAPI.Extensions;  
 using System.Diagnostics;
 using System.Net;
 
-namespace RegularizadorPolizas.Application.Services
+namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
 {
     /// <summary>
     /// Clase base optimizada para todos los servicios especializados de Velneo API
