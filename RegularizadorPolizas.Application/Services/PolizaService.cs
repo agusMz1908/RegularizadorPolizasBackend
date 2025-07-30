@@ -1,7 +1,7 @@
 ﻿using AutoMapper;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
-using RegularizadorPolizas.Application.Interfaces.External;
+using RegularizadorPolizas.Application.Interfaces.External.Velneo;
 using RegularizadorPolizas.Domain.Entities;
 
 namespace RegularizadorPolizas.Application.Services

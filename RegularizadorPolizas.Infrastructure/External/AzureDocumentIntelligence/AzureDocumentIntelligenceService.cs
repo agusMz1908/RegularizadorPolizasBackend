@@ -7,7 +7,7 @@ using RegularizadorPolizas.Application.DTOs;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using RegularizadorPolizas.Application.Services;
-using RegularizadorPolizas.Application.Interfaces.External;
+using RegularizadorPolizas.Application.Interfaces.External.AzureDocumentIntelligence;
 
 namespace RegularizadorPolizas.Infrastructure.External
 {

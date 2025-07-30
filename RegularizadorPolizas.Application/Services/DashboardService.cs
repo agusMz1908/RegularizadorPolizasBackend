@@ -1,8 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
-using RegularizadorPolizas.Application.DTOs; 
+using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.DTOs.Dashboard;
 using RegularizadorPolizas.Application.Interfaces;
-using RegularizadorPolizas.Application.Interfaces.External;
+using RegularizadorPolizas.Application.Interfaces.External.AzureDocumentIntelligence;
+using RegularizadorPolizas.Application.Interfaces.External.Velneo;
 
 namespace RegularizadorPolizas.Application.Services
 {

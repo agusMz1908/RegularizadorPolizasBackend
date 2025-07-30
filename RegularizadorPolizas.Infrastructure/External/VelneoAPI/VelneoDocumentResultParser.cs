@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
 using RegularizadorPolizas.Application.DTOs;
 
-namespace RegularizadorPolizas.Application.Services
+namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 {
     public class VelneoDocumentResultParser
     {

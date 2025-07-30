@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RegularizadorPolizas.Application.DTOs;
-using RegularizadorPolizas.Application.Interfaces.External;
+using RegularizadorPolizas.Application.Interfaces.External.Velneo;
 
 namespace RegularizadorPolizas.API.Controllers
 {

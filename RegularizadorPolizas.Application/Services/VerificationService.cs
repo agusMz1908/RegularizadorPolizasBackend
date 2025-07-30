@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Logging;
 using RegularizadorPolizas.Application.DTOs.Verification;
 using RegularizadorPolizas.Application.Interfaces;
-using RegularizadorPolizas.Application.Interfaces.External;
+using RegularizadorPolizas.Application.Interfaces.External.Velneo;
 using RegularizadorPolizas.Domain.Entities;
 
 namespace RegularizadorPolizas.Application.Services

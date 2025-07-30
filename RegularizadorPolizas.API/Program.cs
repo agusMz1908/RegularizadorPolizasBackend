@@ -1,20 +1,20 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System.Text;
-
+using RegularizadorPolizas.API.Middleware;
 using RegularizadorPolizas.Application;
+using RegularizadorPolizas.Application.External.Velneo;
+using RegularizadorPolizas.Application.Interfaces;
+using RegularizadorPolizas.Application.Interfaces.External.Velneo;
+using RegularizadorPolizas.Application.Mappings;
+using RegularizadorPolizas.Application.Services;
 using RegularizadorPolizas.Infrastructure;
 using RegularizadorPolizas.Infrastructure.Data;
-using RegularizadorPolizas.API.Middleware;
-using RegularizadorPolizas.Application.Interfaces;
-using RegularizadorPolizas.Application.Services;
-using RegularizadorPolizas.Application.Mappings;
 using RegularizadorPolizas.Infrastructure.Data.Repositories;
 using RegularizadorPolizas.Infrastructure.External.VelneoAPI;
-using RegularizadorPolizas.Application.Interfaces.External;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,6 +42,7 @@ builder.Services.AddScoped<IApiKeyService, ApiKeyService>();
 builder.Services.AddScoped<ITenantService, TenantService>();
 builder.Services.AddScoped<IUserRoleService, UserRoleService>();
 builder.Services.AddScoped<IVelneoApiService, TenantAwareVelneoApiService>();
+builder.Services.AddScoped<IVelneoHttpService, VelneoHttpService>();
 
 builder.Services.AddHttpClient();
 #endregion

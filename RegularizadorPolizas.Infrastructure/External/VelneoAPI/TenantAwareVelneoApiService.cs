@@ -1,10 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
-using RegularizadorPolizas.Application.Interfaces.External;
-using RegularizadorPolizas.Infrastructure.External.VelneoAPI.Extensions;
-using RegularizadorPolizas.Infrastructure.External.VelneoAPI.Mappers;
-using RegularizadorPolizas.Infrastructure.External.VelneoAPI.Models;
+using RegularizadorPolizas.Application.Interfaces.External.Velneo;
+using RegularizadorPolizas.Application.Mappers;
+using RegularizadorPolizas.Application.Models;
 using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
@@ -118,7 +117,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             // ✅ Si falla, intentar como wrapper - hacer nueva llamada
             response = await httpClient.GetAsync(url);
             response.EnsureSuccessStatusCode();
-            var velneoResponse = await DeserializeResponseAsync<VelneoClientResponse>(response);
+            var velneoResponse = await DeserializeResponseAsync<VelneoClienteResponse>(response);
             if (velneoResponse?.Cliente != null)
             {
                 var result = velneoResponse.Cliente.ToClienteDto();
@@ -628,9 +627,9 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             response = await httpClient.GetAsync(url);
             response.EnsureSuccessStatusCode();
             var velneoResponse = await DeserializeResponseAsync<VelneoCompanyResponse>(response);
-            if (velneoResponse?.Compania != null)
+            if (velneoResponse?.Company != null)
             {
-                var result = velneoResponse.Compania.ToCompanyDto();
+                var result = velneoResponse.Company.ToCompanyDto();
                 _logger.LogInformation("Successfully retrieved company {CompanyId} from Velneo API (wrapped)", id);
                 return result;
             }
@@ -769,7 +768,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 if (velneoResponse?.Polizas != null && velneoResponse.Polizas.Any())
                 {
                     _logger.LogInformation("✅ Página {Page} - Count: {Count}, Total en DB: {Total}",
-                        pageNumber, velneoResponse.Polizas.Count, velneoResponse.TotalCount);
+                        pageNumber, velneoResponse.Polizas.Count, velneoResponse.Total_Count);
 
                     var polizasPage = velneoResponse.Polizas.ToPolizaDtos().ToList();
                     allPolizas.AddRange(polizasPage);
@@ -2334,8 +2333,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                     .Select(s => new SeccionLookupDto
                     {
                         Id = s.Id,
-                        Name = s.Seccion,
-                        Icono = SeccionMappers.GetIconoForSeccion(s.Seccion),
+                        Name = s.Seccod,
                         Activo = true
                     })
                     .OrderBy(s => s.Name)
@@ -2623,58 +2621,58 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
         #endregion
 
     #region Metodos Cobertura
-        public async Task<IEnumerable<CoberturaDto>> GetAllCoberturasAsync()
+    public async Task<IEnumerable<CoberturaDto>> GetAllCoberturasAsync()
+    {
+        try
         {
+            var tenantId = _tenantService.GetCurrentTenantId();
+            _logger.LogDebug("🛡️ Getting all coberturas from Velneo API for tenant {TenantId}", tenantId);
+
+            using var httpClient = await GetConfiguredHttpClientAsync();
+            var url = await BuildVelneoUrlAsync("v1/coberturas");
+            var response = await httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            // ✅ PRIMERO: Intentar como wrapper (formato esperado de Velneo)
             try
             {
-                var tenantId = _tenantService.GetCurrentTenantId();
-                _logger.LogDebug("🛡️ Getting all coberturas from Velneo API for tenant {TenantId}", tenantId);
-
-                using var httpClient = await GetConfiguredHttpClientAsync();
-                var url = await BuildVelneoUrlAsync("v1/coberturas");
-                var response = await httpClient.GetAsync(url);
-                response.EnsureSuccessStatusCode();
-
-                // ✅ PRIMERO: Intentar como wrapper (formato esperado de Velneo)
-                try
+                var velneoResponse = await DeserializeResponseAsync<VelneoCoberturasResponse>(response);
+                if (velneoResponse?.Coberturas != null && velneoResponse.Coberturas.Any())
                 {
-                    var velneoResponse = await DeserializeResponseAsync<VelneoCoberturasResponse>(response);
-                    if (velneoResponse?.Coberturas != null && velneoResponse.Coberturas.Any())
-                    {
-                        var coberturas = velneoResponse.Coberturas.ToCoberturasDtos().ToList();
-                        _logger.LogInformation("✅ Successfully retrieved {Count} coberturas from Velneo API (wrapper format)",
-                            coberturas.Count);
-                        return coberturas;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "⚠️ Failed to parse coberturas as wrapper, trying array format");
-                }
-
-                // ✅ SEGUNDO: Si falla, intentar como array directo (fallback)
-                response = await httpClient.GetAsync(url);
-                response.EnsureSuccessStatusCode();
-                var velneoCoberturas = await DeserializeResponseAsync<List<VelneoCobertura>>(response);
-                if (velneoCoberturas != null && velneoCoberturas.Any())
-                {
-                    var coberturas = velneoCoberturas.ToCoberturasDtos().ToList();
-                    _logger.LogInformation("✅ Successfully retrieved {Count} coberturas from Velneo API (array format)",
+                    var coberturas = velneoResponse.Coberturas.ToCoberturasDtos().ToList();
+                    _logger.LogInformation("✅ Successfully retrieved {Count} coberturas from Velneo API (wrapper format)",
                         coberturas.Count);
                     return coberturas;
                 }
-
-                _logger.LogWarning("⚠️ No coberturas found in Velneo API response");
-                return new List<CoberturaDto>();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Error getting coberturas from Velneo API");
-                throw new ApplicationException($"Error retrieving coberturas from Velneo API: {ex.Message}", ex);
+                _logger.LogWarning(ex, "⚠️ Failed to parse coberturas as wrapper, trying array format");
             }
-        }
 
-        #endregion
+            // ✅ SEGUNDO: Si falla, intentar como array directo (fallback)
+            response = await httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+            var velneoCoberturas = await DeserializeResponseAsync<List<VelneoCobertura>>(response);
+            if (velneoCoberturas != null && velneoCoberturas.Any())
+            {
+                var coberturas = velneoCoberturas.ToCoberturasDtos().ToList();
+                _logger.LogInformation("✅ Successfully retrieved {Count} coberturas from Velneo API (array format)",
+                    coberturas.Count);
+                return coberturas;
+            }
+
+            _logger.LogWarning("⚠️ No coberturas found in Velneo API response");
+            return new List<CoberturaDto>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ Error getting coberturas from Velneo API");
+            throw new ApplicationException($"Error retrieving coberturas from Velneo API: {ex.Message}", ex);
+        }
+    }
+
+    #endregion
 
     #region Metodos Departamentos
 
@@ -2729,7 +2727,107 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
         }
     }
 
-        #endregion 
+        #endregion
+
+    #region Metodos Tarifas
+    public async Task<IEnumerable<TarifaDto>> GetAllTarifasAsync()
+    {
+        try
+        {
+            var tenantId = _tenantService.GetCurrentTenantId();
+            _logger.LogDebug("🎯 Getting all tarifas from Velneo API for tenant {TenantId}", tenantId);
+
+            using var httpClient = await GetConfiguredHttpClientAsync();
+            var url = await BuildVelneoUrlAsync("v1/tarifas");
+
+            _logger.LogInformation("🌐 Calling Velneo API: {Url}", url);
+
+            var response = await httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            var velneoResponse = await DeserializeResponseAsync<VelneoTarifasResponse>(response);
+            if (velneoResponse?.Tarifas != null && velneoResponse.Tarifas.Any())
+            {
+                var tarifas = velneoResponse.Tarifas.ToTarifaDtos().ToList();
+                _logger.LogInformation("✅ Successfully retrieved {Count} tarifas from Velneo API (wrapper format)",
+                    tarifas.Count);
+
+                LogTarifasStats(tarifas);
+                return tarifas;
+            }
+
+            response = await httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+            var velneoTarifas = await DeserializeResponseAsync<List<VelneoTarifa>>(response);
+            if (velneoTarifas != null && velneoTarifas.Any())
+            {
+                var tarifas = velneoTarifas.ToTarifaDtos().ToList();
+                _logger.LogInformation("✅ Successfully retrieved {Count} tarifas from Velneo API (array format)",
+                    tarifas.Count);
+
+                LogTarifasStats(tarifas);
+                return tarifas;
+            }
+
+            _logger.LogWarning("⚠️ No tarifas found in Velneo API response");
+            return new List<TarifaDto>();
+        }
+        catch (HttpRequestException httpEx)
+        {
+            _logger.LogError(httpEx, "❌ HTTP error getting tarifas from Velneo API");
+            throw new ApplicationException($"HTTP error retrieving tarifas from Velneo API: {httpEx.Message}", httpEx);
+        }
+        catch (TaskCanceledException timeoutEx)
+        {
+            _logger.LogError(timeoutEx, "❌ Timeout getting tarifas from Velneo API");
+            throw new ApplicationException("Timeout retrieving tarifas from Velneo API", timeoutEx);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ Unexpected error getting tarifas from Velneo API");
+            throw new ApplicationException($"Error retrieving tarifas from Velneo API: {ex.Message}", ex);
+        }
+    }
+    private void LogTarifasStats(List<TarifaDto> tarifas)
+    {
+        try
+        {
+            var companiaGroups = tarifas.GroupBy(t => t.CompaniaId).ToList();
+
+            _logger.LogInformation("📊 Tarifas Statistics:");
+            _logger.LogInformation("   📌 Total tarifas loaded: {Total}", tarifas.Count);
+            _logger.LogInformation("   📌 Unique companies: {Companies}", companiaGroups.Count);
+
+            _logger.LogInformation("📊 Tarifas by Company:");
+            foreach (var group in companiaGroups.OrderBy(g => g.Key))
+            {
+                var sampleTarifas = group.Take(3).Select(t => t.Nombre).ToList();
+                _logger.LogInformation("   🏢 Company {CompaniaId}: {Count} tarifas (samples: {Samples})",
+                    group.Key, group.Count(), string.Join(", ", sampleTarifas));
+            }
+
+            var topCompanies = companiaGroups
+                .OrderByDescending(g => g.Count())
+                .Take(3)
+                .ToList();
+
+            if (topCompanies.Any())
+            {
+                _logger.LogInformation("🏆 Top companies by tarifa count:");
+                foreach (var company in topCompanies)
+                {
+                    _logger.LogInformation("   🥇 Company {CompaniaId}: {Count} tarifas",
+                        company.Key, company.Count());
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "⚠️ Error logging tarifas statistics (non-critical)");
+        }
+    }
+
+    #endregion
 
     }
 }

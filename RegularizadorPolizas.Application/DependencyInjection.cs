@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using RegularizadorPolizas.Application.External.Velneo;
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Application.Services;
 using RegularizadorPolizas.Infrastructure.Services;
@@ -25,6 +26,7 @@ namespace RegularizadorPolizas.Application
             services.AddScoped<IPermissionService, PermissionService>();
             services.AddScoped<ITenantService, TenantService>();
             services.AddScoped<IFileStorageService, AzureBlobStorageService>();
+            services.AddScoped<IVelneoHttpService, VelneoHttpService>();
             services.AddScoped<IVerificationService, VerificationService>();
 
             services.AddScoped<IDocumentExtractionService, DocumentExtractionService>();

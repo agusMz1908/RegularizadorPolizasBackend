@@ -3,7 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RegularizadorPolizas.Application.Interfaces;
-using RegularizadorPolizas.Application.Interfaces.External;
+using RegularizadorPolizas.Application.Interfaces.External.AzureDocumentIntelligence;
+using RegularizadorPolizas.Application.Interfaces.External.Velneo;
 using RegularizadorPolizas.Application.Services;
 using RegularizadorPolizas.Infrastructure.Data;
 using RegularizadorPolizas.Infrastructure.Data.Repositories;
@@ -30,6 +31,7 @@ namespace RegularizadorPolizas.Infrastructure
                         errorNumbersToAdd: null
                     )
                 ));
+
             services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
             services.AddScoped<IClientRepository, ClientRepository>();
             services.AddScoped<IPolizaRepository, PolizaRepository>();
