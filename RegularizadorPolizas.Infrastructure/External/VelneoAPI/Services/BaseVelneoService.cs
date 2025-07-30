@@ -311,7 +311,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
         protected async Task<IEnumerable<TLookup>> GetLookupAsync<TDto, TLookup>(
             Func<Task<IEnumerable<TDto>>> getAllMethod,
             Func<TDto, TLookup> mapToLookup,
-            string entityName)
+            string entityName,
+            object filter)
             where TDto : class
             where TLookup : class
         {

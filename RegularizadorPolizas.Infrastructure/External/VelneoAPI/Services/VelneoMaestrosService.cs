@@ -6,19 +6,7 @@ using RegularizadorPolizas.Application.Mappers;
 
 namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
 {
-    /// <summary>
-    /// Servicio especializado para maestros/catálogos en Velneo API
-    /// 
-    /// ✅ ELIMINA DUPLICACIÓN: Reemplaza 8+ métodos idénticos del monolito
-    /// ✅ USA BaseVelneoService: Código súper limpio sin repetición
-    /// ✅ PERFORMANCE: Método genérico optimizado GetMaestroAsync<T>()
-    /// 
-    /// 📋 MAESTROS SOPORTADOS:
-    /// - Combustibles, Destinos, Categorías, Calidades, Monedas
-    /// - Secciones, Coberturas, Departamentos
-    /// 
-    /// 🔄 MIGRADO DESDE: TenantAwareVelneoApiService.cs (líneas 500-1200)
-    /// </summary>
+
     public class VelneoMaestrosService : BaseVelneoService, IVelneoMaestrosService
     {
         public VelneoMaestrosService(
@@ -29,14 +17,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
         {
         }
 
-        // ===========================
-        // MAESTROS BÁSICOS DE VEHÍCULOS
-        // ===========================
-
-        /// <summary>
-        /// ✅ ANTES: 25 líneas duplicadas en TenantAwareVelneoApiService
-        /// ✅ AHORA: 1 línea usando BaseVelneoService.GetMaestroAsync<T>()
-        /// </summary>
         public async Task<IEnumerable<CombustibleDto>> GetAllCombustiblesAsync()
         {
             return await GetMaestroAsync<VelneoCombustible, VelneoCombustiblesResponse, CombustibleDto>(
@@ -47,10 +27,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             );
         }
 
-        /// <summary>
-        /// ✅ ANTES: 25 líneas duplicadas en TenantAwareVelneoApiService  
-        /// ✅ AHORA: 1 línea usando BaseVelneoService.GetMaestroAsync<T>()
-        /// </summary>
         public async Task<IEnumerable<DestinoDto>> GetAllDestinosAsync()
         {
             return await GetMaestroAsync<VelneoDestino, VelneoDestinosResponse, DestinoDto>(
@@ -61,10 +37,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             );
         }
 
-        /// <summary>
-        /// ✅ ANTES: 25 líneas duplicadas en TenantAwareVelneoApiService
-        /// ✅ AHORA: 1 línea usando BaseVelneoService.GetMaestroAsync<T>()
-        /// </summary>
         public async Task<IEnumerable<CategoriaDto>> GetAllCategoriasAsync()
         {
             return await GetMaestroAsync<VelneoCategoria, VelneoCategoriasResponse, CategoriaDto>(
@@ -75,10 +47,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             );
         }
 
-        /// <summary>
-        /// ✅ ANTES: 25 líneas duplicadas en TenantAwareVelneoApiService
-        /// ✅ AHORA: 1 línea usando BaseVelneoService.GetMaestroAsync<T>()
-        /// </summary>
         public async Task<IEnumerable<CalidadDto>> GetAllCalidadesAsync()
         {
             return await GetMaestroAsync<VelneoCalidad, VelneoCalidadesResponse, CalidadDto>(
@@ -89,10 +57,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             );
         }
 
-        /// <summary>
-        /// ✅ ANTES: 25 líneas duplicadas en TenantAwareVelneoApiService
-        /// ✅ AHORA: 1 línea usando BaseVelneoService.GetMaestroAsync<T>()
-        /// </summary>
         public async Task<IEnumerable<MonedaDto>> GetAllMonedasAsync()
         {
             return await GetMaestroAsync<VelneoMoneda, VelneeMonedasResponse, MonedaDto>(
@@ -103,13 +67,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             );
         }
 
-        // ===========================
-        // MAESTROS DE SEGUROS
-        // ===========================
-
-        /// <summary>
-        /// ✅ SECCIONES: Implementación completa usando BaseVelneoService
-        /// </summary>
         public async Task<IEnumerable<SeccionDto>> GetActiveSeccionesAsync()
         {
             return await GetMaestroAsync<VelneoSeccion, VelneoSeccionesResponse, SeccionDto>(
@@ -127,13 +84,11 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 endpoint: "v1/secciones",
                 entityName: "seccion",
                 mapToDto: seccion => seccion.ToSeccionDto()
-                // extractFromWrapper: response => response.Seccion // Si hay wrapper
             );
         }
 
         public async Task<IEnumerable<SeccionDto>> GetSeccionesByCompanyAsync(int companyId)
         {
-            // ✅ NOTA: SeccionDto actual no tiene CompanyId, retornar todas las activas
             _logger.LogWarning("⚠️ GetSeccionesByCompanyAsync - SeccionDto doesn't have CompanyId, returning all active secciones for company {CompanyId}", companyId);
             return await GetActiveSeccionesAsync();
         }
@@ -150,16 +105,17 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
 
         public async Task<IEnumerable<SeccionLookupDto>> GetSeccionesForLookupAsync()
         {
-            return await GetLookupAsync(
-                getAllMethod: GetActiveSeccionesAsync,
-                mapToLookup: seccion => seccion.ToSeccionLookupDto(),
-                entityName: "secciones lookup"
-            );
+            var secciones = await GetActiveSeccionesAsync();
+
+            return secciones.Select(seccion => new SeccionLookupDto
+            {
+                Id = seccion.Id,
+                Name = seccion.Seccion,
+                Icono = seccion.Icono,
+                Activo = seccion.Activo
+            });
         }
 
-        /// <summary>
-        /// ✅ COBERTURAS: Usando el mapper que ya tienes en VelneoMappingExtensions
-        /// </summary>
         public async Task<IEnumerable<CoberturaDto>> GetAllCoberturasAsync()
         {
             return await GetMaestroAsync<VelneoCobertura, VelneoCoberturasResponse, CoberturaDto>(
@@ -170,9 +126,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             );
         }
 
-        /// <summary>
-        /// ✅ DEPARTAMENTOS: Usando el mapper que ya tienes en VelneoMappingExtensions
-        /// </summary>
         public async Task<IEnumerable<DepartamentoDto>> GetAllDepartamentosAsync()
         {
             return await GetMaestroAsync<VelneoDepartamento, VelneoDepartamentosResponse, DepartamentoDto>(
@@ -180,6 +133,16 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 entityName: "departamentos",
                 extractFromWrapper: response => response.Departamentos,
                 mapToDto: departamentos => departamentos.ToDepartamentosDtos()
+            );
+        }
+
+        public async Task<IEnumerable<TarifaDto>> GetAllTarifasAsync()
+        {
+            return await GetMaestroAsync<VelneoTarifa, VelneoTarifasResponse, TarifaDto>(
+                endpoint: "v1/tarifas",
+                entityName: "tarifas",
+                extractFromWrapper: response => response.Tarifas,
+                mapToDto: tarifas => tarifas.ToTarifaDtos()
             );
         }
     }
