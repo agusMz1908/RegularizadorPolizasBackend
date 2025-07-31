@@ -53,8 +53,9 @@ namespace RegularizadorPolizas.Infrastructure.External
                 return new PolizaDto
                 {
                     Activo = true,
-                    FechaCreacion = DateTime.Now,
-                    FechaModificacion = DateTime.Now,
+                    // ✅ CORREGIDO: Fechas como string
+                    FechaCreacion = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    FechaModificacion = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
                     Procesado = false
                 };
             }
@@ -62,8 +63,9 @@ namespace RegularizadorPolizas.Infrastructure.External
             var poliza = new PolizaDto
             {
                 Activo = true,
-                FechaCreacion = DateTime.Now,
-                FechaModificacion = DateTime.Now,
+                // ✅ CORREGIDO: Fechas como string
+                FechaCreacion = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                FechaModificacion = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
                 Procesado = true,
                 Convig = "1" // Activa por defecto
             };
@@ -113,9 +115,10 @@ namespace RegularizadorPolizas.Infrastructure.External
                     poliza.Moncod = 2;
             });
 
-            ExtraerFecha(fields, "poliza.vigencia.desde", fecha => poliza.Confchdes = fecha);
-            ExtraerFecha(fields, "poliza.vigencia.hasta", fecha => poliza.Confchhas = fecha);
-            ExtraerFecha(fields, "poliza.fecha_emision", fecha => poliza.FechaCreacion = fecha);
+            // ✅ CORREGIDO: Fechas como string
+            ExtraerFechaComoString(fields, "poliza.vigencia.desde", fecha => poliza.Confchdes = fecha);
+            ExtraerFechaComoString(fields, "poliza.vigencia.hasta", fecha => poliza.Confchhas = fecha);
+            ExtraerFechaComoString(fields, "poliza.fecha_emision", fecha => poliza.FechaCreacion = fecha);
         }
 
         private void MapearDatosAsegurado(PolizaDto poliza, IReadOnlyDictionary<string, DocumentField> fields)
@@ -168,7 +171,7 @@ namespace RegularizadorPolizas.Infrastructure.External
 
         #endregion
 
-        #region Mapeo desde DocumentResultDto (Dictionary) - IMPLEMENTACIÓN COMPLETA
+        #region Mapeo desde DocumentResultDto (Dictionary) - CORREGIDO
 
         private void MapearDatosBasicosFromDict(PolizaDto poliza, Dictionary<string, string> campos)
         {
@@ -212,37 +215,28 @@ namespace RegularizadorPolizas.Infrastructure.External
                 poliza.Moncod = 1; // Por defecto UYU
             }
 
-            // Fechas de vigencia
+            // ✅ CORREGIDO: Fechas de vigencia como string
             if (TryGetCampo(campos, out var fechaDesde,
                 "poliza.vigencia.desde", "fecha_desde", "vigencia_desde", "start_date", "fecha_inicio"))
             {
-                if (TryParseDate(fechaDesde, out var desde))
-                {
-                    poliza.Confchdes = desde;
-                }
+                poliza.Confchdes = TryParseDateToString(fechaDesde);
             }
 
             if (TryGetCampo(campos, out var fechaHasta,
                 "poliza.vigencia.hasta", "fecha_hasta", "vigencia_hasta", "end_date", "fecha_fin", "vencimiento"))
             {
-                if (TryParseDate(fechaHasta, out var hasta))
-                {
-                    poliza.Confchhas = hasta;
-                }
+                poliza.Confchhas = TryParseDateToString(fechaHasta);
             }
 
-            // Fecha de emisión
+            // ✅ CORREGIDO: Fecha de emisión como string
             if (TryGetCampo(campos, out var fechaEmision,
                 "poliza.fecha_emision", "fecha_emision", "emission_date"))
             {
-                if (TryParseDate(fechaEmision, out var emision))
-                {
-                    poliza.FechaCreacion = emision;
-                }
+                poliza.FechaCreacion = TryParseDateToString(fechaEmision);
             }
 
             // Validar y corregir fechas si es necesario
-            ValidarYCorregirFechas(poliza);
+            ValidarYCorregirFechasString(poliza);
         }
 
         private void MapearDatosAseguradoFromDict(PolizaDto poliza, Dictionary<string, string> campos)
@@ -265,6 +259,25 @@ namespace RegularizadorPolizas.Infrastructure.External
                 "cliente.direccion"))
             {
                 poliza.Condom = LimpiarTexto(direccion);
+            }
+
+            // ✅ AGREGAR: Otros campos del asegurado
+            if (TryGetCampo(campos, out var documento,
+                "asegurado.documento", "documento", "cedula", "ci", "ruc"))
+            {
+                poliza.Cliruc = LimpiarTexto(documento);
+            }
+
+            if (TryGetCampo(campos, out var localidad,
+                "asegurado.localidad", "localidad", "ciudad", "city"))
+            {
+                poliza.Clilocnom = LimpiarTexto(localidad);
+            }
+
+            if (TryGetCampo(campos, out var departamento,
+                "asegurado.departamento", "departamento", "state", "provincia"))
+            {
+                poliza.Clidptnom = LimpiarTexto(departamento);
             }
         }
 
@@ -431,6 +444,21 @@ namespace RegularizadorPolizas.Infrastructure.External
             }
         }
 
+        /// <summary>
+        /// ✅ NUEVO: Extraer fecha como string para compatibilidad con PolizaDto
+        /// </summary>
+        private void ExtraerFechaComoString(IReadOnlyDictionary<string, DocumentField> fields, string fieldName, Action<string> asignar)
+        {
+            ExtraerCampo(fields, fieldName, valor => {
+                var fechaString = TryParseDateToString(valor);
+                if (!string.IsNullOrEmpty(fechaString))
+                    asignar(fechaString);
+            });
+        }
+
+        /// <summary>
+        /// ✅ LEGACY: Mantener para compatibilidad, pero ya no se usa
+        /// </summary>
         private void ExtraerFecha(IReadOnlyDictionary<string, DocumentField> fields, string fieldName, Action<DateTime> asignar)
         {
             ExtraerCampo(fields, fieldName, valor => {
@@ -558,6 +586,48 @@ namespace RegularizadorPolizas.Infrastructure.External
             return decimal.TryParse(textoLimpio, NumberStyles.Any, CultureInfo.InvariantCulture, out valor);
         }
 
+        /// <summary>
+        /// ✅ CORREGIDO: Convertir fecha a string en lugar de DateTime?
+        /// </summary>
+        private string TryParseDateToString(string texto)
+        {
+            if (string.IsNullOrWhiteSpace(texto))
+                return "";
+
+            // Intentar varios formatos de fecha comunes
+            var formatos = new[]
+            {
+                "dd/MM/yyyy",
+                "MM/dd/yyyy",
+                "yyyy-MM-dd",
+                "dd-MM-yyyy",
+                "d/M/yyyy",
+                "d-M-yyyy",
+                "yyyy/MM/dd"
+            };
+
+            foreach (var formato in formatos)
+            {
+                if (DateTime.TryParseExact(texto.Trim(), formato, null,
+                    DateTimeStyles.None, out var fecha))
+                {
+                    return fecha.ToString("yyyy-MM-dd");
+                }
+            }
+
+            // Último intento con parsing automático
+            if (DateTime.TryParse(texto, out var fechaAuto))
+            {
+                return fechaAuto.ToString("yyyy-MM-dd");
+            }
+
+            // Si no se puede parsear, devolver el texto original limpio
+            return texto.Trim();
+        }
+
+        /// <summary>
+        /// ✅ LEGACY: Mantener para compatibilidad, pero usar TryParseDateToString
+        /// </summary>
         private bool TryParseDate(string texto, out DateTime fecha)
         {
             fecha = DateTime.MinValue;
@@ -608,33 +678,55 @@ namespace RegularizadorPolizas.Infrastructure.External
             };
         }
 
-        private void ValidarYCorregirFechas(PolizaDto poliza)
+        /// <summary>
+        /// ✅ CORREGIDO: Validar y corregir fechas como string
+        /// </summary>
+        private void ValidarYCorregirFechasString(PolizaDto poliza)
         {
             // Si no hay fecha desde, usar hoy
-            if (!poliza.Confchdes.HasValue)
+            if (string.IsNullOrWhiteSpace(poliza.Confchdes))
             {
-                poliza.Confchdes = DateTime.Today;
+                poliza.Confchdes = DateTime.Today.ToString("yyyy-MM-dd");
             }
 
             // Si no hay fecha hasta, usar un año después de fecha desde
-            if (!poliza.Confchhas.HasValue && poliza.Confchdes.HasValue)
+            if (string.IsNullOrWhiteSpace(poliza.Confchhas) && !string.IsNullOrWhiteSpace(poliza.Confchdes))
             {
-                poliza.Confchhas = poliza.Confchdes.Value.AddYears(1);
+                if (DateTime.TryParse(poliza.Confchdes, out var fechaDesde))
+                {
+                    poliza.Confchhas = fechaDesde.AddYears(1).ToString("yyyy-MM-dd");
+                }
+                else
+                {
+                    poliza.Confchhas = DateTime.Today.AddYears(1).ToString("yyyy-MM-dd");
+                }
             }
 
             // Validar coherencia de fechas
-            if (poliza.Confchdes.HasValue && poliza.Confchhas.HasValue)
+            if (!string.IsNullOrWhiteSpace(poliza.Confchdes) && !string.IsNullOrWhiteSpace(poliza.Confchhas))
             {
-                if (poliza.Confchdes >= poliza.Confchhas)
+                if (DateTime.TryParse(poliza.Confchdes, out var fechaDesde) &&
+                    DateTime.TryParse(poliza.Confchhas, out var fechaHasta))
                 {
-                    _logger?.LogWarning("Invalid date range detected. Start: {Start}, End: {End}",
-                        poliza.Confchdes, poliza.Confchhas);
+                    if (fechaDesde >= fechaHasta)
+                    {
+                        _logger?.LogWarning("Invalid date range detected. Start: {Start}, End: {End}",
+                            poliza.Confchdes, poliza.Confchhas);
 
-                    // Corregir automáticamente
-                    poliza.Confchhas = poliza.Confchdes.Value.AddYears(1);
-                    poliza.Observaciones = (poliza.Observaciones ?? "") + "Fechas corregidas automáticamente. ";
+                        // Corregir automáticamente
+                        poliza.Confchhas = fechaDesde.AddYears(1).ToString("yyyy-MM-dd");
+                        poliza.Observaciones = (poliza.Observaciones ?? "") + "Fechas corregidas automáticamente. ";
+                    }
                 }
             }
+        }
+
+        /// <summary>
+        /// ✅ LEGACY: Mantener para compatibilidad, pero usar ValidarYCorregirFechasString
+        /// </summary>
+        private void ValidarYCorregirFechas(PolizaDto poliza)
+        {
+            ValidarYCorregirFechasString(poliza);
         }
 
         #endregion

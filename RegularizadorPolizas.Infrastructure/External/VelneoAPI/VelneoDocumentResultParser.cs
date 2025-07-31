@@ -32,8 +32,14 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                     Consta = "1",
                     Contra = "2",
                     Ramo = "AUTOMOVILES",
-                    Last_update = DateTime.Now,
-                    Ingresado = DateTime.Now,
+
+                    // ✅ CORREGIDO: Fechas como string
+                    Last_update = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    Ingresado = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    Update_date = DateTime.Now.ToString("yyyy-MM-dd"),
+                    FechaCreacion = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    FechaModificacion = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+
                     Activo = true,
                     Procesado = true
                 };
@@ -64,7 +70,14 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                 {
                     Observaciones = $"Error en parsing: {ex.Message}",
                     Activo = true,
-                    Procesado = false
+                    Procesado = false,
+
+                    // ✅ CORREGIDO: Fechas como string en caso de error
+                    FechaCreacion = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    FechaModificacion = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    Ingresado = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    Last_update = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    Update_date = DateTime.Now.ToString("yyyy-MM-dd")
                 };
             }
         }
@@ -82,8 +95,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             poliza.Conpremio = ExtraerPrimaComercial(content);
             poliza.Contot = ExtraerPremioTotal(content);
 
-            // Fechas de vigencia
-            var (fechaDesde, fechaHasta) = ExtraerVigencia(content);
+            // ✅ CORREGIDO: Fechas de vigencia como string
+            var (fechaDesde, fechaHasta) = ExtraerVigenciaComoString(content);
             poliza.Confchdes = fechaDesde;
             poliza.Confchhas = fechaHasta;
 
@@ -92,9 +105,9 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             poliza.Conchasis = ExtraerChasis(content);
 
             // Completar campos calculados
-            if (poliza.Contot == 0 && poliza.Conpremio > 0)
+            if ((poliza.Contot ?? 0) == 0 && (poliza.Conpremio ?? 0) > 0)
             {
-                poliza.Contot = (int)(poliza.Conpremio * 1.22m); // Prima + ~22% impuestos
+                poliza.Contot = (decimal)(poliza.Conpremio * 1.22m); // Prima + ~22% impuestos
             }
         }
 
@@ -128,9 +141,12 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             return limpio.Trim(' ', ':', '-', '.', ',');
         }
 
-        public DateTime? ParsearFecha(string fechaTexto)
+        /// <summary>
+        /// ✅ CORREGIDO: Parsear fecha y devolver como string
+        /// </summary>
+        public string ParsearFechaComoString(string fechaTexto)
         {
-            if (string.IsNullOrWhiteSpace(fechaTexto)) return null;
+            if (string.IsNullOrWhiteSpace(fechaTexto)) return "";
 
             var fechaLimpia = LimpiarTexto(fechaTexto);
 
@@ -145,21 +161,40 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             {
                 if (DateTime.TryParseExact(fechaLimpia, formato, CultureInfo.InvariantCulture, DateTimeStyles.None, out var fecha))
                 {
-                    return fecha;
+                    return fecha.ToString("yyyy-MM-dd");
                 }
             }
 
             if (DateTime.TryParse(fechaLimpia, out var fechaAuto))
             {
-                return fechaAuto;
+                return fechaAuto.ToString("yyyy-MM-dd");
             }
+
+            // Si no se puede parsear, devolver string vacío
+            return "";
+        }
+
+        /// <summary>
+        /// ✅ LEGACY: Mantener para compatibilidad, pero devolver DateTime? 
+        /// </summary>
+        public DateTime? ParsearFecha(string fechaTexto)
+        {
+            var fechaString = ParsearFechaComoString(fechaTexto);
+            if (string.IsNullOrEmpty(fechaString))
+                return null;
+
+            if (DateTime.TryParse(fechaString, out var fecha))
+                return fecha;
 
             return null;
         }
 
-        public int ParsearMonto(string montoTexto)
+        /// <summary>
+        /// ✅ CORREGIDO: Cambiar tipo de retorno de int a decimal?
+        /// </summary>
+        public decimal? ParsearMonto(string montoTexto)
         {
-            if (string.IsNullOrWhiteSpace(montoTexto)) return 0;
+            if (string.IsNullOrWhiteSpace(montoTexto)) return null;
 
             var montoLimpio = LimpiarTexto(montoTexto);
             montoLimpio = Regex.Replace(montoLimpio, @"[^\d.,\-]", "");
@@ -167,10 +202,10 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
 
             if (decimal.TryParse(montoLimpio, NumberStyles.Number, CultureInfo.InvariantCulture, out var monto))
             {
-                return (int)(monto * 100);
+                return monto;
             }
 
-            return 0;
+            return null;
         }
 
         public int DeterminarCodigoMoneda(string moneda)
@@ -259,7 +294,10 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             return "";
         }
 
-        public int ExtraerPrimaComercial(string content)
+        /// <summary>
+        /// ✅ CORREGIDO: Cambiar tipo de retorno de int a decimal?
+        /// </summary>
+        public decimal? ExtraerPrimaComercial(string content)
         {
             var patron = @"Prima Comercial\s*:\s*\$\s*([\d,]+\.?\d*)";
             var match = Regex.Match(content, patron, RegexOptions.IgnoreCase);
@@ -267,10 +305,13 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
             {
                 return ParsearMonto(match.Groups[1].Value);
             }
-            return 0;
+            return null;
         }
 
-        public int ExtraerPremioTotal(string content)
+        /// <summary>
+        /// ✅ CORREGIDO: Cambiar tipo de retorno de int a decimal?
+        /// </summary>
+        public decimal? ExtraerPremioTotal(string content)
         {
             var patrones = new[]
             {
@@ -287,22 +328,44 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI
                     return ParsearMonto(match.Groups[1].Value);
                 }
             }
-            return 0;
+            return null;
         }
 
-        public (DateTime?, DateTime?) ExtraerVigencia(string content)
+        /// <summary>
+        /// ✅ CORREGIDO: Devolver fechas como string
+        /// </summary>
+        public (string, string) ExtraerVigenciaComoString(string content)
         {
             var patron = @"Vigencia\s*:\s*(\d{2}/\d{2}/\d{4})\s*-\s*(\d{2}/\d{2}/\d{4})";
             var match = Regex.Match(content, patron, RegexOptions.IgnoreCase);
 
             if (match.Success)
             {
-                var fechaDesde = ParsearFecha(match.Groups[1].Value);
-                var fechaHasta = ParsearFecha(match.Groups[2].Value);
+                var fechaDesde = ParsearFechaComoString(match.Groups[1].Value);
+                var fechaHasta = ParsearFechaComoString(match.Groups[2].Value);
                 return (fechaDesde, fechaHasta);
             }
 
-            return (null, null);
+            return ("", "");
+        }
+
+        /// <summary>
+        /// ✅ LEGACY: Mantener para compatibilidad, pero usar ExtraerVigenciaComoString
+        /// </summary>
+        public (DateTime?, DateTime?) ExtraerVigencia(string content)
+        {
+            var (fechaDesdeStr, fechaHastaStr) = ExtraerVigenciaComoString(content);
+
+            DateTime? fechaDesde = null;
+            DateTime? fechaHasta = null;
+
+            if (!string.IsNullOrEmpty(fechaDesdeStr) && DateTime.TryParse(fechaDesdeStr, out var desde))
+                fechaDesde = desde;
+
+            if (!string.IsNullOrEmpty(fechaHastaStr) && DateTime.TryParse(fechaHastaStr, out var hasta))
+                fechaHasta = hasta;
+
+            return (fechaDesde, fechaHasta);
         }
 
         public string ExtraerMotor(string content)

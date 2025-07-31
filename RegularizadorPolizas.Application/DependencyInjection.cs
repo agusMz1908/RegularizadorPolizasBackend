@@ -28,8 +28,6 @@ namespace RegularizadorPolizas.Application
             services.AddScoped<IFileStorageService, AzureBlobStorageService>();
             services.AddScoped<IVelneoHttpService, VelneoHttpService>();
             services.AddScoped<IVerificationService, VerificationService>();
-            services.AddScoped<IDocumentExtractionService, DocumentExtractionService>();
-            services.AddScoped<VelneoDocumentResultParser>();
 
             services.AddAutoMapper(Assembly.GetExecutingAssembly());
 

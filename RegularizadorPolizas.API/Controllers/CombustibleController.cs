@@ -1,5 +1,4 @@
-﻿// RegularizadorPolizas.API/Controllers/CombustibleController.cs
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces.External.Velneo;
@@ -11,14 +10,15 @@ namespace RegularizadorPolizas.API.Controllers
     [Authorize]
     public class CombustibleController : ControllerBase
     {
-        private readonly IVelneoApiService _velneoApiService;
+        // ✅ CORREGIDO: Usar IVelneoMaestrosService
+        private readonly IVelneoMaestrosService _velneoMaestrosService;
         private readonly ILogger<CombustibleController> _logger;
 
         public CombustibleController(
-            IVelneoApiService velneoApiService,
+            IVelneoMaestrosService velneoMaestrosService, // ✅ CAMBIO CRÍTICO
             ILogger<CombustibleController> logger)
         {
-            _velneoApiService = velneoApiService;
+            _velneoMaestrosService = velneoMaestrosService;
             _logger = logger;
         }
 
@@ -30,17 +30,32 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                _logger.LogInformation("Getting combustibles from Velneo API");
+                _logger.LogInformation("⛽ Getting combustibles from VelneoMaestrosService");
 
-                var combustibles = await _velneoApiService.GetAllCombustiblesAsync();
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var combustibles = await _velneoMaestrosService.GetAllCombustiblesAsync();
 
-                _logger.LogInformation("Successfully retrieved {Count} combustibles", combustibles.Count());
-                return Ok(combustibles);
+                _logger.LogInformation("✅ Successfully retrieved {Count} combustibles", combustibles.Count());
+
+                return Ok(new
+                {
+                    success = true,
+                    data = combustibles,
+                    total = combustibles.Count(),
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting combustibles from Velneo API");
-                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
+                _logger.LogError(ex, "❌ Error getting combustibles from VelneoMaestrosService");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error interno del servidor",
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
         }
     }

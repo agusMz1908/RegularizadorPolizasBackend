@@ -49,8 +49,8 @@
         public string Concar { get; set; }
         public string Conpol { get; set; }
         public string Conend { get; set; }
-        public DateTime? Confchdes { get; set; }
-        public DateTime? Confchhas { get; set; }
+        public string? Confchdes { get; set; }
+        public string? Confchhas { get; set; }
         public decimal? Conimp { get; set; }
         public int? Connroser { get; set; }
         public string Rieres { get; set; }
@@ -58,7 +58,7 @@
         // Propiedades de gestión
         public string Conges { get; set; }
         public string Congesti { get; set; }
-        public DateTime? Congesfi { get; set; }
+        public string? Congesfi { get; set; }
         public string Congeses { get; set; }
         public string Convig { get; set; }
         public decimal? Concan { get; set; }
@@ -75,7 +75,7 @@
         public string Contra { get; set; }
         public string Conconf { get; set; }
         public int? Conpadre { get; set; }
-        public DateTime? Confchcan { get; set; }
+        public string? Confchcan { get; set; }
         public string Concaucan { get; set; }
         public decimal? Conobjtot { get; set; }
 
@@ -117,7 +117,7 @@
 
         // Propiedades de líneas y comisiones
         public int? Linobs { get; set; }
-        public DateTime? Concomdes { get; set; }
+        public string? Concomdes { get; set; }
         public string Concalcom { get; set; }
 
         // Propiedades de tipo
@@ -176,7 +176,7 @@
 
         // Propiedades de certificación
         public string Conaccicer { get; set; }
-        public DateTime? Concerfin { get; set; }
+        public string? Concerfin { get; set; }
 
         // Propiedades de embarcación
         public string Condetemb { get; set; }
@@ -251,14 +251,14 @@
         public bool Mis_rie { get; set; }
 
         // Propiedades de fecha y actualización
-        public DateTime? Ingresado { get; set; }
-        public DateTime? Last_update { get; set; }
+        public string? Ingresado { get; set; }
+        public string? Last_update { get; set; }
         public int? Comcod1 { get; set; }
         public int? Comcod2 { get; set; }
         public int? Pagos_efectivo { get; set; }
         public int? Productos_de_vida { get; set; }
         public int? App_id { get; set; }
-        public DateTime? Update_date { get; set; }
+        public string? Update_date { get; set; }
         public string Gestion { get; set; }
         public int? Asignado { get; set; }
         public string Combustibles { get; set; }
@@ -267,8 +267,8 @@
         // Propiedades adicionales para la aplicación
         public bool Procesado { get; set; }
         public bool Activo { get; set; }
-        public DateTime FechaCreacion { get; set; }
-        public DateTime FechaModificacion { get; set; }
+        public string FechaCreacion { get; set; }
+        public string FechaModificacion { get; set; }
 
         // Propiedades de navegación para la aplicación
         public ClientDto Cliente { get; set; }

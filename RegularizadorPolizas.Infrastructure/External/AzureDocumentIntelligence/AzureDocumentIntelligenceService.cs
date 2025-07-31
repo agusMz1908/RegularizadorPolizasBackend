@@ -202,9 +202,24 @@ namespace RegularizadorPolizas.Infrastructure.External
                 return new PolizaDto
                 {
                     Activo = true,
-                    FechaCreacion = DateTime.Now,
-                    FechaModificacion = DateTime.Now,
-                    Procesado = false
+                    FechaCreacion = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    FechaModificacion = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    Procesado = false,
+
+                    Conpol = "",
+                    Clinom = "",
+                    Cliruc = "",
+                    Conmaraut = "",
+                    Conmataut = "",
+                    Observaciones = $"Error al procesar documento: {documento.NombreArchivo}. {ex.Message}",
+
+                    Confchdes = "",
+                    Confchhas = "",
+                    Congesfi = "",
+                    Confchcan = "",
+                    Ingresado = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    Last_update = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    Update_date = DateTime.Now.ToString("yyyy-MM-dd")
                 };
             }
         }

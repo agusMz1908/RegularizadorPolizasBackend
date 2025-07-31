@@ -10,14 +10,15 @@ namespace RegularizadorPolizas.API.Controllers
     [Authorize]
     public class CategoriaController : ControllerBase
     {
-        private readonly IVelneoApiService _velneoApiService;
+        // ✅ CORREGIDO: Usar IVelneoMaestrosService
+        private readonly IVelneoMaestrosService _velneoMaestrosService;
         private readonly ILogger<CategoriaController> _logger;
 
         public CategoriaController(
-            IVelneoApiService velneoApiService,
+            IVelneoMaestrosService velneoMaestrosService, // ✅ CAMBIO CRÍTICO
             ILogger<CategoriaController> logger)
         {
-            _velneoApiService = velneoApiService;
+            _velneoMaestrosService = velneoMaestrosService;
             _logger = logger;
         }
 
@@ -29,17 +30,32 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                _logger.LogInformation("Getting categorias from Velneo API");
+                _logger.LogInformation("🚗 Getting categorias from VelneoMaestrosService");
 
-                var categorias = await _velneoApiService.GetAllCategoriasAsync();
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var categorias = await _velneoMaestrosService.GetAllCategoriasAsync();
 
-                _logger.LogInformation("Successfully retrieved {Count} categorias", categorias.Count());
-                return Ok(categorias);
+                _logger.LogInformation("✅ Successfully retrieved {Count} categorias", categorias.Count());
+
+                return Ok(new
+                {
+                    success = true,
+                    data = categorias,
+                    total = categorias.Count(),
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting categorias from Velneo API");
-                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
+                _logger.LogError(ex, "❌ Error getting categorias from VelneoMaestrosService");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error interno del servidor",
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
         }
     }

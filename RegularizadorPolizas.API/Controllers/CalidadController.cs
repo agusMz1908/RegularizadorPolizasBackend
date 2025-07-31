@@ -10,14 +10,15 @@ namespace RegularizadorPolizas.API.Controllers
     [Authorize]
     public class CalidadController : ControllerBase
     {
-        private readonly IVelneoApiService _velneoApiService;
+        // ✅ CORREGIDO: Usar IVelneoMaestrosService
+        private readonly IVelneoMaestrosService _velneoMaestrosService;
         private readonly ILogger<CalidadController> _logger;
 
         public CalidadController(
-            IVelneoApiService velneoApiService,
+            IVelneoMaestrosService velneoMaestrosService, // ✅ CAMBIO CRÍTICO
             ILogger<CalidadController> logger)
         {
-            _velneoApiService = velneoApiService;
+            _velneoMaestrosService = velneoMaestrosService;
             _logger = logger;
         }
 
@@ -29,17 +30,32 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                _logger.LogInformation("Getting calidades from Velneo API");
+                _logger.LogInformation("🔧 Getting calidades from VelneoMaestrosService");
 
-                var calidades = await _velneoApiService.GetAllCalidadesAsync();
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var calidades = await _velneoMaestrosService.GetAllCalidadesAsync();
 
-                _logger.LogInformation("Successfully retrieved {Count} calidades", calidades.Count());
-                return Ok(calidades);
+                _logger.LogInformation("✅ Successfully retrieved {Count} calidades", calidades.Count());
+
+                return Ok(new
+                {
+                    success = true,
+                    data = calidades,
+                    total = calidades.Count(),
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting calidades from Velneo API");
-                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
+                _logger.LogError(ex, "❌ Error getting calidades from VelneoMaestrosService");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error interno del servidor",
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
         }
     }

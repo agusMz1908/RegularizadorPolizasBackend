@@ -10,14 +10,15 @@ namespace RegularizadorPolizas.API.Controllers
     [Authorize]
     public class CoberturaController : ControllerBase
     {
-        private readonly IVelneoApiService _velneoApiService;
+        // ✅ CORREGIDO: Usar IVelneoMaestrosService
+        private readonly IVelneoMaestrosService _velneoMaestrosService;
         private readonly ILogger<CoberturaController> _logger;
 
         public CoberturaController(
-            IVelneoApiService velneoApiService,
+            IVelneoMaestrosService velneoMaestrosService, // ✅ CAMBIO CRÍTICO
             ILogger<CoberturaController> logger)
         {
-            _velneoApiService = velneoApiService;
+            _velneoMaestrosService = velneoMaestrosService;
             _logger = logger;
         }
 
@@ -29,18 +30,32 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                _logger.LogInformation("🛡️ CoberturasController: Obteniendo coberturas...");
+                _logger.LogInformation("🛡️ Getting coberturas from VelneoMaestrosService");
 
-                var coberturas = await _velneoApiService.GetAllCoberturasAsync();
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var coberturas = await _velneoMaestrosService.GetAllCoberturasAsync();
 
                 _logger.LogInformation("✅ Coberturas obtenidas: {Count}", coberturas.Count());
 
-                return Ok(coberturas);
+                return Ok(new
+                {
+                    success = true,
+                    data = coberturas,
+                    total = coberturas.Count(),
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ Error obteniendo coberturas");
-                return StatusCode(500, new { error = "Error interno del servidor", details = ex.Message });
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Error interno del servidor",
+                    details = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
         }
 
@@ -50,9 +65,10 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                _logger.LogInformation("🛡️ CoberturasController: Obteniendo coberturas lookup...");
+                _logger.LogInformation("🛡️ Getting coberturas lookup from VelneoMaestrosService");
 
-                var coberturas = await _velneoApiService.GetAllCoberturasAsync();
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var coberturas = await _velneoMaestrosService.GetAllCoberturasAsync();
 
                 var lookup = coberturas
                     .Where(c => c.Activo)
@@ -65,12 +81,25 @@ namespace RegularizadorPolizas.API.Controllers
 
                 _logger.LogInformation("✅ Coberturas lookup obtenidas: {Count}", lookup.Count());
 
-                return Ok(lookup);
+                return Ok(new
+                {
+                    success = true,
+                    data = lookup,
+                    total = lookup.Count(),
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ Error obteniendo coberturas lookup");
-                return StatusCode(500, new { error = "Error interno del servidor" });
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Error interno del servidor",
+                    details = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
         }
 
@@ -80,14 +109,22 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                _logger.LogInformation("🔍 CoberturasController: Buscando coberturas con filtro: {Filtro}", filtro);
+                _logger.LogInformation("🔍 Searching coberturas with filter: {Filtro}", filtro);
 
                 if (string.IsNullOrWhiteSpace(filtro))
                 {
-                    return Ok(Enumerable.Empty<CoberturaDto>());
+                    return Ok(new
+                    {
+                        success = true,
+                        data = Enumerable.Empty<CoberturaDto>(),
+                        total = 0,
+                        message = "Filtro vacío - sin resultados",
+                        timestamp = DateTime.UtcNow
+                    });
                 }
 
-                var coberturas = await _velneoApiService.GetAllCoberturasAsync();
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var coberturas = await _velneoMaestrosService.GetAllCoberturasAsync();
 
                 var filtradas = coberturas.Where(c =>
                     c.Descripcion.Contains(filtro, StringComparison.OrdinalIgnoreCase) &&
@@ -95,12 +132,27 @@ namespace RegularizadorPolizas.API.Controllers
 
                 _logger.LogInformation("✅ Coberturas encontradas: {Count}", filtradas.Count());
 
-                return Ok(filtradas);
+                return Ok(new
+                {
+                    success = true,
+                    data = filtradas,
+                    total = filtradas.Count(),
+                    filtro = filtro,
+                    message = $"Se encontraron {filtradas.Count()} coberturas con el filtro '{filtro}'",
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ Error buscando coberturas");
-                return StatusCode(500, new { error = "Error interno del servidor" });
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Error interno del servidor",
+                    details = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
         }
     }

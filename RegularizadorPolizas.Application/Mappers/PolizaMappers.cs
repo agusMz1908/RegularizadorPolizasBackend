@@ -35,14 +35,12 @@ namespace RegularizadorPolizas.Application.Mappers
                 Concestel = velneoPoliza.Concestel ?? "",
                 Concapaut = ParseIntFromObject(velneoPoliza.Concapaut),
 
-                // ✅ CORREGIDO: Usar ParseDecimalFromObject para campos decimales
                 Conpremio = ParseDecimalFromObject(velneoPoliza.Conpremio),
                 Contot = ParseDecimalFromObject(velneoPoliza.Contot),
                 Moncod = ParseIntFromObject(velneoPoliza.Moncod),
                 Concuo = ParseIntFromObject(velneoPoliza.Concuo),
-                Concomcorr = ParseIntFromObject(velneoPoliza.Concomcorr),
+                Concomcorr = ParseDecimalFromObject(velneoPoliza.Concomcorr),
 
-                // ✅ CORREGIDO: Mantener como int? (NO convertir a string)
                 Catdsc = velneoPoliza.Catdsc,
                 Desdsc = velneoPoliza.Desdsc,
                 Caldsc = velneoPoliza.Caldsc,
@@ -51,15 +49,18 @@ namespace RegularizadorPolizas.Application.Mappers
                 Concar = velneoPoliza.Concar ?? "",
                 Conpol = velneoPoliza.Conpol ?? "",
                 Conend = velneoPoliza.Conend ?? "",
-                Confchdes = ParseVelneoDate(velneoPoliza.Confchdes),
-                Confchhas = ParseVelneoDate(velneoPoliza.Confchhas),
+
+                Confchdes = ParseVelneoDateToString(velneoPoliza.Confchdes),
+                Confchhas = ParseVelneoDateToString(velneoPoliza.Confchhas),
+                Congesfi = ParseVelneoDateToString(velneoPoliza.Congesfi),
+                Confchcan = ParseVelneoDateToString(velneoPoliza.Confchcan),
+
                 Conimp = velneoPoliza.Conimp,
                 Connroser = velneoPoliza.Connroser,
                 Rieres = velneoPoliza.Rieres ?? "",
 
                 Conges = velneoPoliza.Conges ?? "",
                 Congesti = velneoPoliza.Congesti ?? "",
-                Congesfi = ParseVelneoDate(velneoPoliza.Congesfi),
                 Congeses = velneoPoliza.Congeses ?? "",
                 Convig = velneoPoliza.Convig ?? "",
                 Concan = velneoPoliza.Concan,
@@ -75,7 +76,6 @@ namespace RegularizadorPolizas.Application.Mappers
                 Contra = velneoPoliza.Contra ?? "",
                 Conconf = velneoPoliza.Conconf ?? "",
                 Conpadre = velneoPoliza.Conpadre,
-                Confchcan = ParseVelneoDate(velneoPoliza.Confchcan),
                 Concaucan = velneoPoliza.Concaucan ?? "",
                 Conobjtot = velneoPoliza.Conobjtot,
 
@@ -84,11 +84,14 @@ namespace RegularizadorPolizas.Application.Mappers
                 Ramo = velneoPoliza.Ramo ?? "",
                 Observaciones = velneoPoliza.Observaciones ?? "",
 
-                // ✅ CAMPOS ADICIONALES QUE SÍ EXISTEN EN PolizaDto
                 Procesado = true,
                 Activo = velneoPoliza.Consta != "3",
-                FechaCreacion = DateTime.UtcNow,
-                FechaModificacion = DateTime.UtcNow
+                FechaCreacion = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"),
+                FechaModificacion = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"),
+
+                Ingresado = ParseVelneoDateToString(velneoPoliza.Ingresado),
+                Last_update = ParseVelneoDateToString(velneoPoliza.Last_update),
+                Update_date = ParseVelneoDateToString(velneoPoliza.Update_date)
             };
         }
 
@@ -97,15 +100,17 @@ namespace RegularizadorPolizas.Application.Mappers
             return velneoPolizas.Select(p => p.ToPolizaDto());
         }
 
-        private static DateTime? ParseVelneoDate(string? dateString)
+        private static string ParseVelneoDateToString(string? dateString)
         {
             if (string.IsNullOrEmpty(dateString) || dateString == "Invalid Date")
-                return null;
+                return "";
 
             if (DateTime.TryParse(dateString, out var date))
-                return date;
+            {
+                return date.ToString("yyyy-MM-dd");
+            }
 
-            return null;
+            return dateString.Trim();
         }
 
         private static int? ParseIntFromObject(object? value)
@@ -117,14 +122,12 @@ namespace RegularizadorPolizas.Application.Mappers
             if (value is double dblValue) return (int)dblValue;
             if (value is float fltValue) return (int)fltValue;
 
-            // ✅ MEJORADO: Manejo más robusto de strings
             var stringValue = value.ToString()?.Trim();
             if (string.IsNullOrEmpty(stringValue)) return null;
 
             if (int.TryParse(stringValue, out var parsedInt))
                 return parsedInt;
 
-            // ✅ INTENTAR COMO DECIMAL Y CONVERTIR
             if (decimal.TryParse(stringValue, out var parsedDecimal))
                 return (int)Math.Round(parsedDecimal);
 
@@ -140,7 +143,6 @@ namespace RegularizadorPolizas.Application.Mappers
             if (value is double doubleValue) return (decimal)doubleValue;
             if (value is float floatValue) return (decimal)floatValue;
 
-            // ✅ MEJORADO: Manejo más robusto de strings
             var stringValue = value.ToString()?.Trim();
             if (string.IsNullOrEmpty(stringValue)) return null;
 
