@@ -9,16 +9,13 @@ namespace RegularizadorPolizas.Application.Services
     public class ClientService : IClientService
     {
         private readonly IClientRepository _clientRepository;
-        private readonly IVelneoApiService _velneoApiService;
         private readonly IMapper _mapper;
 
         public ClientService(
             IClientRepository clientRepository,
-            IVelneoApiService velneoApiService,
             IMapper mapper)
         {
             _clientRepository = clientRepository ?? throw new ArgumentNullException(nameof(clientRepository));
-            _velneoApiService = velneoApiService ?? throw new ArgumentNullException(nameof(velneoApiService));
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
         }
 
@@ -115,39 +112,6 @@ namespace RegularizadorPolizas.Application.Services
             catch (Exception ex)
             {
                 throw new ApplicationException($"Error retrieving client by email: {ex.Message}", ex);
-            }
-        }
-
-        public async Task<ClientDto> GetClientByIdAsync(int id)
-        {
-            try
-            {
-                // First try to get from local database
-                var client = await _clientRepository.GetClientWithPoliciesAsync(id);
-
-                // If not found in local database, try to get from Velneo API
-                if (client == null)
-                {
-                    var clientDto = await _velneoApiService.GetClienteAsync(id);
-                    if (clientDto != null)
-                    {
-                        // Save client from API to local database for future use
-                        client = _mapper.Map<Client>(clientDto);
-                        client.FechaCreacion = DateTime.Now;
-                        client.FechaModificacion = DateTime.Now;
-                        client.Activo = true;
-
-                        await _clientRepository.AddAsync(client);
-                        return clientDto;
-                    }
-                    return null;
-                }
-
-                return _mapper.Map<ClientDto>(client);
-            }
-            catch (Exception ex)
-            {
-                throw new ApplicationException($"Error retrieving client with ID {id}: {ex.Message}", ex);
             }
         }
 

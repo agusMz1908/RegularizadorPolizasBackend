@@ -12,20 +12,17 @@ namespace RegularizadorPolizas.Application.Services
         private readonly IProcessDocumentRepository _processDocumentRepository;
         private readonly ICompanyRepository _companyRepository;
         private readonly IAzureDocumentIntelligenceService _azureService;
-        private readonly IVelneoApiService _velneoService;
         private readonly ILogger<DashboardService> _logger;
 
         public DashboardService(
             IProcessDocumentRepository processDocumentRepository,
             ICompanyRepository companyRepository,
             IAzureDocumentIntelligenceService azureService,
-            IVelneoApiService velneoService,
             ILogger<DashboardService> logger)
         {
             _processDocumentRepository = processDocumentRepository;
             _companyRepository = companyRepository;
             _azureService = azureService;
-            _velneoService = velneoService;
             _logger = logger;
         }
 

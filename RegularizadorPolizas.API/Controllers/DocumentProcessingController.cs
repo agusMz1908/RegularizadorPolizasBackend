@@ -11,14 +11,12 @@ namespace RegularizadorPolizas.API.Controllers
     public class DocumentsController : ControllerBase
     {
         private readonly IProcessDocumentService _processDocumentService;
-        private readonly IPolizaService _polizaService;
 
         public DocumentsController(
             IProcessDocumentService processDocumentService,
             IPolizaService polizaService)
         {
             _processDocumentService = processDocumentService ?? throw new ArgumentNullException(nameof(processDocumentService));
-            _polizaService = polizaService ?? throw new ArgumentNullException(nameof(polizaService));
         }
 
         [HttpGet]
@@ -147,33 +145,6 @@ namespace RegularizadorPolizas.API.Controllers
             }
         }
 
-        [HttpPost("{id}/create-policy")]
-        [ProducesResponseType(typeof(PolizaDto), 201)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(404)]
-        [ProducesResponseType(500)]
-        public async Task<ActionResult<PolizaDto>> CreatePolicyFromDocument(int id)
-        {
-            try
-            {
-                // Extract policy data from document
-                var polizaDto = await _processDocumentService.ExtractPolizaFromDocumentAsync(id);
-                if (polizaDto == null)
-                    return NotFound($"Could not extract policy data from document with ID {id}");
-
-                // Create policy
-                var createdPoliza = await _polizaService.CreatePolizaAsync(polizaDto);
-
-                // Link document to policy
-                await _processDocumentService.LinkDocumentToPolizaAsync(id, createdPoliza.Id);
-
-                return CreatedAtAction("GetPolizaById", "Polizas", new { id = createdPoliza.Id }, createdPoliza);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
-        }
 
         [HttpPost("{id}/link/{polizaId}")]
         [ProducesResponseType(typeof(ProcessingDocumentDto), 200)]

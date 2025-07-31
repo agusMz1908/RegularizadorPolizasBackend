@@ -10,20 +10,17 @@ namespace RegularizadorPolizas.Application.Services
     public class VerificationService : IVerificationService
     {
         private readonly IVerificationRepository _verificationRepository;
-        private readonly IVelneoApiService _velneoApiService;
         private readonly IPolizaService _polizaService;
         private readonly IUserService _userService;
         private readonly ILogger<VerificationService> _logger;
 
         public VerificationService(
             IVerificationRepository verificationRepository,
-            IVelneoApiService velneoApiService,
             IPolizaService polizaService,
             IUserService userService,
             ILogger<VerificationService> logger)
         {
             _verificationRepository = verificationRepository ?? throw new ArgumentNullException(nameof(verificationRepository));
-            _velneoApiService = velneoApiService ?? throw new ArgumentNullException(nameof(velneoApiService));
             _polizaService = polizaService ?? throw new ArgumentNullException(nameof(polizaService));
             _userService = userService ?? throw new ArgumentNullException(nameof(userService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));

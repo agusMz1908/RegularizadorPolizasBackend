@@ -11,67 +11,20 @@ namespace RegularizadorPolizas.Application.Services
         private readonly IPolizaRepository _polizaRepository;
         private readonly IClientRepository _clientRepository;
         private readonly IRenovationRepository _renovationRepository;
-        private readonly IVelneoApiService _velneoApiService;
         private readonly IMapper _mapper;
 
         public PolizaService(
             IPolizaRepository polizaRepository,
             IClientRepository clientRepository,
             IRenovationRepository renovacionRepository,
-            IVelneoApiService velneoApiService,
             IMapper mapper)
         {
             _polizaRepository = polizaRepository ?? throw new ArgumentNullException(nameof(polizaRepository));
             _clientRepository = clientRepository ?? throw new ArgumentNullException(nameof(clientRepository));
             _renovationRepository = renovacionRepository ?? throw new ArgumentNullException(nameof(renovacionRepository));
-            _velneoApiService = velneoApiService ?? throw new ArgumentNullException(nameof(velneoApiService));
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
         }
 
-        // ✅ MÉTODO PARA CREAR PÓLIZA DIRECTA (uso interno)
-        public async Task<PolizaDto> CreatePolizaAsync(PolizaDto polizaDto)
-        {
-            try
-            {
-                // Validate client exists
-                if (polizaDto.Clinro.HasValue)
-                {
-                    var client = await _clientRepository.GetByIdAsync(polizaDto.Clinro.Value);
-                    if (client == null)
-                    {
-                        var clientDto = await _velneoApiService.GetClienteAsync(polizaDto.Clinro.Value);
-                        if (clientDto != null)
-                        {
-                            var newClient = _mapper.Map<Client>(clientDto);
-                            newClient.FechaCreacion = DateTime.Now;
-                            newClient.FechaModificacion = DateTime.Now;
-                            newClient.Activo = true;
-                            await _clientRepository.AddAsync(newClient);
-                        }
-                        else
-                        {
-                            throw new ApplicationException($"Client with ID {polizaDto.Clinro} not found");
-                        }
-                    }
-                }
-
-                var poliza = _mapper.Map<Poliza>(polizaDto);
-
-                poliza.FechaCreacion = DateTime.Now;
-                poliza.FechaModificacion = DateTime.Now;
-                poliza.Activo = true;
-
-                var createdPoliza = await _polizaRepository.AddAsync(poliza);
-
-                return _mapper.Map<PolizaDto>(createdPoliza);
-            }
-            catch (Exception ex)
-            {
-                throw new ApplicationException($"Error creating policy: {ex.Message}", ex);
-            }
-        }
-
-        // ✅ OTROS MÉTODOS (mantenidos como están)
         public async Task DeletePolizaAsync(int id)
         {
             try
@@ -103,53 +56,6 @@ namespace RegularizadorPolizas.Application.Services
             catch (Exception ex)
             {
                 throw new ApplicationException($"Error retrieving policies: {ex.Message}", ex);
-            }
-        }
-
-        public async Task<PolizaDto> GetPolizaByIdAsync(int id)
-        {
-            try
-            {
-                var poliza = await _polizaRepository.GetPolizaDetalladaAsync(id);
-
-                if (poliza == null)
-                {
-                    var polizaDto = await _velneoApiService.GetPolizaAsync(id);
-                    if (polizaDto != null)
-                    {
-                        if (polizaDto.Clinro.HasValue)
-                        {
-                            var client = await _clientRepository.GetByIdAsync(polizaDto.Clinro.Value);
-                            if (client == null)
-                            {
-                                var clientDto = await _velneoApiService.GetClienteAsync(polizaDto.Clinro.Value);
-                                if (clientDto != null)
-                                {
-                                    var newClient = _mapper.Map<Client>(clientDto);
-                                    newClient.FechaCreacion = DateTime.Now;
-                                    newClient.FechaModificacion = DateTime.Now;
-                                    newClient.Activo = true;
-                                    await _clientRepository.AddAsync(newClient);
-                                }
-                            }
-                        }
-
-                        poliza = _mapper.Map<Poliza>(polizaDto);
-                        poliza.FechaCreacion = DateTime.Now;
-                        poliza.FechaModificacion = DateTime.Now;
-                        poliza.Activo = true;
-
-                        await _polizaRepository.AddAsync(poliza);
-                        return polizaDto;
-                    }
-                    return null;
-                }
-
-                return _mapper.Map<PolizaDto>(poliza);
-            }
-            catch (Exception ex)
-            {
-                throw new ApplicationException($"Error retrieving policy with ID {id}: {ex.Message}", ex);
             }
         }
 

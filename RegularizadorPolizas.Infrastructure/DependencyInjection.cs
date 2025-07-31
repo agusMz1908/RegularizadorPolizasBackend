@@ -2,7 +2,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using RegularizadorPolizas.Application.External.Velneo;
 using RegularizadorPolizas.Application.Interfaces;
+using RegularizadorPolizas.Application.Interfaces.External;
 using RegularizadorPolizas.Application.Interfaces.External.AzureDocumentIntelligence;
 using RegularizadorPolizas.Application.Interfaces.External.Velneo;
 using RegularizadorPolizas.Application.Services;
@@ -10,7 +12,6 @@ using RegularizadorPolizas.Infrastructure.Data;
 using RegularizadorPolizas.Infrastructure.Data.Repositories;
 using RegularizadorPolizas.Infrastructure.External;
 using RegularizadorPolizas.Infrastructure.External.AzureDocumentIntelligence;
-using RegularizadorPolizas.Infrastructure.External.VelneoAPI;
 using RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services;
 using RegularizadorPolizas.Infrastructure.Repositories;
 using RegularizadorPolizas.Infrastructure.Services;
@@ -51,7 +52,10 @@ namespace RegularizadorPolizas.Infrastructure
             services.AddScoped<IAzureDocumentIntelligenceService, AzureDocumentIntelligenceService>();
             services.AddScoped<IFileStorageService, AzureBlobStorageService>();
             services.AddScoped<IDashboardService, DashboardService>();
+
+            services.AddScoped<IVelneoHttpService, VelneoHttpService>();
             services.AddScoped<IVelneoMaestrosService, VelneoMaestrosService>();
+
             services.AddScoped<SmartDocumentParser>();
             services.AddSingleton(provider =>
             {
@@ -64,6 +68,7 @@ namespace RegularizadorPolizas.Infrastructure
             });
 
             services.AddScoped<ITenantService, TenantService>();
+
             services.AddHttpClient("VelneoApi", (serviceProvider, client) =>
             {
                 var baseUrl = configuration["VelneoAPI:BaseUrl"];
@@ -89,7 +94,6 @@ namespace RegularizadorPolizas.Infrastructure
                     client.DefaultRequestHeaders.Add("Api-Version", apiVersion);
                 }
             });
-            services.AddScoped<IVelneoApiService, TenantAwareVelneoApiService>();
 
             return services;
         }
