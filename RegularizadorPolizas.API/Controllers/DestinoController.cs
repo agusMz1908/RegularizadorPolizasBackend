@@ -10,15 +10,16 @@ namespace RegularizadorPolizas.API.Controllers
     [Authorize]
     public class DestinoController : ControllerBase
     {
-        private readonly IVelneoApiService _velneoApiService;
+        // ✅ CORREGIDO: Usar IVelneoMaestrosService
+        private readonly IVelneoMaestrosService _velneoMaestrosService;
         private readonly ILogger<DestinoController> _logger;
 
         public DestinoController(
-            IVelneoApiService velneoApiService,
+            IVelneoMaestrosService velneoMaestrosService, // ✅ CAMBIO CRÍTICO
             ILogger<DestinoController> logger)
         {
-            _velneoApiService = velneoApiService;
-            _logger = logger;
+            _velneoMaestrosService = velneoMaestrosService ?? throw new ArgumentNullException(nameof(velneoMaestrosService));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         [HttpGet]
@@ -29,17 +30,32 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                _logger.LogInformation("Getting destinos from Velneo API");
+                _logger.LogInformation("🎯 Getting destinos from VelneoMaestrosService");
 
-                var destinos = await _velneoApiService.GetAllDestinosAsync();
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var destinos = await _velneoMaestrosService.GetAllDestinosAsync();
 
-                _logger.LogInformation("Successfully retrieved {Count} destinos", destinos.Count());
-                return Ok(destinos);
+                _logger.LogInformation("✅ Successfully retrieved {Count} destinos", destinos.Count());
+
+                return Ok(new
+                {
+                    success = true,
+                    data = destinos,
+                    total = destinos.Count(),
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting destinos from Velneo API");
-                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
+                _logger.LogError(ex, "❌ Error getting destinos from VelneoMaestrosService");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error interno del servidor",
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
         }
     }

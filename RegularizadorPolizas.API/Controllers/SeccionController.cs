@@ -10,14 +10,15 @@ namespace RegularizadorPolizas.API.Controllers
     [Authorize]
     public class SeccionesController : ControllerBase
     {
-        private readonly IVelneoApiService _velneoApiService; 
+        // ✅ CORREGIDO: Usar IVelneoMaestrosService
+        private readonly IVelneoMaestrosService _velneoMaestrosService;
         private readonly ILogger<SeccionesController> _logger;
 
         public SeccionesController(
-            IVelneoApiService velneoApiService, 
+            IVelneoMaestrosService velneoMaestrosService, // ✅ CAMBIO CRÍTICO
             ILogger<SeccionesController> logger)
         {
-            _velneoApiService = velneoApiService ?? throw new ArgumentNullException(nameof(velneoApiService));
+            _velneoMaestrosService = velneoMaestrosService ?? throw new ArgumentNullException(nameof(velneoMaestrosService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -28,15 +29,32 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                _logger.LogInformation("Getting all secciones from Velneo API");
-                var secciones = await _velneoApiService.GetActiveSeccionesAsync(); 
-                _logger.LogInformation("Successfully retrieved {Count} secciones from Velneo API", secciones.Count());
-                return Ok(secciones);
+                _logger.LogInformation("📋 Getting all secciones from VelneoMaestrosService");
+
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var secciones = await _velneoMaestrosService.GetActiveSeccionesAsync();
+
+                _logger.LogInformation("✅ Successfully retrieved {Count} secciones from VelneoMaestrosService", secciones.Count());
+
+                return Ok(new
+                {
+                    success = true,
+                    data = secciones,
+                    total = secciones.Count(),
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting all secciones from Velneo API");
-                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
+                _logger.LogError(ex, "❌ Error getting all secciones from VelneoMaestrosService");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error interno del servidor",
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
         }
 
@@ -47,15 +65,32 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                _logger.LogInformation("Getting active secciones from Velneo API");
-                var secciones = await _velneoApiService.GetActiveSeccionesAsync();
-                _logger.LogInformation("Successfully retrieved {Count} active secciones from Velneo API", secciones.Count());
-                return Ok(secciones);
+                _logger.LogInformation("📋 Getting active secciones from VelneoMaestrosService");
+
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var secciones = await _velneoMaestrosService.GetActiveSeccionesAsync();
+
+                _logger.LogInformation("✅ Successfully retrieved {Count} active secciones from VelneoMaestrosService", secciones.Count());
+
+                return Ok(new
+                {
+                    success = true,
+                    data = secciones,
+                    total = secciones.Count(),
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting active secciones from Velneo API");
-                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
+                _logger.LogError(ex, "❌ Error getting active secciones from VelneoMaestrosService");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error interno del servidor",
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
         }
 
@@ -66,15 +101,32 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                _logger.LogInformation("Getting secciones for lookup from Velneo API");
-                var secciones = await _velneoApiService.GetSeccionesForLookupAsync();
-                _logger.LogInformation("Successfully retrieved {Count} secciones for lookup from Velneo API", secciones.Count());
-                return Ok(secciones);
+                _logger.LogInformation("📋 Getting secciones for lookup from VelneoMaestrosService");
+
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var secciones = await _velneoMaestrosService.GetSeccionesForLookupAsync();
+
+                _logger.LogInformation("✅ Successfully retrieved {Count} secciones for lookup from VelneoMaestrosService", secciones.Count());
+
+                return Ok(new
+                {
+                    success = true,
+                    data = secciones,
+                    total = secciones.Count(),
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting secciones for lookup from Velneo API");
-                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
+                _logger.LogError(ex, "❌ Error getting secciones for lookup from VelneoMaestrosService");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error interno del servidor",
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
         }
 
@@ -86,27 +138,52 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                _logger.LogInformation("Getting seccion {SeccionId} from Velneo API", id);
-                var seccion = await _velneoApiService.GetSeccionAsync(id);
+                _logger.LogInformation("📋 Getting seccion {SeccionId} from VelneoMaestrosService", id);
+
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var seccion = await _velneoMaestrosService.GetSeccionAsync(id);
 
                 if (seccion == null)
                 {
-                    _logger.LogWarning("Seccion {SeccionId} not found in Velneo API", id);
-                    return NotFound(new { message = $"Sección con ID {id} no encontrada" });
+                    _logger.LogWarning("⚠️ Seccion {SeccionId} not found in VelneoMaestrosService", id);
+                    return NotFound(new
+                    {
+                        success = false,
+                        message = $"Sección con ID {id} no encontrada",
+                        timestamp = DateTime.UtcNow
+                    });
                 }
 
-                _logger.LogInformation("Successfully retrieved seccion {SeccionId} from Velneo API", id);
-                return Ok(seccion);
+                _logger.LogInformation("✅ Successfully retrieved seccion {SeccionId} from VelneoMaestrosService", id);
+
+                return Ok(new
+                {
+                    success = true,
+                    data = seccion,
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (KeyNotFoundException)
             {
-                _logger.LogWarning("Seccion {SeccionId} not found in Velneo API", id);
-                return NotFound(new { message = $"Sección con ID {id} no encontrada" });
+                _logger.LogWarning("⚠️ Seccion {SeccionId} not found in VelneoMaestrosService", id);
+                return NotFound(new
+                {
+                    success = false,
+                    message = $"Sección con ID {id} no encontrada",
+                    timestamp = DateTime.UtcNow
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting seccion {SeccionId} from Velneo API", id);
-                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
+                _logger.LogError(ex, "❌ Error getting seccion {SeccionId} from VelneoMaestrosService", id);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error interno del servidor",
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
         }
 
@@ -120,18 +197,41 @@ namespace RegularizadorPolizas.API.Controllers
             {
                 if (string.IsNullOrWhiteSpace(searchTerm))
                 {
-                    return BadRequest(new { message = "Término de búsqueda requerido" });
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Término de búsqueda requerido",
+                        timestamp = DateTime.UtcNow
+                    });
                 }
 
-                _logger.LogInformation("Searching secciones with term '{SearchTerm}' in Velneo API", searchTerm);
-                var secciones = await _velneoApiService.SearchSeccionesAsync(searchTerm);
-                _logger.LogInformation("Found {Count} secciones matching '{SearchTerm}' in Velneo API", secciones.Count(), searchTerm);
-                return Ok(secciones);
+                _logger.LogInformation("🔍 Searching secciones with term '{SearchTerm}' in VelneoMaestrosService", searchTerm);
+
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var secciones = await _velneoMaestrosService.SearchSeccionesAsync(searchTerm);
+
+                _logger.LogInformation("✅ Found {Count} secciones matching '{SearchTerm}' in VelneoMaestrosService", secciones.Count(), searchTerm);
+
+                return Ok(new
+                {
+                    success = true,
+                    data = secciones,
+                    total = secciones.Count(),
+                    searchTerm = searchTerm,
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error searching secciones with term '{SearchTerm}' in Velneo API", searchTerm);
-                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
+                _logger.LogError(ex, "❌ Error searching secciones with term '{SearchTerm}' in VelneoMaestrosService", searchTerm);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error interno del servidor",
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
         }
 
@@ -142,15 +242,33 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                _logger.LogInformation("Getting secciones for company {CompanyId} from Velneo API", companyId);
-                var secciones = await _velneoApiService.GetSeccionesByCompanyAsync(companyId);
-                _logger.LogInformation("Successfully retrieved {Count} secciones for company {CompanyId} from Velneo API", secciones.Count(), companyId);
-                return Ok(secciones);
+                _logger.LogInformation("📋 Getting secciones for company {CompanyId} from VelneoMaestrosService", companyId);
+
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var secciones = await _velneoMaestrosService.GetSeccionesByCompanyAsync(companyId);
+
+                _logger.LogInformation("✅ Successfully retrieved {Count} secciones for company {CompanyId} from VelneoMaestrosService", secciones.Count(), companyId);
+
+                return Ok(new
+                {
+                    success = true,
+                    data = secciones,
+                    total = secciones.Count(),
+                    companyId = companyId,
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting secciones for company {CompanyId} from Velneo API", companyId);
-                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
+                _logger.LogError(ex, "❌ Error getting secciones for company {CompanyId} from VelneoMaestrosService", companyId);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error interno del servidor",
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
         }
 
@@ -164,24 +282,43 @@ namespace RegularizadorPolizas.API.Controllers
             {
                 if (string.IsNullOrWhiteSpace(name))
                 {
-                    return BadRequest(new { message = "El nombre es requerido" });
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "El nombre es requerido",
+                        timestamp = DateTime.UtcNow
+                    });
                 }
 
-                _logger.LogInformation("Checking if seccion exists with name '{Name}' in Velneo API", name);
+                _logger.LogInformation("🔍 Checking if seccion exists with name '{Name}' in VelneoMaestrosService", name);
 
-                // ✅ Implementación usando búsqueda
-                var secciones = await _velneoApiService.SearchSeccionesAsync(name);
+                // ✅ CORREGIDO: Implementación usando VelneoMaestrosService
+                var secciones = await _velneoMaestrosService.SearchSeccionesAsync(name);
                 var exists = secciones.Any(s =>
                     string.Equals(s.Seccion, name, StringComparison.OrdinalIgnoreCase) &&
                     (excludeId == null || s.Id != excludeId));
 
-                _logger.LogInformation("Seccion exists check for '{Name}': {Exists}", name, exists);
-                return Ok(exists);
+                _logger.LogInformation("✅ Seccion exists check for '{Name}': {Exists}", name, exists);
+
+                return Ok(new
+                {
+                    success = true,
+                    exists = exists,
+                    searchName = name,
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error checking if seccion exists with name '{Name}' in Velneo API", name);
-                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
+                _logger.LogError(ex, "❌ Error checking if seccion exists with name '{Name}' in VelneoMaestrosService", name);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error interno del servidor",
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
         }
     }

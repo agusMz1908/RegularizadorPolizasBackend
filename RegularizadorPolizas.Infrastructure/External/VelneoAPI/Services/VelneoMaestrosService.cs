@@ -1,5 +1,4 @@
-﻿// RegularizadorPolizas.Infrastructure/External/VelneoAPI/Services/VelneoMaestrosService.cs
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Application.Interfaces.External.Velneo;
@@ -7,22 +6,26 @@ using RegularizadorPolizas.Application.Mappers;
 using RegularizadorPolizas.Application.Models;
 using System.Diagnostics;
 using System.Net;
+using System.Net.Http;
+using System.Text.Json;
+using System.Linq;
 
 namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
 {
     public class VelneoMaestrosService : BaseVelneoService, IVelneoMaestrosService
     {
-        public VelneoMaestrosService(
-            IVelneoHttpService httpService,
-            ITenantService tenantService,
-            ILogger<VelneoMaestrosService> logger)
-            : base(httpService, tenantService, logger)
-        {
-        }
+        private IHttpClientFactory _httpClientFactory;
 
-        // ===========================
-        // MAESTROS BÁSICOS DE VEHÍCULOS (YA EXISTÍAN)
-        // ===========================
+        public VelneoMaestrosService(
+                IVelneoHttpService httpService,
+                ITenantService tenantService,
+                ILogger<VelneoMaestrosService> logger,
+                IHttpClientFactory httpClientFactory) 
+                : base(httpService, tenantService, logger)
+        {
+            _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
+        }
+        
 
         public async Task<IEnumerable<CombustibleDto>> GetAllCombustiblesAsync()
         {
@@ -157,52 +160,64 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             );
         }
 
-        // ===========================
-        // MAESTROS DE CLIENTES 
-        // ✅ MIGRADO DESDE: VelneoClientService (DÍA 2)
-        // ===========================
-
-        /// <summary>
-        /// ✅ MIGRADO DESDE: VelneoClientService.GetClienteAsync()
-        /// Lógica idéntica con fallback wrapper/direct
-        /// </summary>
         public async Task<ClientDto> GetClienteAsync(int id)
         {
             try
             {
                 var tenantId = _tenantService.GetCurrentTenantId();
-                _logger.LogDebug("Getting cliente {ClienteId} from Velneo API for tenant {TenantId}", id, tenantId);
+                _logger.LogInformation("🔍 Getting cliente {ClienteId} from Velneo API for tenant {TenantId}", id, tenantId);
 
                 using var httpClient = await _httpService.GetConfiguredHttpClientAsync();
                 var url = await _httpService.BuildVelneoUrlAsync($"v1/clientes/{id}");
+
+                _logger.LogInformation("🌐 Requesting URL: {Url}", url);
+
                 var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
-                // ✅ Intentar primero como objeto directo
+                // ✅ STRATEGY 1: Try direct VelneoCliente deserialization
                 var velneoCliente = await _httpService.DeserializeResponseAsync<VelneoCliente>(response);
-                if (velneoCliente != null)
+                if (velneoCliente != null && velneoCliente.Id > 0)
                 {
                     var result = velneoCliente.ToClienteDto();
-                    _logger.LogInformation("Successfully retrieved cliente {ClienteId} from Velneo API", id);
+                    _logger.LogInformation("✅ Successfully retrieved cliente {ClienteId} (direct format)", id);
                     return result;
                 }
 
-                // ✅ Si falla, intentar como wrapper - hacer nueva llamada
+                // ✅ STRATEGY 2: Try VelneoClienteResponse wrapper {"cliente": {...}}
                 response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
+
                 var velneoResponse = await _httpService.DeserializeResponseAsync<VelneoClienteResponse>(response);
-                if (velneoResponse?.Cliente != null)
+                if (velneoResponse?.Cliente != null && velneoResponse.Cliente.Id > 0)
                 {
                     var result = velneoResponse.Cliente.ToClienteDto();
-                    _logger.LogInformation("Successfully retrieved cliente {ClienteId} from Velneo API (wrapped)", id);
+                    _logger.LogInformation("✅ Successfully retrieved cliente {ClienteId} (wrapper format)", id);
                     return result;
+                }
+
+                // ✅ STRATEGY 3: Try VelneoClientesResponse array {"clientes": [...]} - FIX PRINCIPAL
+                response = await httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                var velneoArrayResponse = await _httpService.DeserializeResponseAsync<VelneoClientesResponse>(response);
+                if (velneoArrayResponse?.Clientes != null && velneoArrayResponse.Clientes.Any())
+                {
+                    var cliente = velneoArrayResponse.Clientes.FirstOrDefault(c => c.Id == id);
+                    if (cliente != null && cliente.Id > 0)
+                    {
+                        var result = cliente.ToClienteDto();
+                        _logger.LogInformation("✅ Successfully retrieved cliente {ClienteId} (array format) - Name: {Name}",
+                            id, result.Clinom);
+                        return result;
+                    }
                 }
 
                 throw new KeyNotFoundException($"Cliente with ID {id} not found in Velneo API");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting cliente {ClienteId} from Velneo API", id);
+                _logger.LogError(ex, "❌ Error getting cliente {ClienteId} from Velneo API", id);
                 throw;
             }
         }
@@ -214,11 +229,11 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
         public async Task<IEnumerable<ClientDto>> GetClientesAsync()
         {
             var tenantId = _tenantService.GetCurrentTenantId();
-            _logger.LogInformation("🔍 Getting ALL clientes from Velneo API for tenant {TenantId}", tenantId);
+            _logger.LogInformation("👥 Getting ALL clientes from Velneo API for tenant {TenantId} - EXTENDED TIMEOUT", tenantId);
 
             var allClientes = new List<ClientDto>();
             var pageNumber = 1;
-            var pageSize = 1000;
+            var pageSize = 500; // ✅ PÁGINAS MÁS GRANDES PARA REDUCIR NÚMERO DE LLAMADAS
             var hasMoreData = true;
 
             while (hasMoreData)
@@ -227,7 +242,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
 
                 try
                 {
-                    using var httpClient = await _httpService.GetConfiguredHttpClientAsync();
+                    // ✅ USAR HttpClient CON TIMEOUT EXTENDIDO PARA CLIENTES
+                    using var httpClient = await GetConfiguredHttpClientForClientsAsync();
                     var url = await _httpService.BuildVelneoUrlAsync($"v1/clientes?page={pageNumber}&limit={pageSize}");
                     var response = await httpClient.GetAsync(url);
                     response.EnsureSuccessStatusCode();
@@ -258,7 +274,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 }
             }
 
-            _logger.LogInformation("🎯 Successfully retrieved {Count} clientes total from Velneo API", allClientes.Count);
+            _logger.LogInformation("✅ Successfully retrieved {Count} clientes total from Velneo API", allClientes.Count);
             return allClientes;
         }
 
@@ -267,18 +283,25 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
         /// Paginación manual con control específico de página
         /// </summary>
         public async Task<PaginatedVelneoResponse<ClientDto>> GetClientesPaginatedAsync(
-            int page = 1,
-            int pageSize = 50,
-            string? search = null)
+    int page = 1,
+    int pageSize = 50,
+    string? search = null)
         {
+            var stopwatch = Stopwatch.StartNew();
+
             try
             {
                 var tenantId = _tenantService.GetCurrentTenantId();
-                _logger.LogInformation("🔍 Getting clientes page {Page} (size {PageSize}) for tenant {TenantId}",
+                _logger.LogInformation("👥 Getting clientes page {Page} (size {PageSize}) for tenant {TenantId} - EXTENDED TIMEOUT",
                     page, pageSize, tenantId);
 
-                using var httpClient = await _httpService.GetConfiguredHttpClientAsync();
+                // ✅ USAR HttpClient CON TIMEOUT EXTENDIDO PARA CLIENTES
+                using var httpClient = await GetConfiguredHttpClientForClientsAsync();
                 var url = await _httpService.BuildVelneoUrlAsync($"v1/clientes?page={page}&limit={pageSize}");
+
+                _logger.LogInformation("📤 Client request URL: {Url} (timeout: {Timeout}s)",
+                    url.Replace("api_key=", "api_key=***"), httpClient.Timeout.TotalSeconds);
+
                 var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
@@ -287,7 +310,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 if (velneoResponse?.Clientes != null)
                 {
                     var clientsPage = velneoResponse.Clientes.ToClienteDtos().ToList();
-                    // ✅ FIX: Usar Total_Count (con underscore) como está definido en VelneoClientesResponse
                     var totalCount = velneoResponse.Total_Count > 0 ? velneoResponse.Total_Count :
                                    EstimateTotalCount(clientsPage.Count, page, pageSize);
 
@@ -297,28 +319,34 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                         TotalCount = totalCount,
                         PageNumber = page,
                         PageSize = pageSize,
-                        VelneoHasMoreData = velneoResponse.HasMoreData ?? false
+                        VelneoHasMoreData = velneoResponse.HasMoreData ?? (clientsPage.Count >= pageSize),
+                        RequestDuration = stopwatch.Elapsed
                     };
 
-                    _logger.LogInformation("✅ Retrieved page {Page}/{TotalPages} - {Count} clients",
-                        page, result.TotalPages, clientsPage.Count);
+                    stopwatch.Stop();
+                    _logger.LogInformation("✅ CLIENTS PAGINATION SUCCESS: Page {Page}/{EstimatedTotal} - {Count} clients in {Duration}ms",
+                        page, result.TotalPages, clientsPage.Count, stopwatch.ElapsedMilliseconds);
 
                     return result;
                 }
 
-                return new PaginatedVelneoResponse<ClientDto>
-                {
-                    Items = new List<ClientDto>(),
-                    TotalCount = 0,
-                    PageNumber = page,
-                    PageSize = pageSize,
-                    VelneoHasMoreData = false
-                };
+                throw new InvalidOperationException("No valid response from Velneo API for clients pagination");
+            }
+            catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+            {
+                stopwatch.Stop();
+                _logger.LogError("🚨 TIMEOUT en GetClientesPaginatedAsync después de {Duration}ms - Page: {Page}, PageSize: {PageSize}",
+                    stopwatch.ElapsedMilliseconds, page, pageSize);
+
+                // ✅ THROW CUSTOM EXCEPTION CON INFORMACIÓN ÚTIL
+                throw new TimeoutException($"Velneo API timeout después de {stopwatch.ElapsedMilliseconds}ms para página {page}. " +
+                    "Los clientes pueden tardar más en cargar. Intenta reducir el pageSize o usar el endpoint /api/clientes/all", ex);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error en GetClientesPaginatedAsync - Page: {Page}, PageSize: {PageSize}",
-                    page, pageSize);
+                stopwatch.Stop();
+                _logger.LogError(ex, "❌ Error en GetClientesPaginatedAsync - Page: {Page}, PageSize: {PageSize}, Duration: {Duration}ms",
+                    page, pageSize, stopwatch.ElapsedMilliseconds);
                 throw;
             }
         }
@@ -1475,11 +1503,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
 
             return string.Join(". ", obs);
         }
-
-        // ============================================================================
-        // 🔧 MÉTODOS DE MAPEO AUXILIARES
-        // ============================================================================
-
         private static string MapearEstado(string? estado)
         {
             return estado?.ToUpperInvariant() switch
@@ -1540,10 +1563,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             };
         }
 
-        // ============================================================================
-        // 🛠️ MÉTODOS UTILITARIOS
-        // ============================================================================
-
         private static string? FormatearFecha(object? fecha)
         {
             if (fecha == null) return null;
@@ -1557,14 +1576,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             return null;
         }
 
-        private static int? TryParseInt(string? value)
-        {
-            return int.TryParse(value, out var result) ? result : null;
-        }
-
-        /// <summary>
-        /// Extrae mensaje de error del response HTTP de Velneo
-        /// </summary>
         private async Task<string> ExtraerMensajeError(HttpStatusCode statusCode, string responseContent)
         {
             try
@@ -1596,9 +1607,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        /// <summary>
-        /// Configuración JSON consistente para pólizas
-        /// </summary>
         private System.Text.Json.JsonSerializerOptions GetJsonOptions()
         {
             return new System.Text.Json.JsonSerializerOptions
@@ -1609,32 +1617,22 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString
             };
         }
-
-        // ===========================
-        // MÉTODOS AUXILIARES PRIVADOS (EXISTENTES)
-        // ===========================
-
-        /// <summary>
-        /// Estimación conservadora del total de registros basada en la página actual
-        /// </summary>
-        private int EstimateTotalCount(int currentPageCount, int currentPage, int pageSize)
+        private int EstimateTotalCount(int currentPageCount, int pageNumber, int pageSize)
         {
             if (currentPageCount < pageSize)
             {
-                return ((currentPage - 1) * pageSize) + currentPageCount;
+                return ((pageNumber - 1) * pageSize) + currentPageCount;
             }
-
-            return currentPage * pageSize + 1;
+            else
+            {
+                return pageNumber * pageSize + 1;
+            }
         }
 
-        /// <summary>
-        /// Parsea respuesta de búsqueda directa con fallback automático
-        /// </summary>
         private async Task<List<ClientDto>> ParseDirectSearchResponse(HttpResponseMessage response, string searchTerm)
         {
             try
             {
-                // ✅ Intentar como wrapper primero
                 var velneoResponse = await _httpService.DeserializeResponseAsync<VelneoClientesResponse>(response);
                 if (velneoResponse?.Clientes != null)
                 {
@@ -1652,6 +1650,31 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 _logger.LogWarning(ex, "Error parsing direct search response for term '{SearchTerm}'", searchTerm);
                 return new List<ClientDto>();
             }
+        }
+
+        private async Task<HttpClient> GetConfiguredHttpClientForClientsAsync()
+        {
+            var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
+
+            if (tenantConfig == null)
+            {
+                throw new InvalidOperationException("Tenant configuration not found");
+            }
+
+            var httpClient = new HttpClient();
+
+            var clientTimeoutSeconds = tenantConfig.TimeoutSeconds > 0 ?
+                Math.Max(tenantConfig.TimeoutSeconds * 2, 90) :
+                120; 
+
+            httpClient.Timeout = TimeSpan.FromSeconds(clientTimeoutSeconds);
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "RegularizadorPolizas/1.0");
+            httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
+
+            _logger.LogInformation("✅ HttpClient configured for CLIENTS with extended timeout: {Timeout}s (tenant: {TenantId})",
+                clientTimeoutSeconds, _tenantService.GetCurrentTenantId());
+
+            return httpClient;
         }
     }
 }

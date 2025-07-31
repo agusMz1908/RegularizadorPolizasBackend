@@ -10,15 +10,16 @@ namespace RegularizadorPolizas.API.Controllers
     [Authorize]
     public class TarifaController : ControllerBase
     {
-        private readonly IVelneoApiService _velneoApiService;
+        // ✅ CORREGIDO: Usar IVelneoMaestrosService
+        private readonly IVelneoMaestrosService _velneoMaestrosService;
         private readonly ILogger<TarifaController> _logger;
 
         public TarifaController(
-            IVelneoApiService velneoApiService,
+            IVelneoMaestrosService velneoMaestrosService, // ✅ CAMBIO CRÍTICO
             ILogger<TarifaController> logger)
         {
-            _velneoApiService = velneoApiService;
-            _logger = logger;
+            _velneoMaestrosService = velneoMaestrosService ?? throw new ArgumentNullException(nameof(velneoMaestrosService));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         [HttpGet]
@@ -30,9 +31,10 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                _logger.LogInformation("🎯 TarifaController: Getting all tarifas from Velneo API...");
+                _logger.LogInformation("🎯 TarifaController: Getting all tarifas from VelneoMaestrosService...");
 
-                var tarifas = await _velneoApiService.GetAllTarifasAsync();
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var tarifas = await _velneoMaestrosService.GetAllTarifasAsync();
 
                 _logger.LogInformation("✅ TarifaController: Successfully retrieved {Count} tarifas", tarifas.Count());
 
@@ -42,15 +44,24 @@ namespace RegularizadorPolizas.API.Controllers
                     .ThenBy(t => t.Nombre)
                     .ToList();
 
-                return Ok(tarifasOrdenadas);
+                return Ok(new
+                {
+                    success = true,
+                    data = tarifasOrdenadas,
+                    total = tarifasOrdenadas.Count,
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ TarifaController: Error getting tarifas from Velneo API");
+                _logger.LogError(ex, "❌ TarifaController: Error getting tarifas from VelneoMaestrosService");
                 return StatusCode(500, new
                 {
+                    success = false,
                     message = "Error interno del servidor al obtener tarifas",
-                    error = ex.Message
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
                 });
             }
         }
@@ -67,7 +78,8 @@ namespace RegularizadorPolizas.API.Controllers
                 _logger.LogInformation("🎯 TarifaController: Getting tarifas lookup for company {CompaniaId}...",
                     companiaId?.ToString() ?? "ALL");
 
-                var todasLasTarifas = await _velneoApiService.GetAllTarifasAsync();
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var todasLasTarifas = await _velneoMaestrosService.GetAllTarifasAsync();
 
                 // Filtrar por compañía si se especifica
                 var tarifasFiltradas = companiaId.HasValue
@@ -89,15 +101,24 @@ namespace RegularizadorPolizas.API.Controllers
                 _logger.LogInformation("✅ TarifaController: Retrieved {Count} tarifas lookup for company {CompaniaId}",
                     lookup.Count, companiaId?.ToString() ?? "ALL");
 
-                return Ok(lookup);
+                return Ok(new
+                {
+                    success = true,
+                    data = lookup,
+                    total = lookup.Count,
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ TarifaController: Error getting tarifas lookup");
                 return StatusCode(500, new
                 {
+                    success = false,
                     message = "Error interno del servidor al obtener tarifas lookup",
-                    error = ex.Message
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
                 });
             }
         }
@@ -113,7 +134,8 @@ namespace RegularizadorPolizas.API.Controllers
             {
                 _logger.LogInformation("🎯 TarifaController: Getting tarifa {TarifaId}...", id);
 
-                var todasLasTarifas = await _velneoApiService.GetAllTarifasAsync();
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var todasLasTarifas = await _velneoMaestrosService.GetAllTarifasAsync();
                 var tarifa = todasLasTarifas.FirstOrDefault(t => t.Id == id);
 
                 if (tarifa == null)
@@ -121,21 +143,32 @@ namespace RegularizadorPolizas.API.Controllers
                     _logger.LogWarning("⚠️ TarifaController: Tarifa {TarifaId} not found", id);
                     return NotFound(new
                     {
-                        message = $"Tarifa con ID {id} no encontrada"
+                        success = false,
+                        message = $"Tarifa con ID {id} no encontrada",
+                        timestamp = DateTime.UtcNow
                     });
                 }
 
                 _logger.LogInformation("✅ TarifaController: Found tarifa {TarifaId}: {Nombre}",
                     id, tarifa.Nombre);
-                return Ok(tarifa);
+
+                return Ok(new
+                {
+                    success = true,
+                    data = tarifa,
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ TarifaController: Error getting tarifa {TarifaId}", id);
                 return StatusCode(500, new
                 {
+                    success = false,
                     message = "Error interno del servidor al obtener tarifa",
-                    error = ex.Message
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
                 });
             }
         }
@@ -150,7 +183,8 @@ namespace RegularizadorPolizas.API.Controllers
             {
                 _logger.LogInformation("📊 TarifaController: Getting tarifas statistics...");
 
-                var todasLasTarifas = await _velneoApiService.GetAllTarifasAsync();
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var todasLasTarifas = await _velneoMaestrosService.GetAllTarifasAsync();
 
                 var stats = todasLasTarifas
                     .GroupBy(t => t.CompaniaId)
@@ -175,15 +209,24 @@ namespace RegularizadorPolizas.API.Controllers
                 _logger.LogInformation("✅ TarifaController: Generated stats for {Count} companies",
                     stats.Count);
 
-                return Ok(stats);
+                return Ok(new
+                {
+                    success = true,
+                    data = stats,
+                    total = stats.Count,
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ TarifaController: Error getting tarifas stats");
                 return StatusCode(500, new
                 {
+                    success = false,
                     message = "Error interno del servidor al obtener estadísticas",
-                    error = ex.Message
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
                 });
             }
         }

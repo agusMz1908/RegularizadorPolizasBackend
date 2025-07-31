@@ -10,17 +10,20 @@ namespace RegularizadorPolizas.API.Controllers
     [Authorize]
     public class CompaniesController : ControllerBase
     {
-        private readonly IVelneoApiService _velneoApiService;
+        // ✅ CORREGIDO: Usar IVelneoMaestrosService
+        private readonly IVelneoMaestrosService _velneoMaestrosService;
         private readonly ILogger<CompaniesController> _logger;
 
-        public CompaniesController(IVelneoApiService velneoApiService, ILogger<CompaniesController> logger)
+        public CompaniesController(
+            IVelneoMaestrosService velneoMaestrosService, // ✅ CAMBIO CRÍTICO
+            ILogger<CompaniesController> logger)
         {
-            _velneoApiService = velneoApiService ?? throw new ArgumentNullException(nameof(velneoApiService));
+            _velneoMaestrosService = velneoMaestrosService ?? throw new ArgumentNullException(nameof(velneoMaestrosService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         /// <summary>
-        /// Obtiene todas las compañías desde Velneo
+        /// Obtiene todas las compañías desde VelneoMaestrosService
         /// </summary>
         [HttpGet]
         [ProducesResponseType(typeof(IEnumerable<CompanyDto>), 200)]
@@ -29,21 +32,37 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                _logger.LogInformation("🏢 Getting all companies from Velneo API");
-                var companies = await _velneoApiService.GetAllCompaniesAsync();
+                _logger.LogInformation("🏢 Getting all companies from VelneoMaestrosService");
 
-                _logger.LogInformation("✅ Successfully retrieved {Count} companies from Velneo", companies.Count());
-                return Ok(companies);
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var companies = await _velneoMaestrosService.GetAllCompaniesAsync();
+
+                _logger.LogInformation("✅ Successfully retrieved {Count} companies from VelneoMaestrosService", companies.Count());
+
+                return Ok(new
+                {
+                    success = true,
+                    data = companies,
+                    total = companies.Count(),
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Error getting all companies from Velneo API");
-                return StatusCode(500, new { message = "Error obteniendo compañías desde Velneo", error = ex.Message });
+                _logger.LogError(ex, "❌ Error getting all companies from VelneoMaestrosService");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error obteniendo compañías desde VelneoMaestrosService",
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
         }
 
         /// <summary>
-        /// Obtiene las compañías para lookup/dropdown desde Velneo (usado por el frontend)
+        /// Obtiene las compañías para lookup/dropdown desde VelneoMaestrosService (usado por el frontend)
         /// </summary>
         [HttpGet("lookup")]
         [ProducesResponseType(typeof(IEnumerable<CompanyLookupDto>), 200)]
@@ -52,26 +71,38 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                _logger.LogInformation("🏢 Getting companies for lookup from Velneo API");
-                var companies = await _velneoApiService.GetCompaniesForLookupAsync();
+                _logger.LogInformation("🏢 Getting companies for lookup from VelneoMaestrosService");
 
-                _logger.LogInformation("✅ Successfully retrieved {Count} companies for lookup from Velneo", companies.Count());
-                return Ok(companies);
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var companies = await _velneoMaestrosService.GetCompaniesForLookupAsync();
+
+                _logger.LogInformation("✅ Successfully retrieved {Count} companies for lookup from VelneoMaestrosService", companies.Count());
+
+                return Ok(new
+                {
+                    success = true,
+                    data = companies,
+                    total = companies.Count(),
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Error getting companies for lookup from Velneo API");
+                _logger.LogError(ex, "❌ Error getting companies for lookup from VelneoMaestrosService");
                 return StatusCode(500, new
                 {
-                    message = "Error al cargar compañías desde Velneo",
+                    success = false,
+                    message = "Error al cargar compañías desde VelneoMaestrosService",
                     error = ex.Message,
-                    details = "Verifica la conexión con Velneo API"
+                    details = "Verifica la conexión con VelneoMaestrosService",
+                    timestamp = DateTime.UtcNow
                 });
             }
         }
 
         /// <summary>
-        /// Obtiene solo las compañías activas desde Velneo
+        /// Obtiene solo las compañías activas desde VelneoMaestrosService
         /// </summary>
         [HttpGet("active")]
         [ProducesResponseType(typeof(IEnumerable<CompanyDto>), 200)]
@@ -80,21 +111,37 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                _logger.LogInformation("🏢 Getting active companies from Velneo API");
-                var companies = await _velneoApiService.GetActiveCompaniesAsync();
+                _logger.LogInformation("🏢 Getting active companies from VelneoMaestrosService");
 
-                _logger.LogInformation("✅ Successfully retrieved {Count} active companies from Velneo", companies.Count());
-                return Ok(companies);
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var companies = await _velneoMaestrosService.GetActiveCompaniesAsync();
+
+                _logger.LogInformation("✅ Successfully retrieved {Count} active companies from VelneoMaestrosService", companies.Count());
+
+                return Ok(new
+                {
+                    success = true,
+                    data = companies,
+                    total = companies.Count(),
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Error getting active companies from Velneo API");
-                return StatusCode(500, new { message = "Error obteniendo compañías activas desde Velneo", error = ex.Message });
+                _logger.LogError(ex, "❌ Error getting active companies from VelneoMaestrosService");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error obteniendo compañías activas desde VelneoMaestrosService",
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
         }
 
         /// <summary>
-        /// Obtiene una compañía por ID desde Velneo
+        /// Obtiene una compañía por ID desde VelneoMaestrosService
         /// </summary>
         [HttpGet("{id}")]
         [ProducesResponseType(typeof(CompanyDto), 200)]
@@ -104,32 +151,58 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                _logger.LogInformation("🏢 Getting company {CompanyId} from Velneo API", id);
+                _logger.LogInformation("🏢 Getting company {CompanyId} from VelneoMaestrosService", id);
 
-                var company = await _velneoApiService.GetCompanyByIdAsync(id);
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var company = await _velneoMaestrosService.GetCompanyByIdAsync(id);
+
                 if (company == null)
                 {
-                    _logger.LogWarning("Company {CompanyId} not found in Velneo API", id);
-                    return NotFound(new { message = $"Compañía con ID {id} no encontrada en Velneo" });
+                    _logger.LogWarning("⚠️ Company {CompanyId} not found in VelneoMaestrosService", id);
+                    return NotFound(new
+                    {
+                        success = false,
+                        message = $"Compañía con ID {id} no encontrada en VelneoMaestrosService",
+                        timestamp = DateTime.UtcNow
+                    });
                 }
 
-                _logger.LogInformation("✅ Successfully retrieved company {CompanyId} from Velneo", id);
-                return Ok(company);
+                _logger.LogInformation("✅ Successfully retrieved company {CompanyId} from VelneoMaestrosService", id);
+
+                return Ok(new
+                {
+                    success = true,
+                    data = company,
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (NotImplementedException ex)
             {
-                _logger.LogWarning("GetCompanyById not implemented in Velneo API: {Message}", ex.Message);
-                return StatusCode(501, new { message = "GetCompanyById no está implementado en Velneo API aún", error = ex.Message });
+                _logger.LogWarning("GetCompanyById not implemented in VelneoMaestrosService: {Message}", ex.Message);
+                return StatusCode(501, new
+                {
+                    success = false,
+                    message = "GetCompanyById no está implementado en VelneoMaestrosService aún",
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Error getting company {CompanyId} from Velneo API", id);
-                return StatusCode(500, new { message = "Error obteniendo compañía desde Velneo", error = ex.Message });
+                _logger.LogError(ex, "❌ Error getting company {CompanyId} from VelneoMaestrosService", id);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error obteniendo compañía desde VelneoMaestrosService",
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
         }
 
         /// <summary>
-        /// Obtiene una compañía por código desde Velneo
+        /// Obtiene una compañía por código desde VelneoMaestrosService
         /// </summary>
         [HttpGet("codigo/{codigo}")]
         [ProducesResponseType(typeof(CompanyDto), 200)]
@@ -139,32 +212,58 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                _logger.LogInformation("🏢 Getting company by codigo {Codigo} from Velneo API", codigo);
+                _logger.LogInformation("🏢 Getting company by codigo {Codigo} from VelneoMaestrosService", codigo);
 
-                var company = await _velneoApiService.GetCompanyByCodigoAsync(codigo);
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var company = await _velneoMaestrosService.GetCompanyByCodigoAsync(codigo);
+
                 if (company == null)
                 {
-                    _logger.LogWarning("Company with codigo {Codigo} not found in Velneo API", codigo);
-                    return NotFound(new { message = $"Compañía con código {codigo} no encontrada en Velneo" });
+                    _logger.LogWarning("⚠️ Company with codigo {Codigo} not found in VelneoMaestrosService", codigo);
+                    return NotFound(new
+                    {
+                        success = false,
+                        message = $"Compañía con código {codigo} no encontrada en VelneoMaestrosService",
+                        timestamp = DateTime.UtcNow
+                    });
                 }
 
-                _logger.LogInformation("✅ Successfully retrieved company by codigo {Codigo} from Velneo", codigo);
-                return Ok(company);
+                _logger.LogInformation("✅ Successfully retrieved company by codigo {Codigo} from VelneoMaestrosService", codigo);
+
+                return Ok(new
+                {
+                    success = true,
+                    data = company,
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (NotImplementedException ex)
             {
-                _logger.LogWarning("GetCompanyByCodigo not implemented in Velneo API: {Message}", ex.Message);
-                return StatusCode(501, new { message = "GetCompanyByCodigo no está implementado en Velneo API aún", error = ex.Message });
+                _logger.LogWarning("GetCompanyByCodigo not implemented in VelneoMaestrosService: {Message}", ex.Message);
+                return StatusCode(501, new
+                {
+                    success = false,
+                    message = "GetCompanyByCodigo no está implementado en VelneoMaestrosService aún",
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Error getting company by codigo {Codigo} from Velneo API", codigo);
-                return StatusCode(500, new { message = "Error obteniendo compañía por código desde Velneo", error = ex.Message });
+                _logger.LogError(ex, "❌ Error getting company by codigo {Codigo} from VelneoMaestrosService", codigo);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error obteniendo compañía por código desde VelneoMaestrosService",
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
         }
 
         /// <summary>
-        /// Obtiene una compañía por alias desde Velneo
+        /// Obtiene una compañía por alias desde VelneoMaestrosService
         /// </summary>
         [HttpGet("alias/{alias}")]
         [ProducesResponseType(typeof(CompanyDto), 200)]
@@ -174,32 +273,58 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                _logger.LogInformation("🏢 Getting company by alias {Alias} from Velneo API", alias);
+                _logger.LogInformation("🏢 Getting company by alias {Alias} from VelneoMaestrosService", alias);
 
-                var company = await _velneoApiService.GetCompanyByAliasAsync(alias);
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var company = await _velneoMaestrosService.GetCompanyByAliasAsync(alias);
+
                 if (company == null)
                 {
-                    _logger.LogWarning("Company with alias {Alias} not found in Velneo API", alias);
-                    return NotFound(new { message = $"Compañía con alias {alias} no encontrada en Velneo" });
+                    _logger.LogWarning("⚠️ Company with alias {Alias} not found in VelneoMaestrosService", alias);
+                    return NotFound(new
+                    {
+                        success = false,
+                        message = $"Compañía con alias {alias} no encontrada en VelneoMaestrosService",
+                        timestamp = DateTime.UtcNow
+                    });
                 }
 
-                _logger.LogInformation("✅ Successfully retrieved company by alias {Alias} from Velneo", alias);
-                return Ok(company);
+                _logger.LogInformation("✅ Successfully retrieved company by alias {Alias} from VelneoMaestrosService", alias);
+
+                return Ok(new
+                {
+                    success = true,
+                    data = company,
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (NotImplementedException ex)
             {
-                _logger.LogWarning("GetCompanyByAlias not implemented in Velneo API: {Message}", ex.Message);
-                return StatusCode(501, new { message = "GetCompanyByAlias no está implementado en Velneo API aún", error = ex.Message });
+                _logger.LogWarning("GetCompanyByAlias not implemented in VelneoMaestrosService: {Message}", ex.Message);
+                return StatusCode(501, new
+                {
+                    success = false,
+                    message = "GetCompanyByAlias no está implementado en VelneoMaestrosService aún",
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Error getting company by alias {Alias} from Velneo API", alias);
-                return StatusCode(500, new { message = "Error obteniendo compañía por alias desde Velneo", error = ex.Message });
+                _logger.LogError(ex, "❌ Error getting company by alias {Alias} from VelneoMaestrosService", alias);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error obteniendo compañía por alias desde VelneoMaestrosService",
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
         }
 
         /// <summary>
-        /// Busca compañías por término desde Velneo
+        /// Busca compañías por término desde VelneoMaestrosService
         /// </summary>
         [HttpGet("search")]
         [ProducesResponseType(typeof(IEnumerable<CompanyDto>), 200)]
@@ -210,30 +335,57 @@ namespace RegularizadorPolizas.API.Controllers
             {
                 if (string.IsNullOrWhiteSpace(searchTerm))
                 {
-                    return BadRequest(new { message = "Término de búsqueda requerido" });
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Término de búsqueda requerido",
+                        timestamp = DateTime.UtcNow
+                    });
                 }
 
-                _logger.LogInformation("🔍 Searching companies with term '{SearchTerm}' in Velneo API", searchTerm);
+                _logger.LogInformation("🔍 Searching companies with term '{SearchTerm}' in VelneoMaestrosService", searchTerm);
 
-                var companies = await _velneoApiService.SearchCompaniesAsync(searchTerm);
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var companies = await _velneoMaestrosService.SearchCompaniesAsync(searchTerm);
 
-                _logger.LogInformation("✅ Successfully found {Count} companies matching '{SearchTerm}' in Velneo", companies.Count(), searchTerm);
-                return Ok(companies);
+                _logger.LogInformation("✅ Successfully found {Count} companies matching '{SearchTerm}' in VelneoMaestrosService", companies.Count(), searchTerm);
+
+                return Ok(new
+                {
+                    success = true,
+                    data = companies,
+                    total = companies.Count(),
+                    searchTerm = searchTerm,
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (NotImplementedException ex)
             {
-                _logger.LogWarning("SearchCompanies not implemented in Velneo API: {Message}", ex.Message);
-                return StatusCode(501, new { message = "SearchCompanies no está implementado en Velneo API aún", error = ex.Message });
+                _logger.LogWarning("SearchCompanies not implemented in VelneoMaestrosService: {Message}", ex.Message);
+                return StatusCode(501, new
+                {
+                    success = false,
+                    message = "SearchCompanies no está implementado en VelneoMaestrosService aún",
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Error searching companies with term '{SearchTerm}' in Velneo API", searchTerm);
-                return StatusCode(500, new { message = "Error buscando compañías en Velneo", error = ex.Message });
+                _logger.LogError(ex, "❌ Error searching companies with term '{SearchTerm}' in VelneoMaestrosService", searchTerm);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error buscando compañías en VelneoMaestrosService",
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
         }
 
         /// <summary>
-        /// CRUD operations would need to be implemented in Velneo API first
+        /// CRUD operations would need to be implemented in VelneoMaestrosService first
         /// For now, these endpoints return NotImplemented status
         /// </summary>
 
@@ -241,11 +393,13 @@ namespace RegularizadorPolizas.API.Controllers
         [ProducesResponseType(501)]
         public async Task<ActionResult> CreateCompany([FromBody] CompanyDto companyDto)
         {
-            _logger.LogWarning("CreateCompany not implemented - Velneo API doesn't support company creation");
+            _logger.LogWarning("CreateCompany not implemented - VelneoMaestrosService doesn't support company creation");
             return StatusCode(501, new
             {
+                success = false,
                 message = "Creación de compañías no está implementada",
-                details = "Esta funcionalidad requiere implementación en Velneo API"
+                details = "Esta funcionalidad requiere implementación en VelneoMaestrosService",
+                timestamp = DateTime.UtcNow
             });
         }
 
@@ -253,11 +407,13 @@ namespace RegularizadorPolizas.API.Controllers
         [ProducesResponseType(501)]
         public async Task<ActionResult> UpdateCompany(int id, [FromBody] CompanyDto companyDto)
         {
-            _logger.LogWarning("UpdateCompany not implemented - Velneo API doesn't support company updates");
+            _logger.LogWarning("UpdateCompany not implemented - VelneoMaestrosService doesn't support company updates");
             return StatusCode(501, new
             {
+                success = false,
                 message = "Actualización de compañías no está implementada",
-                details = "Esta funcionalidad requiere implementación en Velneo API"
+                details = "Esta funcionalidad requiere implementación en VelneoMaestrosService",
+                timestamp = DateTime.UtcNow
             });
         }
 
@@ -265,11 +421,13 @@ namespace RegularizadorPolizas.API.Controllers
         [ProducesResponseType(501)]
         public async Task<ActionResult> DeleteCompany(int id)
         {
-            _logger.LogWarning("DeleteCompany not implemented - Velneo API doesn't support company deletion");
+            _logger.LogWarning("DeleteCompany not implemented - VelneoMaestrosService doesn't support company deletion");
             return StatusCode(501, new
             {
+                success = false,
                 message = "Eliminación de compañías no está implementada",
-                details = "Esta funcionalidad requiere implementación en Velneo API"
+                details = "Esta funcionalidad requiere implementación en VelneoMaestrosService",
+                timestamp = DateTime.UtcNow
             });
         }
     }

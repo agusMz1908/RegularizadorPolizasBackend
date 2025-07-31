@@ -10,7 +10,6 @@ namespace RegularizadorPolizas.API.Controllers
     [Authorize]
     public class CalidadController : ControllerBase
     {
-        // ✅ CORREGIDO: Usar IVelneoMaestrosService
         private readonly IVelneoMaestrosService _velneoMaestrosService;
         private readonly ILogger<CalidadController> _logger;
 

@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Mvc;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces.External.Velneo;
-using RegularizadorPolizas.Infrastructure.External.VelneoAPI;
 
 namespace RegularizadorPolizas.API.Controllers
 {
@@ -11,15 +10,15 @@ namespace RegularizadorPolizas.API.Controllers
     [Authorize]
     public class DepartamentoController : ControllerBase
     {
-        private readonly IVelneoApiService _velneoApiService;
+        private readonly IVelneoMaestrosService _velneoMaestrosService;
         private readonly ILogger<DepartamentoController> _logger;
 
         public DepartamentoController(
-            IVelneoApiService velneoApiService,
+            IVelneoMaestrosService velneoMaestrosService, // ✅ CAMBIO CRÍTICO
             ILogger<DepartamentoController> logger)
         {
-            _velneoApiService = velneoApiService;
-            _logger = logger;
+            _velneoMaestrosService = velneoMaestrosService ?? throw new ArgumentNullException(nameof(velneoMaestrosService));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         [HttpGet]
@@ -32,16 +31,32 @@ namespace RegularizadorPolizas.API.Controllers
             {
                 _logger.LogInformation("🏛️ DepartamentosController: Obteniendo departamentos...");
 
-                var departamentos = await _velneoApiService.GetAllDepartamentosAsync();
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var departamentos = await _velneoMaestrosService.GetAllDepartamentosAsync();
 
                 _logger.LogInformation("✅ Departamentos obtenidos: {Count}", departamentos.Count());
 
-                return Ok(departamentos.OrderBy(d => d.Nombre));
+                var departamentosOrdenados = departamentos.OrderBy(d => d.Nombre).ToList();
+
+                return Ok(new
+                {
+                    success = true,
+                    data = departamentosOrdenados,
+                    total = departamentosOrdenados.Count,
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ Error obteniendo departamentos");
-                return StatusCode(500, new { error = "Error interno del servidor", details = ex.Message });
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Error interno del servidor",
+                    details = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
         }
 
@@ -57,7 +72,8 @@ namespace RegularizadorPolizas.API.Controllers
             {
                 _logger.LogInformation("🏛️ DepartamentosController: Obteniendo departamentos lookup...");
 
-                var departamentos = await _velneoApiService.GetAllDepartamentosAsync();
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var departamentos = await _velneoMaestrosService.GetAllDepartamentosAsync();
 
                 var lookup = departamentos
                     .Where(d => d.Activo)
@@ -66,16 +82,29 @@ namespace RegularizadorPolizas.API.Controllers
                         nombre = d.Nombre,
                         bonificacion = d.BonificacionInterior
                     })
-                    .OrderBy(d => d.nombre);
+                    .OrderBy(d => d.nombre)
+                    .ToList();
 
                 _logger.LogInformation("✅ Departamentos lookup obtenidos: {Count}", lookup.Count());
 
-                return Ok(lookup);
+                return Ok(new
+                {
+                    success = true,
+                    data = lookup,
+                    total = lookup.Count,
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ Error obteniendo departamentos lookup");
-                return StatusCode(500, new { error = "Error interno del servidor" });
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Error interno del servidor",
+                    timestamp = DateTime.UtcNow
+                });
             }
         }
 
@@ -93,21 +122,38 @@ namespace RegularizadorPolizas.API.Controllers
             {
                 _logger.LogInformation("🏛️ DepartamentosController: Obteniendo departamento ID: {Id}", id);
 
-                var departamentos = await _velneoApiService.GetAllDepartamentosAsync();
+                // ✅ CORREGIDO: usar VelneoMaestrosService
+                var departamentos = await _velneoMaestrosService.GetAllDepartamentosAsync();
                 var departamento = departamentos.FirstOrDefault(d => d.Id == id);
 
                 if (departamento == null)
                 {
                     _logger.LogWarning("⚠️ Departamento no encontrado: {Id}", id);
-                    return NotFound(new { error = "Departamento no encontrado" });
+                    return NotFound(new
+                    {
+                        success = false,
+                        error = "Departamento no encontrado",
+                        timestamp = DateTime.UtcNow
+                    });
                 }
 
-                return Ok(departamento);
+                return Ok(new
+                {
+                    success = true,
+                    data = departamento,
+                    timestamp = DateTime.UtcNow,
+                    source = "velneo_maestros_service"
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ Error obteniendo departamento {Id}", id);
-                return StatusCode(500, new { error = "Error interno del servidor" });
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Error interno del servidor",
+                    timestamp = DateTime.UtcNow
+                });
             }
         }
     }
