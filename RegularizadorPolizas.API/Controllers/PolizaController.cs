@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Mvc;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.Interfaces.External.Velneo;
-using System.ComponentModel.DataAnnotations;
 
 namespace RegularizadorPolizas.API.Controllers
 {

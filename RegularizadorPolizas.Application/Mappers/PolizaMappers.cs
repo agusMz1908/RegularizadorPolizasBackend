@@ -35,12 +35,14 @@ namespace RegularizadorPolizas.Application.Mappers
                 Concestel = velneoPoliza.Concestel ?? "",
                 Concapaut = ParseIntFromObject(velneoPoliza.Concapaut),
 
-                Conpremio = ParseIntFromObject(velneoPoliza.Conpremio),
-                Contot = ParseIntFromObject(velneoPoliza.Contot),
+                // ✅ CORREGIDO: Usar ParseDecimalFromObject para campos decimales
+                Conpremio = ParseDecimalFromObject(velneoPoliza.Conpremio),
+                Contot = ParseDecimalFromObject(velneoPoliza.Contot),
                 Moncod = ParseIntFromObject(velneoPoliza.Moncod),
                 Concuo = ParseIntFromObject(velneoPoliza.Concuo),
                 Concomcorr = ParseIntFromObject(velneoPoliza.Concomcorr),
 
+                // ✅ CORREGIDO: Mantener como int? (NO convertir a string)
                 Catdsc = velneoPoliza.Catdsc,
                 Desdsc = velneoPoliza.Desdsc,
                 Caldsc = velneoPoliza.Caldsc,
@@ -82,8 +84,9 @@ namespace RegularizadorPolizas.Application.Mappers
                 Ramo = velneoPoliza.Ramo ?? "",
                 Observaciones = velneoPoliza.Observaciones ?? "",
 
+                // ✅ CAMPOS ADICIONALES QUE SÍ EXISTEN EN PolizaDto
                 Procesado = true,
-                Activo = velneoPoliza.Consta != "3", 
+                Activo = velneoPoliza.Consta != "3",
                 FechaCreacion = DateTime.UtcNow,
                 FechaModificacion = DateTime.UtcNow
             };
@@ -92,21 +95,6 @@ namespace RegularizadorPolizas.Application.Mappers
         public static IEnumerable<PolizaDto> ToPolizaDtos(this IEnumerable<VelneoPoliza> velneoPolizas)
         {
             return velneoPolizas.Select(p => p.ToPolizaDto());
-        }
-
-        private static string MapPolizaEstado(string? consta)
-        {
-            if (string.IsNullOrEmpty(consta))
-                return "Pendiente";
-
-            return consta.ToLower() switch
-            {
-                "1" or "vigente" or "activo" => "Vigente",
-                "2" or "vencida" or "vencido" => "Vencida",
-                "3" or "cancelada" or "cancelado" => "Cancelada",
-                "0" => "Inactiva", // Según tu JSON, consta="0"
-                _ => "Pendiente"
-            };
         }
 
         private static DateTime? ParseVelneoDate(string? dateString)
@@ -125,9 +113,20 @@ namespace RegularizadorPolizas.Application.Mappers
             if (value == null) return null;
 
             if (value is int intValue) return intValue;
+            if (value is decimal decValue) return (int)decValue;
+            if (value is double dblValue) return (int)dblValue;
+            if (value is float fltValue) return (int)fltValue;
 
-            if (int.TryParse(value.ToString(), out var parsedInt))
+            // ✅ MEJORADO: Manejo más robusto de strings
+            var stringValue = value.ToString()?.Trim();
+            if (string.IsNullOrEmpty(stringValue)) return null;
+
+            if (int.TryParse(stringValue, out var parsedInt))
                 return parsedInt;
+
+            // ✅ INTENTAR COMO DECIMAL Y CONVERTIR
+            if (decimal.TryParse(stringValue, out var parsedDecimal))
+                return (int)Math.Round(parsedDecimal);
 
             return null;
         }
@@ -141,7 +140,11 @@ namespace RegularizadorPolizas.Application.Mappers
             if (value is double doubleValue) return (decimal)doubleValue;
             if (value is float floatValue) return (decimal)floatValue;
 
-            if (decimal.TryParse(value.ToString(), out var parsedDecimal))
+            // ✅ MEJORADO: Manejo más robusto de strings
+            var stringValue = value.ToString()?.Trim();
+            if (string.IsNullOrEmpty(stringValue)) return null;
+
+            if (decimal.TryParse(stringValue, out var parsedDecimal))
                 return parsedDecimal;
 
             return null;
