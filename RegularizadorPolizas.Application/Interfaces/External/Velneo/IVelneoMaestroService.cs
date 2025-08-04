@@ -1,4 +1,5 @@
 ﻿using RegularizadorPolizas.Application.DTOs;
+using RegularizadorPolizas.Application.DTOs.Azure;
 
 namespace RegularizadorPolizas.Application.Interfaces.External.Velneo
 {
@@ -46,5 +47,6 @@ namespace RegularizadorPolizas.Application.Interfaces.External.Velneo
         //    int pageSize = 25,
         //    string? search = null);
         Task<object> CreatePolizaFromRequestAsync(PolizaCreateRequest request);
+        Task<PolicyMappingResultDto> ValidarMapeoCompletoAsync(AzureDatosPolizaVelneoDto azureData);
     }
 }

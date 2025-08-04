@@ -1,14 +1,15 @@
 ﻿using Microsoft.Extensions.Logging;
 using RegularizadorPolizas.Application.DTOs;
+using RegularizadorPolizas.Application.DTOs.Azure;
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Application.Interfaces.External.Velneo;
 using RegularizadorPolizas.Application.Mappers;
 using RegularizadorPolizas.Application.Models;
 using System.Diagnostics;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text.Json;
-using System.Linq;
 
 namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
 {
@@ -1271,17 +1272,35 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
         {
             var textoUpper = texto.ToUpperInvariant().Trim();
 
-            // Búsqueda exacta
+            // Búsqueda exacta por catdsc
             var exacta = categorias.FirstOrDefault(c => c.Catdsc?.ToUpperInvariant() == textoUpper);
             if (exacta != null) return exacta;
 
-            // Mapeo específico inteligente
+            // Búsqueda exacta por catcod
+            var exactaCodigo = categorias.FirstOrDefault(c => c.Catcod?.ToUpperInvariant() == textoUpper);
+            if (exactaCodigo != null) return exactaCodigo;
+
+            // ✅ MEJORADO: Mapeo más preciso basado en datos reales
             return textoUpper switch
             {
-                "AUTOMOVIL" or "AUTO" or "COCHE" => categorias.FirstOrDefault(c => c.Catdsc?.Contains("Automóvil") == true),
-                "CAMIONETA" or "PICKUP" => categorias.FirstOrDefault(c => c.Catdsc?.Contains("Camioneta") == true || c.Catdsc?.Contains("Pick-Up") == true),
-                "MOTO" or "MOTOCICLETA" => categorias.FirstOrDefault(c => c.Catdsc?.Contains("MOTOS") == true),
-                "JEEP" or "SUV" => categorias.FirstOrDefault(c => c.Catdsc?.Contains("Jeeps") == true),
+                "AUTOMOVIL" or "AUTO" or "COCHE" =>
+                    categorias.FirstOrDefault(c => c.Catdsc?.ToUpperInvariant() == "AUTOMÓVIL"),
+
+                "CAMIONETA" or "PICKUP" or "PICK-UP" =>
+                    categorias.FirstOrDefault(c => c.Catdsc?.ToUpperInvariant().Contains("CAMIONETA") == true || c.Catdsc?.ToUpperInvariant().Contains("PICK-UP") == true),
+
+                "MOTO" or "MOTOCICLETA" =>
+                    categorias.FirstOrDefault(c => c.Catdsc?.ToUpperInvariant().Contains("MOTOS") == true),
+
+                "JEEP" or "SUV" =>
+                    categorias.FirstOrDefault(c => c.Catdsc?.ToUpperInvariant().Contains("JEEPS") == true),
+
+                "CAMION" or "FURGON" =>
+                    categorias.FirstOrDefault(c => c.Catdsc?.ToUpperInvariant().Contains("CAMION") == true || c.Catdsc?.ToUpperInvariant().Contains("FURGÓN") == true),
+
+                "OMNIBUS" or "BUS" =>
+                    categorias.FirstOrDefault(c => c.Catdsc?.ToUpperInvariant().Contains("OMNIBUS") == true),
+
                 _ => categorias.FirstOrDefault(c => c.Catdsc?.ToUpperInvariant().Contains(textoUpper) == true)
             };
         }
@@ -1293,16 +1312,33 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
         {
             var textoUpper = texto.ToUpperInvariant().Trim();
 
-            // Búsqueda exacta
+            // Búsqueda exacta por nombre
             var exacta = destinos.FirstOrDefault(d => d.Desnom?.ToUpperInvariant() == textoUpper);
             if (exacta != null) return exacta;
 
-            // Búsqueda por palabras clave
+            // Búsqueda exacta por código
+            var exactaCodigo = destinos.FirstOrDefault(d => d.Descod?.ToUpperInvariant() == textoUpper);
+            if (exactaCodigo != null) return exactaCodigo;
+
+            // ✅ MEJORADO: Mapeo basado en datos reales del maestro
             return textoUpper switch
             {
-                "PARTICULAR" or "PERSONAL" or "PRIVADO" => destinos.FirstOrDefault(d => d.Desnom?.Contains("PARTICULAR") == true),
-                "COMERCIAL" or "TRABAJO" or "LABORAL" => destinos.FirstOrDefault(d => d.Desnom?.Contains("TRABAJO") == true),
-                "UBER" => destinos.FirstOrDefault(d => d.Desnom?.Contains("UBER") == true),
+                "PARTICULAR" or "PERSONAL" or "PRIVADO" =>
+                    destinos.FirstOrDefault(d => d.Desnom?.ToUpperInvariant().Contains("PARTICULAR") == true),
+
+                // 🔧 MEJORADO: Mejor mapeo para COMERCIAL → TRABAJO
+                "COMERCIAL" or "TRABAJO" or "LABORAL" or "BUSINESS" or "COMERCIO" =>
+                    destinos.FirstOrDefault(d => d.Desnom?.ToUpperInvariant().Contains("TRABAJO") == true),
+
+                "PARTICULAR Y TRABAJO" or "MIXTO" or "AMBOS" =>
+                    destinos.FirstOrDefault(d => d.Desnom?.ToUpperInvariant().Contains("PARTICULAR Y TRABAJO") == true),
+
+                "UBER" =>
+                    destinos.FirstOrDefault(d => d.Desnom?.ToUpperInvariant().Contains("UBER") == true),
+
+                "TAXI" or "REMISE" =>
+                    destinos.FirstOrDefault(d => d.Desnom?.ToUpperInvariant().Contains("TAXI") == true || d.Desnom?.ToUpperInvariant().Contains("REMISE") == true),
+
                 _ => destinos.FirstOrDefault(d => d.Desnom?.ToUpperInvariant().Contains(textoUpper) == true)
             };
         }
@@ -1336,17 +1372,30 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
         {
             var textoUpper = texto.ToUpperInvariant().Trim();
 
-            // Búsqueda exacta
+            // Búsqueda exacta por Name
             var exacta = combustibles.FirstOrDefault(c => c.Name?.ToUpperInvariant() == textoUpper);
             if (exacta != null) return exacta;
 
-            // Búsqueda por palabras clave
+            // Búsqueda exacta por Id/Codigo
+            var exactaId = combustibles.FirstOrDefault(c => c.Id?.ToUpperInvariant() == textoUpper);
+            if (exactaId != null) return exactaId;
+
+            // ✅ CORREGIDO: Mapeo basado en datos reales del maestro
             return textoUpper switch
             {
-                "NAFTA" or "GASOLINA" or "BENZINA" => combustibles.FirstOrDefault(c => c.Name?.Contains("GASOLINA") == true),
-                "DIESEL" or "GASOIL" or "DIS" => combustibles.FirstOrDefault(c => c.Name?.Contains("DISEL") == true),
-                "ELECTRICO" or "ELECTRIC" => combustibles.FirstOrDefault(c => c.Name?.Contains("ELECTRICOS") == true),
-                "HIBRIDO" or "HYBRID" => combustibles.FirstOrDefault(c => c.Name?.Contains("HYBRIDO") == true),
+                // 🔧 NOTA: En tu maestro está "DISEL" (sin E), no "DIESEL"
+                "DIESEL" or "GASOIL" or "GAS-OIL" or "DISEL" or "DIS" =>
+                    combustibles.FirstOrDefault(c => c.Name?.ToUpperInvariant().Contains("DISEL") == true || c.Id?.ToUpperInvariant() == "DIS"),
+
+                "GASOLINA" or "NAFTA" or "SUPER" or "GAS" =>
+                    combustibles.FirstOrDefault(c => c.Name?.ToUpperInvariant().Contains("GASOLINA") == true || c.Id?.ToUpperInvariant() == "GAS"),
+
+                "ELECTRICO" or "ELECTRIC" or "ELE" =>
+                    combustibles.FirstOrDefault(c => c.Name?.ToUpperInvariant().Contains("ELECTRICO") == true || c.Id?.ToUpperInvariant() == "ELE"),
+
+                "HIBRIDO" or "HYBRID" or "HYB" =>
+                    combustibles.FirstOrDefault(c => c.Name?.ToUpperInvariant().Contains("HYBRIDO") == true || c.Id?.ToUpperInvariant() == "HYB"),
+
                 _ => combustibles.FirstOrDefault(c => c.Name?.ToUpperInvariant().Contains(textoUpper) == true)
             };
         }
@@ -1675,6 +1724,421 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 clientTimeoutSeconds, _tenantService.GetCurrentTenantId());
 
             return httpClient;
+        }
+
+        /// <summary>
+        /// ✅ NUEVO: Método principal para validar mapeo completo con Azure data
+        /// </summary>
+        public async Task<PolicyMappingResultDto> ValidarMapeoCompletoAsync(AzureDatosPolizaVelneoDto azureData)
+        {
+            var result = new PolicyMappingResultDto
+            {
+                CamposMapeados = new Dictionary<string, MappedField>(),
+                CamposQueFallaronMapeo = new List<string>(),
+                PorcentajeExito = 0
+            };
+
+            try
+            {
+                var tenantId = _tenantService.GetCurrentTenantId();
+                _logger.LogInformation("🔍 Iniciando validación de mapeo completo para tenant: {TenantId}", tenantId);
+
+                // 1. CAMPOS DINÁMICOS (que usan maestros del backend)
+                await MapearCamposDinamicos(azureData, result);
+
+                // 2. CAMPOS DE TEXTO PLANO (valores fijos según imágenes)
+                MapearCamposTextoPlano(azureData, result);
+
+                // 3. CALCULAR MÉTRICAS
+                CalcularMetricasMapeo(result);
+
+                _logger.LogInformation("✅ Mapeo completado: {Exito}% de éxito, {Total} campos procesados",
+                    result.PorcentajeExito, result.CamposMapeados.Count);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error en validación de mapeo completo");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// 🔄 MAPEAR CAMPOS DINÁMICOS - Usan maestros del backend
+        /// </summary>
+        private async Task MapearCamposDinamicos(AzureDatosPolizaVelneoDto azureData, PolicyMappingResultDto result)
+        {
+            try
+            {
+                _logger.LogDebug("🔄 Iniciando mapeo de campos dinámicos...");
+
+                // CATEGORÍA
+                if (!string.IsNullOrEmpty(azureData.DatosVehiculo?.Categoria))
+                {
+                    var categorias = await GetAllCategoriasAsync();
+                    var categoria = BuscarCategoriaPorTexto(categorias, azureData.DatosVehiculo.Categoria);
+
+                    result.CamposMapeados["categoria"] = new MappedField
+                    {
+                        ValorExtraido = azureData.DatosVehiculo.Categoria,
+                        ValorMapeado = categoria,
+                        Confianza = categoria != null ? CalcularConfianza(azureData.DatosVehiculo.Categoria, categoria.Catdsc) : 0,
+                        OpcionesDisponibles = categorias.ToList()
+                    };
+
+                    if (categoria == null) result.CamposQueFallaronMapeo.Add("categoria");
+                }
+
+                // DESTINO
+                if (!string.IsNullOrEmpty(azureData.DatosVehiculo?.Destino))
+                {
+                    var destinos = await GetAllDestinosAsync();
+                    var destino = BuscarDestinoPorTexto(destinos, azureData.DatosVehiculo.Destino);
+
+                    result.CamposMapeados["destino"] = new MappedField
+                    {
+                        ValorExtraido = azureData.DatosVehiculo.Destino,
+                        ValorMapeado = destino,
+                        Confianza = destino != null ? CalcularConfianza(azureData.DatosVehiculo.Destino, destino.Desnom) : 0,
+                        OpcionesDisponibles = destinos.ToList()
+                    };
+
+                    if (destino == null) result.CamposQueFallaronMapeo.Add("destino");
+                }
+
+                // CALIDAD
+                if (!string.IsNullOrEmpty(azureData.DatosVehiculo?.Calidad))
+                {
+                    var calidades = await GetAllCalidadesAsync();
+                    var calidad = BuscarCalidadPorTexto(calidades, azureData.DatosVehiculo.Calidad);
+
+                    result.CamposMapeados["calidad"] = new MappedField
+                    {
+                        ValorExtraido = azureData.DatosVehiculo.Calidad,
+                        ValorMapeado = calidad,
+                        Confianza = calidad != null ? CalcularConfianza(azureData.DatosVehiculo.Calidad, calidad.Caldsc) : 0,
+                        OpcionesDisponibles = calidades.ToList()
+                    };
+
+                    if (calidad == null) result.CamposQueFallaronMapeo.Add("calidad");
+                }
+
+                // COMBUSTIBLE
+                if (!string.IsNullOrEmpty(azureData.DatosVehiculo?.Combustible))
+                {
+                    var combustibles = await GetAllCombustiblesAsync();
+                    var combustible = BuscarCombustiblePorTexto(combustibles, azureData.DatosVehiculo.Combustible);
+
+                    result.CamposMapeados["combustible"] = new MappedField
+                    {
+                        ValorExtraido = azureData.DatosVehiculo.Combustible,
+                        ValorMapeado = combustible,
+                        Confianza = combustible != null ? CalcularConfianza(azureData.DatosVehiculo.Combustible, combustible.Name) : 0,
+                        OpcionesDisponibles = combustibles.ToList()
+                    };
+
+                    if (combustible == null) result.CamposQueFallaronMapeo.Add("combustible");
+                }
+
+                // MONEDA
+                if (!string.IsNullOrEmpty(azureData.DatosCobertura?.Moneda))
+                {
+                    var monedas = await GetAllMonedasAsync();
+                    var moneda = BuscarMonedaPorTexto(monedas, azureData.DatosCobertura.Moneda);
+
+                    result.CamposMapeados["moneda"] = new MappedField
+                    {
+                        ValorExtraido = azureData.DatosCobertura.Moneda,
+                        ValorMapeado = moneda,
+                        Confianza = moneda != null ? CalcularConfianza(azureData.DatosCobertura.Moneda, moneda.Nombre) : 0,
+                        OpcionesDisponibles = monedas.ToList()
+                    };
+
+                    if (moneda == null) result.CamposQueFallaronMapeo.Add("moneda");
+                }
+
+                _logger.LogDebug("✅ Mapeo de campos dinámicos completado");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error en mapeo de campos dinámicos");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// 📝 MAPEAR CAMPOS DE TEXTO PLANO - Valores fijos según las imágenes
+        /// </summary>
+        private void MapearCamposTextoPlano(AzureDatosPolizaVelneoDto azureData, PolicyMappingResultDto result)
+        {
+            try
+            {
+                _logger.LogDebug("📝 Iniciando mapeo de campos de texto plano...");
+
+                // ESTADO PÓLIZA (según imagen 4: VIG, ANT, VEN, END, ELIM, FIN)
+                var estadosPoliza = new[] { "VIG", "ANT", "VEN", "END", "ELIM", "FIN" };
+                var estadoMapeado = MapearEstadoPolizaInteligente(azureData.DatosBasicos?.Estado);
+
+                result.CamposMapeados["estadoPoliza"] = new MappedField
+                {
+                    ValorExtraido = azureData.DatosBasicos?.Estado ?? "",
+                    ValorMapeado = new { Text = estadoMapeado, Code = estadoMapeado },
+                    Confianza = !string.IsNullOrEmpty(estadoMapeado) ? 90 : 0,
+                    OpcionesDisponibles = estadosPoliza.Select(e => new { Text = e, Code = e }).ToList()
+                };
+
+                // TIPO TRÁMITE (según imagen 3: Nuevo, Renovación, Cambio, etc.)
+                var tiposTramite = new[] { "Nuevo", "Renovación", "Cambio", "Endoso", "No Renueva", "Cancelación" };
+                var tramiteMapeado = MapearTipoTramiteInteligente(azureData.DatosPoliza?.TipoMovimiento);
+
+                result.CamposMapeados["tipoTramite"] = new MappedField
+                {
+                    ValorExtraido = azureData.DatosPoliza?.TipoMovimiento ?? "",
+                    ValorMapeado = new { Text = tramiteMapeado, Code = tramiteMapeado },
+                    Confianza = !string.IsNullOrEmpty(tramiteMapeado) ? 90 : 0,
+                    OpcionesDisponibles = tiposTramite.Select(t => new { Text = t, Code = t }).ToList()
+                };
+
+                // ESTADO BÁSICO (según imagen 2: Pendiente, Terminado, En proceso, etc.)
+                var estadosBasicos = new[] { "Pendiente", "Pendiente c/plazo", "Terminado", "En proceso",
+                                    "Modificaciones", "En emisión", "Enviado a cía", "Enviado a cía x mail",
+                                    "Devuelto a ejecutivo", "Declinado" };
+                var estadoBasicoMapeado = MapearEstadoBasicoInteligente(azureData.DatosBasicos?.Estado);
+
+                result.CamposMapeados["estadoBasico"] = new MappedField
+                {
+                    ValorExtraido = azureData.DatosBasicos?.Estado ?? "",
+                    ValorMapeado = new { Text = estadoBasicoMapeado, Code = estadoBasicoMapeado },
+                    Confianza = !string.IsNullOrEmpty(estadoBasicoMapeado) ? 90 : 0,
+                    OpcionesDisponibles = estadosBasicos.Select(e => new { Text = e, Code = e }).ToList()
+                };
+
+                // TIPO LÍNEA (según imagen 5: Líneas personales, Líneas comerciales)
+                var tiposLinea = new[] { "Líneas personales", "Líneas comerciales" };
+                var tipoLineaMapeado = MapearTipoLineaInteligente(azureData.DatosVehiculo?.Uso);
+
+                result.CamposMapeados["tipoLinea"] = new MappedField
+                {
+                    ValorExtraido = azureData.DatosVehiculo?.Uso ?? "",
+                    ValorMapeado = new { Text = tipoLineaMapeado, Code = tipoLineaMapeado },
+                    Confianza = !string.IsNullOrEmpty(tipoLineaMapeado) ? 85 : 0,
+                    OpcionesDisponibles = tiposLinea.Select(t => new { Text = t, Code = t }).ToList()
+                };
+
+                // FORMA DE PAGO (valores comunes)
+                var formasPago = new[] { "Contado", "Tarjeta de Crédito", "Débito Automático", "Cuotas", "Financiado" };
+                var formaPagoMapeada = MapearFormaPagoInteligente(azureData.CondicionesPago?.FormaPago);
+
+                result.CamposMapeados["formaPago"] = new MappedField
+                {
+                    ValorExtraido = azureData.CondicionesPago?.FormaPago ?? "",
+                    ValorMapeado = new { Text = formaPagoMapeada, Code = formaPagoMapeada },
+                    Confianza = !string.IsNullOrEmpty(formaPagoMapeada) ? 90 : 0,
+                    OpcionesDisponibles = formasPago.Select(f => new { Text = f, Code = f }).ToList()
+                };
+
+                _logger.LogDebug("✅ Mapeo de campos de texto plano completado");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error en mapeo de campos de texto plano");
+                throw;
+            }
+        }
+
+        // <summary>
+        /// 🔍 MÉTODOS DE MAPEO ESPECÍFICOS INTELIGENTES
+        /// </summary>
+        private string MapearEstadoPolizaInteligente(string? estado)
+        {
+            if (string.IsNullOrEmpty(estado)) return "VIG"; // Default
+
+            return estado.ToUpperInvariant().Trim() switch
+            {
+                "VIGENTE" or "ACTIVO" or "ACTIVE" or "VIG" => "VIG",
+                "ANTERIOR" or "ANT" or "PREVIO" => "ANT",
+                "VENCIDO" or "EXPIRED" or "VEN" => "VEN",
+                "ENDOSO" or "ENDORSEMENT" or "END" => "END",
+                "ELIMINADO" or "DELETED" or "ELIM" => "ELIM",
+                "FINALIZADO" or "FINISHED" or "FIN" => "FIN",
+                _ => "VIG" // Default para casos no reconocidos
+            };
+        }
+
+        private string MapearTipoTramiteInteligente(string? tipoMovimiento)
+        {
+            if (string.IsNullOrEmpty(tipoMovimiento)) return "Nuevo"; // Default
+
+            return tipoMovimiento.ToUpperInvariant().Trim() switch
+            {
+                "EMISIÓN" or "EMISION" or "NUEVA" or "NEW" or "NUEVO" => "Nuevo",
+                "RENOVACIÓN" or "RENOVACION" or "RENEWAL" or "RENEW" => "Renovación",
+                "CAMBIO" or "MODIFICATION" or "CHANGE" or "MODIFICACION" => "Cambio",
+                "ENDOSO" or "ENDORSEMENT" => "Endoso",
+                "NO RENUEVA" or "NOT_RENEW" or "DECLINE" => "No Renueva",
+                "CANCELACIÓN" or "CANCELACION" or "CANCEL" => "Cancelación",
+                _ => "Nuevo" // Default
+            };
+        }
+
+        private string MapearEstadoBasicoInteligente(string? estado)
+        {
+            if (string.IsNullOrEmpty(estado)) return "Pendiente"; // Default
+
+            return estado.ToUpperInvariant().Trim() switch
+            {
+                "PENDIENTE" or "PENDING" => "Pendiente",
+                "PENDIENTE CON PLAZO" or "PENDING_WITH_DEADLINE" => "Pendiente c/plazo",
+                "TERMINADO" or "COMPLETED" or "FINISHED" => "Terminado",
+                "EN PROCESO" or "IN_PROCESS" or "PROCESSING" => "En proceso",
+                "MODIFICACIONES" or "MODIFICATIONS" => "Modificaciones",
+                "EN EMISIÓN" or "EN_EMISION" or "ISSUING" => "En emisión",
+                "ENVIADO A CIA" or "SENT_TO_COMPANY" => "Enviado a cía",
+                "ENVIADO A CIA X MAIL" or "SENT_BY_EMAIL" => "Enviado a cía x mail",
+                "DEVUELTO A EJECUTIVO" or "RETURNED" => "Devuelto a ejecutivo",
+                "DECLINADO" or "DECLINED" => "Declinado",
+                _ => "Pendiente" // Default
+            };
+        }
+
+        private string MapearTipoLineaInteligente(string? uso)
+        {
+            if (string.IsNullOrEmpty(uso)) return "Líneas personales"; // Default
+
+            return uso.ToUpperInvariant().Trim() switch
+            {
+                "PARTICULAR" or "PERSONAL" or "PRIVADO" => "Líneas personales",
+                "COMERCIAL" or "TRABAJO" or "BUSINESS" or "LABORAL" => "Líneas comerciales",
+                "TAXI" or "REMISE" or "UBER" => "Líneas comerciales", // Uso comercial
+                _ => "Líneas personales" // Default
+            };
+        }
+
+        private string MapearFormaPagoInteligente(string? formaPago)
+        {
+            if (string.IsNullOrEmpty(formaPago)) return "Tarjeta de Crédito"; // Default común
+
+            return formaPago.ToUpperInvariant().Trim() switch
+            {
+                "CONTADO" or "CASH" or "EFECTIVO" => "Contado",
+                "TARJETA DE CRÉDITO" or "TARJETA DE CREDITO" or "CREDIT_CARD" or "TARJETA" => "Tarjeta de Crédito",
+                "DÉBITO AUTOMÁTICO" or "DEBITO AUTOMATICO" or "AUTO_DEBIT" => "Débito Automático",
+                "CUOTAS" or "INSTALLMENTS" => "Cuotas",
+                "FINANCIADO" or "FINANCED" => "Financiado",
+                _ => "Tarjeta de Crédito" // Default
+            };
+        }
+
+        /// <summary>
+        /// 📊 CALCULAR CONFIANZA DEL MAPEO
+        /// </summary>
+        private int CalcularConfianza(string textoExtraido, string? textoMapeado)
+        {
+            if (string.IsNullOrEmpty(textoExtraido) || string.IsNullOrEmpty(textoMapeado))
+                return 0;
+
+            var texto1 = textoExtraido.ToUpperInvariant().Trim();
+            var texto2 = textoMapeado.ToUpperInvariant().Trim();
+
+            // Coincidencia exacta
+            if (texto1 == texto2) return 100;
+
+            // Contiene la palabra completa
+            if (texto1.Contains(texto2) || texto2.Contains(texto1)) return 85;
+
+            // Similitud de caracteres (algoritmo Levenshtein simplificado)
+            var similarity = CalculateSimilarity(texto1, texto2);
+            return (int)(similarity * 100);
+        }
+
+        private double CalculateSimilarity(string str1, string str2)
+        {
+            var longer = str1.Length > str2.Length ? str1 : str2;
+            var shorter = str1.Length > str2.Length ? str2 : str1;
+
+            if (longer.Length == 0) return 1.0;
+
+            var distance = LevenshteinDistance(longer, shorter);
+            return (longer.Length - distance) / (double)longer.Length;
+        }
+
+        private int LevenshteinDistance(string str1, string str2)
+        {
+            var matrix = new int[str1.Length + 1, str2.Length + 1];
+
+            for (int i = 0; i <= str1.Length; i++)
+                matrix[i, 0] = i;
+
+            for (int j = 0; j <= str2.Length; j++)
+                matrix[0, j] = j;
+
+            for (int i = 1; i <= str1.Length; i++)
+            {
+                for (int j = 1; j <= str2.Length; j++)
+                {
+                    var cost = str1[i - 1] == str2[j - 1] ? 0 : 1;
+                    matrix[i, j] = Math.Min(Math.Min(
+                        matrix[i - 1, j] + 1,      // deletion
+                        matrix[i, j - 1] + 1),     // insertion
+                        matrix[i - 1, j - 1] + cost); // substitution
+                }
+            }
+
+            return matrix[str1.Length, str2.Length];
+        }
+
+        /// <summary>
+        /// 📈 CALCULAR MÉTRICAS FINALES
+        /// </summary>
+        private void CalcularMetricasMapeo(PolicyMappingResultDto result)
+        {
+            var totalCampos = result.CamposMapeados.Count;
+            var camposExitosos = result.CamposMapeados.Values.Count(c => c.Confianza > 70);
+
+            result.PorcentajeExito = totalCampos > 0 ? (camposExitosos * 100) / totalCampos : 0;
+            result.CamposConAltaConfianza = result.CamposMapeados.Values.Count(c => c.Confianza >= 90);
+            result.CamposConMediaConfianza = result.CamposMapeados.Values.Count(c => c.Confianza >= 70 && c.Confianza < 90);
+            result.CamposConBajaConfianza = result.CamposMapeados.Values.Count(c => c.Confianza < 70);
+        }
+
+        private static MonedaDto? BuscarMonedaPorTexto(IEnumerable<MonedaDto> monedas, string texto)
+        {
+            var textoUpper = texto.ToUpperInvariant().Trim();
+
+            // Búsqueda exacta por Nombre
+            var exacta = monedas.FirstOrDefault(m => m.Nombre?.ToUpperInvariant() == textoUpper);
+            if (exacta != null) return exacta;
+
+            // Búsqueda exacta por Codigo
+            var exactaCodigo = monedas.FirstOrDefault(m => m.Codigo?.ToUpperInvariant() == textoUpper);
+            if (exactaCodigo != null) return exactaCodigo;
+
+            // Búsqueda por Simbolo
+            var exactaSimbolo = monedas.FirstOrDefault(m => m.Simbolo?.ToUpperInvariant() == textoUpper);
+            if (exactaSimbolo != null) return exactaSimbolo;
+
+            // ✅ CORREGIDO: Mapeo basado en datos reales del maestro
+            return textoUpper switch
+            {
+                // 🔧 NOTA: En tu maestro el peso uruguayo tiene código "PES", no "UYU"
+                "UYU" or "PESOS" or "PESO URUGUAYO" or "URUGUAYOS" or "$U" or "PES" =>
+                    monedas.FirstOrDefault(m => m.Codigo?.ToUpperInvariant() == "PES" || m.Nombre?.ToUpperInvariant().Contains("PESO") == true),
+
+                "USD" or "DOLARES" or "DOLLAR" or "DOLAR" or "$" or "DOL" =>
+                    monedas.FirstOrDefault(m => m.Codigo?.ToUpperInvariant() == "DOL" || m.Nombre?.ToUpperInvariant().Contains("DOLAR") == true),
+
+                "EUR" or "EUROS" or "EURO" or "€" or "EU" =>
+                    monedas.FirstOrDefault(m => m.Codigo?.ToUpperInvariant() == "EU" || m.Nombre?.ToUpperInvariant().Contains("EURO") == true),
+
+                "BRL" or "REAL" or "REALES" or "R$" or "RS" =>
+                    monedas.FirstOrDefault(m => m.Codigo?.ToUpperInvariant() == "RS" || m.Nombre?.ToUpperInvariant().Contains("REAL") == true),
+
+                "UF" or "UNIDAD DE FOMENTO" =>
+                    monedas.FirstOrDefault(m => m.Codigo?.ToUpperInvariant() == "UF"),
+
+                _ => monedas.FirstOrDefault(m => m.Nombre?.ToUpperInvariant().Contains(textoUpper) == true)
+            };
         }
     }
 }
