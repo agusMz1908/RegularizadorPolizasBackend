@@ -48,6 +48,7 @@ namespace RegularizadorPolizas.API.Middleware
                 "/api/formaspago",
                 "/api/tarifa",
                 "/api/velneo",
+                "/api/corredor",
                 "/error",
                 "/debug-config",
                 "/debug-jwt",

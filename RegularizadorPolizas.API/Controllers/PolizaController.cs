@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RegularizadorPolizas.Application.DTOs;
+using RegularizadorPolizas.Application.DTOs.Azure;
 using RegularizadorPolizas.Application.Interfaces.External.Velneo;
+using RegularizadorPolizas.Application.Mappers;
 
 namespace RegularizadorPolizas.API.Controllers
 {
@@ -11,17 +13,20 @@ namespace RegularizadorPolizas.API.Controllers
     public class PolizaController : ControllerBase
     {
         private readonly IVelneoMaestrosService _velneoMaestrosService;
+        private readonly IAzureToVelneoMapper _azureMapper; 
         private readonly ILogger<PolizaController> _logger;
 
         public PolizaController(
-            IVelneoMaestrosService velneoMaestrosService, 
+            IVelneoMaestrosService velneoMaestrosService,
+            IAzureToVelneoMapper azureMapper, 
             ILogger<PolizaController> logger)
         {
             _velneoMaestrosService = velneoMaestrosService;
+            _azureMapper = azureMapper; 
             _logger = logger;
         }
 
-        #region CRUD ENDPOINTS - CORREGIDOS ✅
+        #region CRUD ENDPOINTS
 
         [HttpGet]
         [ProducesResponseType(typeof(IEnumerable<PolizaDto>), 200)]
@@ -404,6 +409,314 @@ namespace RegularizadorPolizas.API.Controllers
                 _logger.LogError(ex, "❌ Error validando póliza {NumeroPoliza}", request?.Conpol);
                 return StatusCode(500, new { message = "Error en validación", error = ex.Message });
             }
+        }
+
+        #endregion
+
+        #region AZURE DOCUMENT INTELLIGENCE ENDPOINTS
+
+        /// <summary>
+        /// ✅ NUEVO: Procesar resultado del escaneo de Azure Document Intelligence
+        /// Este es el endpoint principal que el frontend llama después de escanear
+        /// </summary>
+        [HttpPost("procesar-escaneo")]
+        [ProducesResponseType(typeof(object), 201)]
+        [ProducesResponseType(typeof(object), 400)]
+        [ProducesResponseType(typeof(object), 500)]
+        public async Task<ActionResult> ProcesarEscaneoAzure([FromBody] AzureProcessResponseDto scanResult)
+        {
+            try
+            {
+                _logger.LogInformation("🚀 PROCESANDO ESCANEO AZURE: {Archivo}", scanResult?.Archivo);
+
+                // 1️⃣ VALIDAR DATOS MÍNIMOS
+                if (!_azureMapper.ValidateMinimumData(scanResult))
+                {
+                    _logger.LogWarning("⚠️ Escaneo no tiene datos mínimos requeridos");
+
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "El escaneo no contiene los datos mínimos requeridos",
+                        porcentajeCompletitud = scanResult?.PorcentajeCompletitud ?? 0,
+                        camposFaltantes = scanResult?.DatosVelneo?.Metricas?.CamposFaltantes,
+                        datosExtraidos = new
+                        {
+                            numeroPoliza = scanResult?.DatosVelneo?.DatosPoliza?.NumeroPoliza,
+                            asegurado = scanResult?.DatosVelneo?.DatosBasicos?.Asegurado,
+                            documento = scanResult?.DatosVelneo?.DatosBasicos?.Documento
+                        }
+                    });
+                }
+
+                // 2️⃣ MAPEAR AZURE → POLIZA CREATE REQUEST
+                _logger.LogInformation("📋 Mapeando datos escaneados a formato Velneo");
+                var createRequest = await _azureMapper.MapAzureResultToCreateRequest(scanResult);
+
+                // 3️⃣ LOG DE VALIDACIÓN
+                _logger.LogInformation(@"
+            ✅ DATOS MAPEADOS CORRECTAMENTE:
+            - Póliza: {NumeroPoliza}
+            - Cliente: {Cliente} (ID: {ClienteId})
+            - Vehículo: {Vehiculo} {Anio}
+            - Premio: {Premio:C}
+            - Cuotas: {Cuotas}
+            - Compañía: {Compania}",
+                    createRequest.Conpol,
+                    createRequest.Clinom,
+                    createRequest.Clinro,
+                    createRequest.Conmaraut,
+                    createRequest.Conanioaut,
+                    createRequest.Conpremio,
+                    createRequest.Concuo,
+                    createRequest.Com_alias);
+
+                // 4️⃣ CREAR PÓLIZA EN VELNEO
+                _logger.LogInformation("📤 Enviando póliza a Velneo...");
+                var resultado = await _velneoMaestrosService.CreatePolizaFromRequestAsync(createRequest);
+
+                // 5️⃣ RESPONDER AL FRONTEND
+                _logger.LogInformation("✅ PÓLIZA CREADA EXITOSAMENTE: {NumeroPoliza}", createRequest.Conpol);
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Póliza creada exitosamente en Velneo desde escaneo",
+                    data = new
+                    {
+                        numeroPoliza = createRequest.Conpol,
+                        clienteId = createRequest.Clinro,
+                        cliente = createRequest.Clinom,
+                        fechaDesde = createRequest.Confchdes,
+                        fechaHasta = createRequest.Confchhas,
+                        premio = createRequest.Conpremio,
+                        total = createRequest.Contot,
+                        vehiculo = new
+                        {
+                            marca = createRequest.Marca,
+                            modelo = createRequest.Modelo,
+                            anio = createRequest.Conanioaut,
+                            matricula = createRequest.Conmataut,
+                            chasis = createRequest.Conchasis,
+                            motor = createRequest.Conmotor
+                        },
+                        velneoResponse = resultado
+                    },
+                    procesadoConIA = true,
+                    archivoOrigen = scanResult.Archivo,
+                    tiempoProcesamiento = scanResult.TiempoProcesamiento,
+                    porcentajeCompletitud = scanResult.PorcentajeCompletitud,
+                    timestamp = DateTime.Now
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "❌ Error de validación al procesar escaneo");
+                return BadRequest(new
+                {
+                    success = false,
+                    message = ex.Message,
+                    type = "validation_error"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error interno al procesar escaneo");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error interno al procesar el escaneo",
+                    error = ex.Message,
+                    type = "internal_error"
+                });
+            }
+        }
+
+        /// <summary>
+        /// ✅ NUEVO: Validar datos escaneados antes de enviar
+        /// </summary>
+        [HttpPost("validar-escaneo")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(typeof(object), 400)]
+        public async Task<ActionResult> ValidarEscaneo([FromBody] AzureProcessResponseDto scanResult)
+        {
+            try
+            {
+                var esValido = _azureMapper.ValidateMinimumData(scanResult);
+
+                if (esValido)
+                {
+                    // Intentar mapear para detectar posibles problemas
+                    var createRequest = await _azureMapper.MapAzureResultToCreateRequest(scanResult);
+
+                    return Ok(new
+                    {
+                        success = true,
+                        valido = true,
+                        message = "Datos válidos para procesar",
+                        datos = new
+                        {
+                            numeroPoliza = createRequest.Conpol,
+                            cliente = createRequest.Clinom,
+                            premio = createRequest.Conpremio,
+                            porcentajeCompletitud = scanResult.PorcentajeCompletitud
+                        },
+                        advertencias = GenerarAdvertenciasEscaneo(scanResult)
+                    });
+                }
+                else
+                {
+                    return Ok(new
+                    {
+                        success = true,
+                        valido = false,
+                        message = "Datos incompletos o inválidos",
+                        porcentajeCompletitud = scanResult?.PorcentajeCompletitud ?? 0,
+                        camposFaltantes = scanResult?.DatosVelneo?.Metricas?.CamposFaltantes,
+                        camposConBajaConfianza = scanResult?.DatosVelneo?.Metricas?.CamposConfianzaBaja,
+                        datosExtraidos = new
+                        {
+                            numeroPoliza = scanResult?.DatosVelneo?.DatosPoliza?.NumeroPoliza,
+                            asegurado = scanResult?.DatosVelneo?.DatosBasicos?.Asegurado,
+                            documento = scanResult?.DatosVelneo?.DatosBasicos?.Documento,
+                            vehiculo = scanResult?.DatosVelneo?.DatosVehiculo?.MarcaModelo
+                        }
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al validar escaneo");
+                return Ok(new
+                {
+                    success = false,
+                    valido = false,
+                    message = "Error al validar datos",
+                    error = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// ✅ NUEVO: Validar mapeo completo con datos maestros
+        /// </summary>
+        [HttpPost("validar-mapeo")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(typeof(object), 400)]
+        public async Task<ActionResult> ValidarMapeoCompleto([FromBody] AzureProcessResponseDto scanResult)
+        {
+            try
+            {
+                _logger.LogInformation("🔍 Validando mapeo completo para escaneo");
+
+                // Usar el servicio de maestros para validar mapeo
+                var resultadoMapeo = await _velneoMaestrosService.ValidarMapeoCompletoAsync(scanResult.DatosVelneo);
+
+                return Ok(new
+                {
+                    success = true,
+                    porcentajeExito = resultadoMapeo.PorcentajeExito,
+                    camposMapeados = resultadoMapeo.CamposMapeados.Count,
+                    camposConAltaConfianza = resultadoMapeo.CamposConAltaConfianza,
+                    camposConMediaConfianza = resultadoMapeo.CamposConMediaConfianza,
+                    camposConBajaConfianza = resultadoMapeo.CamposConBajaConfianza,
+                    camposQueFallaronMapeo = resultadoMapeo.CamposQueFallaronMapeo,
+                    detalleMapeo = resultadoMapeo.CamposMapeados,
+                    timestamp = DateTime.Now
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al validar mapeo");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error al validar mapeo",
+                    error = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// ✅ NUEVO: Obtener estado del procesamiento
+        /// </summary>
+        [HttpGet("estado-procesamiento/{numeroPoliza}")]
+        [ProducesResponseType(typeof(object), 200)]
+        public async Task<ActionResult> GetEstadoProcesamiento(string numeroPoliza)
+        {
+            try
+            {
+                // Buscar la póliza en Velneo
+                var polizas = await _velneoMaestrosService.GetPolizasAsync();
+                var poliza = polizas.FirstOrDefault(p => p.Conpol == numeroPoliza);
+
+                if (poliza != null)
+                {
+                    return Ok(new
+                    {
+                        success = true,
+                        numeroPoliza = numeroPoliza,
+                        estado = "PROCESADO",
+                        existeEnVelneo = true,
+                        fechaProcesamiento = poliza.Ingresado,
+                        detalles = new
+                        {
+                            id = poliza.Id,
+                            cliente = poliza.Clinom,
+                            compania = poliza.Com_alias,
+                            estado = poliza.Convig,
+                            premio = poliza.Conpremio,
+                            total = poliza.Contot
+                        }
+                    });
+                }
+                else
+                {
+                    return Ok(new
+                    {
+                        success = true,
+                        numeroPoliza = numeroPoliza,
+                        estado = "NO_ENCONTRADO",
+                        existeEnVelneo = false,
+                        mensaje = "La póliza no se encuentra en Velneo"
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error al obtener estado",
+                    error = ex.Message
+                });
+            }
+        }
+
+        #endregion
+
+        #region MÉTODOS AUXILIARES PARA AZURE
+
+        private List<string> GenerarAdvertenciasEscaneo(AzureProcessResponseDto scanResult)
+        {
+            var advertencias = new List<string>();
+
+            if (scanResult.PorcentajeCompletitud < 80)
+                advertencias.Add($"Porcentaje de completitud bajo: {scanResult.PorcentajeCompletitud}%");
+
+            if (scanResult.DatosVelneo?.Metricas?.CamposConfianzaBaja?.Any() == true)
+                advertencias.Add($"Campos con baja confianza: {string.Join(", ", scanResult.DatosVelneo.Metricas.CamposConfianzaBaja)}");
+
+            if (string.IsNullOrEmpty(scanResult.DatosVelneo?.DatosVehiculo?.Matricula))
+                advertencias.Add("Matrícula del vehículo no detectada");
+
+            if (string.IsNullOrEmpty(scanResult.DatosVelneo?.DatosVehiculo?.Chasis))
+                advertencias.Add("Chasis del vehículo no detectado");
+
+            if (scanResult.DatosVelneo?.CondicionesPago?.DetalleCuotas?.TieneCuotasDetalladas == false)
+                advertencias.Add("Detalle de cuotas no disponible");
+
+            return advertencias;
         }
 
         #endregion

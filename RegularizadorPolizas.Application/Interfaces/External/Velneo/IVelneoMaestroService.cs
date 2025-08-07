@@ -1,5 +1,6 @@
 ﻿using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.DTOs.Azure;
+using RegularizadorPolizas.Application.Models;
 
 namespace RegularizadorPolizas.Application.Interfaces.External.Velneo
 {
@@ -48,5 +49,14 @@ namespace RegularizadorPolizas.Application.Interfaces.External.Velneo
         //    string? search = null);
         Task<object> CreatePolizaFromRequestAsync(PolizaCreateRequest request);
         Task<PolicyMappingResultDto> ValidarMapeoCompletoAsync(AzureDatosPolizaVelneoDto azureData);
+        Task<int> ObtenerCategoriaIdPorNombre(string nombre);
+        Task<int> ObtenerDestinoIdPorNombre(string nombre);
+        Task<int> ObtenerCalidadIdPorNombre(string nombre);
+        Task<IEnumerable<VelneoCorredor>> GetAllCorredoresAsync();
+        Task<VelneoCorredor?> GetCorredorByIdAsync(int id);
+        Task<VelneoCorredor> CreateCorredorAsync(VelneoCorredor corredor);
+        Task<VelneoCorredor?> BuscarCorredorPorNombre(string nombre);
+        Task<VelneoCorredor?> ObtenerCorredorPorId(int id);
+        Task<IEnumerable<VelneoCorredor>> SearchCorredoresAsync(string searchTerm);
     }
 }

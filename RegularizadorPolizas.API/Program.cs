@@ -8,14 +8,15 @@ using RegularizadorPolizas.Application;
 using RegularizadorPolizas.Application.External.Velneo;
 using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Application.Interfaces.External.Velneo;
+using RegularizadorPolizas.Application.Mappers;
 using RegularizadorPolizas.Application.Mappings;
 using RegularizadorPolizas.Application.Services;
 using RegularizadorPolizas.Infrastructure;
 using RegularizadorPolizas.Infrastructure.Data;
 using RegularizadorPolizas.Infrastructure.Data.Repositories;
-using RegularizadorPolizas.Infrastructure.External.VelneoAPI;
 using RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services;
 using System.Text;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -45,6 +46,7 @@ builder.Services.AddScoped<IUserRoleService, UserRoleService>();
 builder.Services.AddScoped<IVelneoHttpService, VelneoHttpService>();
 
 builder.Services.AddScoped<IVelneoMaestrosService, VelneoMaestrosService>();
+builder.Services.AddScoped<IAzureToVelneoMapper, AzureToVelneoMapper>();
 
 builder.Services.AddHttpClient();
 #endregion
@@ -54,7 +56,17 @@ builder.Services.AddAutoMapper(typeof(ApiKeyMappingProfile), typeof(Program));
 #endregion
 
 #region Controllers & API
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+        options.JsonSerializerOptions.WriteIndented = true;
+
+        options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+        options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+
+        options.JsonSerializerOptions.NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString;
+    });
 builder.Services.AddEndpointsApiExplorer();
 #endregion
 

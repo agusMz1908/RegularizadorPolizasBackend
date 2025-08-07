@@ -775,7 +775,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     _logger.LogDebug("⚠️ No se pudo deserializar como objeto directo: {Error}", ex.Message);
                 }
 
-                // ✅ OPCIÓN 2: INTENTAR COMO WRAPPER - Probar múltiples propiedades
+                // ✅ OPCIÓN 2: INTENTAR COMO WRAPPER CON PROPIEDAD "poliza"
                 try
                 {
                     var wrapperResponse = System.Text.Json.JsonSerializer.Deserialize<VelneoPolizaResponse>(jsonContent, jsonOptions);
@@ -796,10 +796,46 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 }
                 catch (System.Text.Json.JsonException ex)
                 {
-                    _logger.LogDebug("⚠️ No se pudo deserializar como wrapper: {Error}", ex.Message);
+                    _logger.LogDebug("⚠️ No se pudo deserializar como wrapper simple: {Error}", ex.Message);
                 }
 
-                // ✅ OPCIÓN 3: LOG PARA DEBUG Y RETORNAR NULL
+                // ✅ OPCIÓN 3: INTENTAR COMO RESPUESTA DE LISTA (contratos[])
+                try
+                {
+                    var listaResponse = System.Text.Json.JsonSerializer.Deserialize<VelneoPolizasResponse>(jsonContent, jsonOptions);
+
+                    // Buscar en array "contratos"
+                    if (listaResponse?.Contratos != null && listaResponse.Contratos.Any())
+                    {
+                        var poliza = listaResponse.Contratos.FirstOrDefault(c => c.Id == polizaId)
+                                   ?? listaResponse.Contratos.FirstOrDefault();
+
+                        if (poliza != null && poliza.Id > 0)
+                        {
+                            _logger.LogDebug("✅ Póliza {PolizaId} deserializada desde array 'contratos'", polizaId);
+                            return poliza;
+                        }
+                    }
+
+                    // Buscar en array "polizas" (alternativa)
+                    if (listaResponse?.Polizas != null && listaResponse.Polizas.Any())
+                    {
+                        var poliza = listaResponse.Polizas.FirstOrDefault(p => p.Id == polizaId)
+                                   ?? listaResponse.Polizas.FirstOrDefault();
+
+                        if (poliza != null && poliza.Id > 0)
+                        {
+                            _logger.LogDebug("✅ Póliza {PolizaId} deserializada desde array 'polizas'", polizaId);
+                            return poliza;
+                        }
+                    }
+                }
+                catch (System.Text.Json.JsonException ex)
+                {
+                    _logger.LogDebug("⚠️ No se pudo deserializar como lista: {Error}", ex.Message);
+                }
+
+                // ✅ OPCIÓN 4: LOG PARA DEBUG Y RETORNAR NULL
                 _logger.LogWarning("⚠️ No se pudo deserializar póliza {PolizaId}. JSON preview: {JsonPreview}",
                     polizaId, jsonContent.Substring(0, Math.Min(200, jsonContent.Length)));
 
@@ -2139,6 +2175,355 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
 
                 _ => monedas.FirstOrDefault(m => m.Nombre?.ToUpperInvariant().Contains(textoUpper) == true)
             };
+        }
+        public async Task<int> ObtenerCategoriaIdPorNombre(string nombre)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(nombre))
+                {
+                    _logger.LogWarning("ObtenerCategoriaIdPorNombre llamado con nombre vacío");
+                    return 20; // Valor por defecto para AUTOMOVIL
+                }
+
+                var categorias = await GetAllCategoriasAsync();
+                var categoria = BuscarCategoriaPorTexto(categorias, nombre);
+
+                if (categoria != null)
+                {
+                    _logger.LogInformation("✅ Categoría encontrada: '{Nombre}' -> ID {Id}", nombre, categoria.Id);
+                    return categoria.Id;
+                }
+
+                _logger.LogWarning("⚠️ Categoría no encontrada: '{Nombre}'. Usando valor por defecto", nombre);
+                return 20; // Valor por defecto para AUTOMOVIL
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error obteniendo ID de categoría por nombre: {Nombre}", nombre);
+                return 20; // Valor por defecto en caso de error
+            }
+        }
+
+        /// <summary>
+        /// Obtiene el ID de un destino buscando por nombre
+        /// Usa el método interno BuscarDestinoPorTexto que ya existe
+        /// </summary>
+        public async Task<int> ObtenerDestinoIdPorNombre(string nombre)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(nombre))
+                {
+                    _logger.LogWarning("ObtenerDestinoIdPorNombre llamado con nombre vacío");
+                    return 1; // Valor por defecto para PARTICULAR
+                }
+
+                var destinos = await GetAllDestinosAsync();
+                var destino = BuscarDestinoPorTexto(destinos, nombre);
+
+                if (destino != null)
+                {
+                    _logger.LogInformation("✅ Destino encontrado: '{Nombre}' -> ID {Id}", nombre, destino.Id);
+                    return destino.Id;
+                }
+
+                _logger.LogWarning("⚠️ Destino no encontrado: '{Nombre}'. Usando valor por defecto", nombre);
+                return 1; // Valor por defecto para PARTICULAR
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error obteniendo ID de destino por nombre: {Nombre}", nombre);
+                return 1; // Valor por defecto en caso de error
+            }
+        }
+
+        /// <summary>
+        /// Obtiene el ID de una calidad buscando por nombre
+        /// Usa el método interno BuscarCalidadPorTexto que ya existe
+        /// </summary>
+        public async Task<int> ObtenerCalidadIdPorNombre(string nombre)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(nombre))
+                {
+                    _logger.LogWarning("ObtenerCalidadIdPorNombre llamado con nombre vacío");
+                    return 2; // Valor por defecto para PROPIETARIO
+                }
+
+                var calidades = await GetAllCalidadesAsync();
+                var calidad = BuscarCalidadPorTexto(calidades, nombre);
+
+                if (calidad != null)
+                {
+                    _logger.LogInformation("✅ Calidad encontrada: '{Nombre}' -> ID {Id}", nombre, calidad.Id);
+                    return calidad.Id;
+                }
+
+                _logger.LogWarning("⚠️ Calidad no encontrada: '{Nombre}'. Usando valor por defecto", nombre);
+                return 2; // Valor por defecto para PROPIETARIO
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error obteniendo ID de calidad por nombre: {Nombre}", nombre);
+                return 2; // Valor por defecto en caso de error
+            }
+        }
+
+        /// <summary>
+        /// Busca un corredor por nombre
+        /// NOTA: Este método necesita implementación específica basada en tu modelo de corredores
+        /// </summary>
+        public async Task<VelneoCorredor?> BuscarCorredorPorNombre(string nombre)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(nombre))
+                {
+                    _logger.LogWarning("BuscarCorredorPorNombre llamado con nombre vacío");
+                    return null;
+                }
+
+                // TODO: Implementar búsqueda real de corredores
+                // Por ahora retornamos un corredor mock
+                _logger.LogWarning("⚠️ BuscarCorredorPorNombre no está completamente implementado. Nombre: {Nombre}", nombre);
+
+                // Mapeo básico de corredores conocidos
+                var corredorId = nombre.ToUpperInvariant() switch
+                {
+                    "ZABARI S A" or "ZABARI" => 14277,
+                    "SURA" => 2,
+                    "PORTO" => 3,
+                    _ => 2 // Valor por defecto
+                };
+
+                return new VelneoCorredor
+                {
+                    Id = corredorId,
+                    Corrnom = nombre
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error buscando corredor por nombre: {Nombre}", nombre);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Obtiene un corredor por ID
+        /// NOTA: Este método necesita implementación específica basada en tu modelo de corredores
+        /// </summary>
+        public async Task<VelneoCorredor?> ObtenerCorredorPorId(int id)
+        {
+            try
+            {
+                // TODO: Implementar búsqueda real de corredores por ID
+                _logger.LogWarning("⚠️ ObtenerCorredorPorId no está completamente implementado. ID: {Id}", id);
+
+                // Por ahora retornamos un corredor mock
+                var nombreCorredor = id switch
+                {
+                    14277 => "ZABARI S A",
+                    2 => "SURA",
+                    3 => "PORTO",
+                    _ => $"Corredor {id}"
+                };
+
+                return new VelneoCorredor
+                {
+                    Id = id,
+                    Corrnom = nombreCorredor
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error obteniendo corredor por ID: {Id}", id);
+                return null;
+            }
+        }
+
+        public async Task<IEnumerable<VelneoCorredor>> GetAllCorredoresAsync()
+        {
+            try
+            {
+                var tenantId = _tenantService.GetCurrentTenantId();
+                _logger.LogInformation("🔍 Getting ALL corredores from Velneo API for tenant {TenantId}", tenantId);
+
+                var allCorredores = new List<VelneoCorredor>();
+                var pageNumber = 1;
+                var pageSize = 500;
+                var hasMoreData = true;
+
+                while (hasMoreData)
+                {
+                    _logger.LogDebug("Obteniendo página {Page} de corredores...", pageNumber);
+
+                    using var httpClient = await _httpService.GetConfiguredHttpClientAsync();
+                    var url = await _httpService.BuildVelneoUrlAsync($"v1/corredores?page={pageNumber}&limit={pageSize}");
+                    var response = await httpClient.GetAsync(url);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        _logger.LogWarning("Error obteniendo página {Page} de corredores: {Status}", pageNumber, response.StatusCode);
+                        break;
+                    }
+
+                    var jsonContent = await response.Content.ReadAsStringAsync();
+                    var velneoResponse = System.Text.Json.JsonSerializer.Deserialize<VelneoCorredoresResponse>(jsonContent, GetJsonOptions());
+
+                    if (velneoResponse?.Corredores != null && velneoResponse.Corredores.Any())
+                    {
+                        allCorredores.AddRange(velneoResponse.Corredores);
+
+                        _logger.LogDebug("✅ Página {Page}: {Count} corredores obtenidos (Total acumulado: {Total})",
+                            pageNumber, velneoResponse.Corredores.Count, allCorredores.Count);
+
+                        hasMoreData = velneoResponse.HasMoreData == true || velneoResponse.Corredores.Count >= pageSize;
+                        pageNumber++;
+                    }
+                    else
+                    {
+                        hasMoreData = false;
+                    }
+                }
+
+                _logger.LogInformation("✅ Successfully retrieved {Count} corredores from Velneo API", allCorredores.Count);
+                return allCorredores;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error getting corredores from Velneo API");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Obtiene un corredor específico por ID
+        /// </summary>
+        public async Task<VelneoCorredor?> GetCorredorByIdAsync(int id)
+        {
+            try
+            {
+                var tenantId = _tenantService.GetCurrentTenantId();
+                _logger.LogInformation("🔍 Getting corredor {CorredorId} from Velneo API for tenant {TenantId}", id, tenantId);
+
+                using var httpClient = await _httpService.GetConfiguredHttpClientAsync();
+                var url = await _httpService.BuildVelneoUrlAsync($"v1/corredores/{id}");
+                var response = await httpClient.GetAsync(url);
+
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    _logger.LogWarning("Corredor {CorredorId} not found in Velneo API", id);
+                    return null;
+                }
+
+                response.EnsureSuccessStatusCode();
+
+                // Intentar como objeto directo
+                var velneoCorredor = await _httpService.DeserializeResponseAsync<VelneoCorredor>(response);
+                if (velneoCorredor != null && velneoCorredor.Id > 0)
+                {
+                    _logger.LogInformation("✅ Successfully retrieved corredor {CorredorId}", id);
+                    return velneoCorredor;
+                }
+
+                // Intentar como wrapper
+                response = await httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+                var velneoResponse = await _httpService.DeserializeResponseAsync<VelneoCorredorResponse>(response);
+                if (velneoResponse?.Corredor != null)
+                {
+                    _logger.LogInformation("✅ Successfully retrieved corredor {CorredorId} (wrapper format)", id);
+                    return velneoResponse.Corredor;
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error getting corredor {CorredorId} from Velneo API", id);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Crea un nuevo corredor en Velneo
+        /// </summary>
+        public async Task<VelneoCorredor> CreateCorredorAsync(VelneoCorredor corredor)
+        {
+            try
+            {
+                var tenantId = _tenantService.GetCurrentTenantId();
+                _logger.LogInformation("🚀 Creating corredor '{Nombre}' in Velneo for tenant {TenantId}",
+                    corredor.Corrnom, tenantId);
+
+                using var httpClient = await _httpService.GetConfiguredHttpClientAsync();
+
+                var jsonPayload = System.Text.Json.JsonSerializer.Serialize(corredor, GetJsonOptions());
+                var content = new StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
+
+                var url = await _httpService.BuildVelneoUrlAsync("v1/corredores");
+                var response = await httpClient.PostAsync(url, content);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError("❌ Error creating corredor: {Status} - {Error}",
+                        response.StatusCode, errorContent);
+                    throw new ApplicationException($"Error creating corredor: {errorContent}");
+                }
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                // Intentar deserializar la respuesta
+                var createdCorredor = System.Text.Json.JsonSerializer.Deserialize<VelneoCorredor>(responseContent, GetJsonOptions());
+                if (createdCorredor != null)
+                {
+                    _logger.LogInformation("✅ Corredor created successfully with ID {Id}", createdCorredor.Id);
+                    return createdCorredor;
+                }
+
+                throw new ApplicationException("Unable to deserialize created corredor");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error creating corredor '{Nombre}'", corredor.Corrnom);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Busca corredores con término de búsqueda
+        /// </summary>
+        public async Task<IEnumerable<VelneoCorredor>> SearchCorredoresAsync(string searchTerm)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(searchTerm))
+                    return new List<VelneoCorredor>();
+
+                _logger.LogInformation("🔍 Searching corredores with term '{SearchTerm}'", searchTerm);
+
+                var allCorredores = await GetAllCorredoresAsync();
+                var searchUpper = searchTerm.ToUpperInvariant();
+
+                var filtered = allCorredores.Where(c =>
+                    c.Corrnom?.ToUpperInvariant().Contains(searchUpper) == true ||
+                    c.Corremail?.ToUpperInvariant().Contains(searchUpper) == true ||
+                    c.Rut?.Contains(searchTerm) == true ||
+                    c.Cod_corr?.Contains(searchTerm) == true
+                ).ToList();
+
+                _logger.LogInformation("Found {Count} corredores matching '{SearchTerm}'", filtered.Count, searchTerm);
+                return filtered;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error searching corredores with term '{SearchTerm}'", searchTerm);
+                throw;
+            }
         }
     }
 }
