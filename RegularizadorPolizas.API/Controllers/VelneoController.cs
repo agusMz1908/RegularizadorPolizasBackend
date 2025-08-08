@@ -1,9 +1,6 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using RegularizadorPolizas.Application.DTOs;
+﻿using Microsoft.AspNetCore.Mvc;
 using RegularizadorPolizas.Application.DTOs.Azure;
 using RegularizadorPolizas.Application.Interfaces.External.Velneo;
-using System.ComponentModel.DataAnnotations;
 
 namespace RegularizadorPolizas.API.Controllers
 {
@@ -63,36 +60,6 @@ namespace RegularizadorPolizas.API.Controllers
                     Detail = "Error al obtener opciones de maestros. Contacte al administrador."
                 });
             }
-        }
-
-        private List<string> GenerarRecomendaciones(PolicyMappingResultDto mappingResult)
-        {
-            var recomendaciones = new List<string>();
-
-            if (mappingResult.PorcentajeExito >= 90)
-            {
-                recomendaciones.Add("✅ Excelente mapeo automático. Los datos están listos para envío a Velneo.");
-            }
-            else if (mappingResult.PorcentajeExito >= 70)
-            {
-                recomendaciones.Add("⚠️ Buen mapeo automático. Revise los campos con baja confianza antes del envío.");
-            }
-            else
-            {
-                recomendaciones.Add("🔍 Mapeo automático limitado. Se requiere validación manual de varios campos.");
-            }
-
-            if (mappingResult.CamposQueFallaronMapeo.Any())
-            {
-                recomendaciones.Add($"📝 {mappingResult.CamposQueFallaronMapeo.Count} campos requieren selección manual: {string.Join(", ", mappingResult.CamposQueFallaronMapeo)}");
-            }
-
-            if (mappingResult.CamposConBajaConfianza > 0)
-            {
-                recomendaciones.Add($"⚡ {mappingResult.CamposConBajaConfianza} campos con baja confianza necesitan revisión.");
-            }
-
-            return recomendaciones;
         }
     }
 }

@@ -86,9 +86,6 @@ namespace RegularizadorPolizas.Application.DTOs
         [Range(1, 12, ErrorMessage = "Las cuotas deben estar entre 1 y 12")]
         public int? Concuo { get; set; } = 1;
 
-        [Range(1, 3, ErrorMessage = "El código de moneda debe estar entre 1 y 3")]
-        public int? Moncod { get; set; } = 1;
-
         public decimal? Conimp { get; set; }
 
         [StringLength(128, ErrorMessage = "El ramo no puede exceder 128 caracteres")]
@@ -130,6 +127,16 @@ namespace RegularizadorPolizas.Application.DTOs
         public string? Conend { get; set; }
         [StringLength(256, ErrorMessage = "La forma de pago de vida no puede exceder 256 caracteres")]
         public string? Forpagvid { get; set; }
+
+        #endregion
+
+        #region CAMPOS DE MONEDA
+
+        [Range(1, int.MaxValue, ErrorMessage = "El código de moneda debe ser mayor a 0")]
+        public int? Moncod { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "El código de moneda de condiciones de pago debe ser mayor a 0")]
+        public int? Conviamon { get; set; }
 
         #endregion
 
@@ -205,15 +212,8 @@ namespace RegularizadorPolizas.Application.DTOs
         public string? Tipo { get; set; }
         public string? Cobertura { get; set; }
         public string? Certificado { get; set; }
-
-        // ✅ CAMPOS FALTANTES AGREGADOS
-        [StringLength(64, ErrorMessage = "La calidad no puede exceder 64 caracteres")]
         public string? Calidad { get; set; }
-
-        [StringLength(64, ErrorMessage = "La categoría no puede exceder 64 caracteres")]
         public string? Categoria { get; set; }
-
-        [StringLength(64, ErrorMessage = "El destino no puede exceder 64 caracteres")]
         public string? Destino { get; set; }
 
         #endregion

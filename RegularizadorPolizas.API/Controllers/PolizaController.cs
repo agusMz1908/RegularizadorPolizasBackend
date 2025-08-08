@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using RegularizadorPolizas.Application.DTOs;
 using RegularizadorPolizas.Application.DTOs.Azure;
+using RegularizadorPolizas.Application.Interfaces;
 using RegularizadorPolizas.Application.Interfaces.External.Velneo;
 using RegularizadorPolizas.Application.Mappers;
 
@@ -13,16 +14,19 @@ namespace RegularizadorPolizas.API.Controllers
     public class PolizaController : ControllerBase
     {
         private readonly IVelneoMaestrosService _velneoMaestrosService;
-        private readonly IAzureToVelneoMapper _azureMapper; 
+        private readonly IAzureToVelneoMapper _azureMapper;
+        private readonly ITenantService _tenantService;
         private readonly ILogger<PolizaController> _logger;
 
         public PolizaController(
             IVelneoMaestrosService velneoMaestrosService,
-            IAzureToVelneoMapper azureMapper, 
+            IAzureToVelneoMapper azureMapper,
+            ITenantService tenantService,
             ILogger<PolizaController> logger)
         {
             _velneoMaestrosService = velneoMaestrosService;
-            _azureMapper = azureMapper; 
+            _azureMapper = azureMapper;
+            _tenantService = tenantService;
             _logger = logger;
         }
 
@@ -371,43 +375,114 @@ namespace RegularizadorPolizas.API.Controllers
             }
         }
 
-        /// <summary>
-        /// ✅ EXISTENTE: Validar póliza sin crear (dry-run) - Mantenido
-        /// </summary>
-        [HttpPost("validate")]
+        [HttpPost("debug")]
         [ProducesResponseType(typeof(object), 200)]
-        [ProducesResponseType(typeof(object), 400)]
-        public async Task<ActionResult> ValidatePoliza([FromBody] PolizaCreateRequest request)
+        public async Task<ActionResult> DebugCreatePoliza([FromBody] PolizaCreateRequest request)
         {
             try
             {
-                if (request == null)
+                _logger.LogInformation("🧪 DEBUG: Iniciando debug de creación de póliza");
+
+                // Verificar configuración del tenant
+                var tenantId = _tenantService?.GetCurrentTenantId();
+                var config = await _tenantService.GetCurrentTenantConfigurationAsync();
+
+                _logger.LogInformation("🔧 Configuración del Tenant:");
+                _logger.LogInformation("   TenantId: {TenantId}", tenantId);
+                _logger.LogInformation("   Mode: {Mode}", config.Mode);
+                _logger.LogInformation("   BaseUrl: {BaseUrl}", config.BaseUrl);
+                _logger.LogInformation("   Active: {Active}", config.Activo);
+
+                // Verificar conectividad básica
+                _logger.LogInformation("🌐 Probando conectividad...");
+                using var httpClient = new HttpClient();
+                httpClient.Timeout = TimeSpan.FromSeconds(30);
+
+                var testUrl = $"{config.BaseUrl?.TrimEnd('/')}/v1/clientes";
+                _logger.LogInformation("   Test URL: {TestUrl}", testUrl);
+
+                try
                 {
-                    return BadRequest(new { success = false, message = "Datos requeridos" });
+                    var testResponse = await httpClient.GetAsync(testUrl);
+                    _logger.LogInformation("   Conectividad: {Status}", testResponse.StatusCode);
+                }
+                catch (Exception connEx)
+                {
+                    _logger.LogError(connEx, "❌ Error de conectividad");
                 }
 
-                _logger.LogInformation("🔍 VALIDANDO PÓLIZA: {NumeroPoliza}", request.Conpol);
+                // Log del request recibido
+                _logger.LogInformation("📋 Request recibido:");
+                _logger.LogInformation("   Póliza: {NumeroPoliza}", request.Conpol);
+                _logger.LogInformation("   Cliente: {ClienteId} - {ClienteNombre}", request.Clinro, request.Asegurado);
+                _logger.LogInformation("   Compañía: {CompaniaId}", request.Comcod);
+                _logger.LogInformation("   Premio: {Premio}", request.Conpremio);
+                _logger.LogInformation("   Vigencia: {Desde} a {Hasta}", request.Confchdes, request.Confchhas);
 
-                var resultadoValidacion = new
+                // Intentar crear la póliza con logging detallado
+                _logger.LogInformation("🚀 Ejecutando CreatePolizaFromRequestAsync...");
+                var resultado = await _velneoMaestrosService.CreatePolizaFromRequestAsync(request);
+
+                return Ok(new
                 {
-                    success = ModelState.IsValid,
-                    numeroPoliza = request.Conpol,
-                    camposValidados = GenerarResumenValidacion(request),
-                    errores = ModelState.IsValid ? new List<string>() :
-                        ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList(),
-                    warnings = GenerarAdvertencias(request),
+                    success = true,
+                    message = "Debug completado exitosamente",
+                    tenantConfig = new
+                    {
+                        tenantId = tenantId,
+                        mode = config.Mode,
+                        baseUrl = config.BaseUrl,
+                        active = config.Activo
+                    },
+                    request = new
+                    {
+                        numeroPoliza = request.Conpol,
+                        clienteId = request.Clinro,
+                        companiaId = request.Comcod,
+                        premio = request.Conpremio
+                    },
+                    resultado = resultado,
                     timestamp = DateTime.UtcNow
-                };
-
-                _logger.LogInformation("✅ Validación completada para póliza {NumeroPoliza}: {Resultado}",
-                    request.Conpol, resultadoValidacion.success ? "EXITOSA" : "FALLIDA");
-
-                return Ok(resultadoValidacion);
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Error validando póliza {NumeroPoliza}", request?.Conpol);
-                return StatusCode(500, new { message = "Error en validación", error = ex.Message });
+                _logger.LogError(ex, "❌ Error en debug de póliza");
+
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = ex.Message,
+                    stackTrace = ex.StackTrace,
+                    innerException = ex.InnerException?.Message
+                });
+            }
+        }
+
+        [HttpGet("debug/config")]
+        public async Task<ActionResult> DebugConfig()
+        {
+            try
+            {
+                var tenantId = _tenantService.GetCurrentTenantId();
+                var config = await _tenantService.GetCurrentTenantConfigurationAsync();
+
+                return Ok(new
+                {
+                    tenantId = tenantId,
+                    mode = config.Mode,
+                    baseUrl = config.BaseUrl,
+                    active = config.Activo,
+                    timeoutSeconds = config.TimeoutSeconds,
+                    apiVersion = config.ApiVersion,
+                    environment = config.Environment,
+                    enableLogging = config.EnableLogging,
+                    enableRetries = config.EnableRetries
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = ex.Message });
             }
         }
 
