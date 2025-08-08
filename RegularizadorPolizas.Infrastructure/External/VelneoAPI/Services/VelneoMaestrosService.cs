@@ -1308,8 +1308,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 desdsc = await ResolverDestino(request),
                 caldsc = await ResolverCalidad(request),
                 combustibles = await ResolverCombustible(request),
-                tarcod = await ResolverTarifa(request),         
-                flocod = request.Flocod ?? 0,
+                tarcod = await ResolverTarifa(request),
+                dptnom = await ResolverDepartamentoId(request),
                 concar = ResolverCertificado(request),
                 conpol = request.Conpol ?? "",
                 conend = request.Conend ?? "0",
@@ -1526,6 +1526,39 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
+        private async Task<int> ResolverDepartamentoId(PolizaCreateRequest request)
+        {
+            try
+            {
+                // Prioridad 1: Buscar por texto en Departamento
+                if (!string.IsNullOrEmpty(request.Departamento))
+                {
+                    var todosLosDepartamentos = await GetAllDepartamentosAsync();
+                    var departamento = BuscarDepartamentoPorTexto(todosLosDepartamentos, request.Departamento);
+
+                    if (departamento != null && departamento.Id > 0)
+                    {
+                        _logger.LogInformation("✅ Departamento mapeado: '{Texto}' -> ID {Id}",
+                            request.Departamento, departamento.Id);
+                        return departamento.Id;
+                    }
+                    else
+                    {
+                        _logger.LogWarning("⚠️ Departamento no encontrado: '{Texto}'", request.Departamento);
+                    }
+                }
+
+                // Fallback: Montevideo por defecto (ID = 1)
+                _logger.LogInformation("📋 Usando departamento por defecto: Montevideo (ID=1)");
+                return 1; // Montevideo
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error resolviendo departamento, usando fallback Montevideo");
+                return 1; // Montevideo por defecto
+            }
+        }
+
         private DepartamentoDto? BuscarDepartamentoPorTexto(IEnumerable<DepartamentoDto> departamentos, string texto)
         {
             if (string.IsNullOrEmpty(texto) || departamentos == null) return null;
@@ -1560,40 +1593,19 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 t.Nombre?.ToUpperInvariant() == textoNormalizado);
             if (exacta != null) return exacta;
 
-            // Buscar por código exacto
+            // Buscar por código
             var porCodigo = tarifas.FirstOrDefault(t =>
-                t.Codigo?.ToUpperInvariant() == textoNormalizado);
+                !string.IsNullOrEmpty(t.Codigo) &&
+                t.Codigo.ToUpperInvariant() == textoNormalizado);
             if (porCodigo != null) return porCodigo;
 
-            // Buscar parcial por nombre
-            var parcialNombre = tarifas.FirstOrDefault(t =>
+            // Buscar coincidencia parcial en nombre
+            var parcial = tarifas.FirstOrDefault(t =>
                 !string.IsNullOrEmpty(t.Nombre) &&
                 (t.Nombre.ToUpperInvariant().Contains(textoNormalizado) ||
                  textoNormalizado.Contains(t.Nombre.ToUpperInvariant())));
 
-            if (parcialNombre != null) return parcialNombre;
-
-            // Mapeo por patrones comunes de cobertura
-            var patronesCobertura = new Dictionary<string, string[]>
-            {
-                ["BASICO"] = ["basico", "básico", "responsabilidad", "rc", "civil"],
-                ["COMPLETO"] = ["completo", "full", "casco", "integral"],
-                ["TERCEROS"] = ["terceros", "third", "liability"],
-                ["TODO RIESGO"] = ["todo", "riesgo", "all", "risk", "comprehensive"]
-            };
-
-            foreach (var (patron, keywords) in patronesCobertura)
-            {
-                if (keywords.Any(keyword => textoNormalizado.Contains(keyword.ToUpperInvariant())))
-                {
-                    var found = tarifas.FirstOrDefault(t =>
-                        !string.IsNullOrEmpty(t.Nombre) &&
-                        t.Nombre.ToUpperInvariant().Contains(patron));
-                    if (found != null) return found;
-                }
-            }
-
-            return null;
+            return parcial;
         }
 
         /// <summary>
@@ -1851,55 +1863,70 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
 
         private string ResolverTipoGestion(PolizaCreateRequest request)
         {
-            return request.Congesti ?? "1";
+            if (!string.IsNullOrEmpty(request.Congesti) && int.TryParse(request.Congesti, out _))
+                return request.Congesti; 
+
+            if (!string.IsNullOrEmpty(request.Congesti))
+                return MapearTipoGestionTextoANumero(request.Congesti);
+
+            if (!string.IsNullOrEmpty(request.Estado))
+                return MapearTipoGestionTextoANumero(request.Estado);
+
+            return "1"; 
         }
 
         private string ResolverEstadoGestion(PolizaCreateRequest request)
         {
+            if (!string.IsNullOrEmpty(request.Congeses) && int.TryParse(request.Congeses, out _))
+                return request.Congeses; 
+
             if (!string.IsNullOrEmpty(request.Congeses))
-                return request.Congeses;
+                return MapearEstadoGestionTextoANumero(request.Congeses);
 
             if (!string.IsNullOrEmpty(request.Estado))
-                return MapearEstado(request.Estado);
+                return MapearEstadoGestionTextoANumero(request.Estado);
 
-            return "1";
+            return "1"; 
         }
 
         private string ResolverEstadoPoliza(PolizaCreateRequest request)
         {
             if (!string.IsNullOrEmpty(request.Convig) && int.TryParse(request.Convig, out _))
-                return request.Convig;
+                return request.Convig; 
 
             if (!string.IsNullOrEmpty(request.Convig))
-                return MapearEstadoPolizaTextoACodigo(request.Convig);
+                return MapearEstadoPolizaTextoANumero(request.Convig);
 
             if (!string.IsNullOrEmpty(request.EstadoPoliza))
-                return MapearEstadoPolizaTextoACodigo(request.EstadoPoliza);
+                return MapearEstadoPolizaTextoANumero(request.EstadoPoliza);
 
-            return "1";
+            return "1"; // "Vigente" por defecto
         }
 
         private string ResolverFormaPago(PolizaCreateRequest request)
         {
+            if (!string.IsNullOrEmpty(request.Consta) && int.TryParse(request.Consta, out _))
+                return request.Consta; 
+
             if (!string.IsNullOrEmpty(request.Consta))
-                return request.Consta;
+                return MapearFormaPagoTextoANumero(request.Consta);
 
             if (!string.IsNullOrEmpty(request.FormaPago))
-                return MapearFormaPago(request.FormaPago);
+                return MapearFormaPagoTextoANumero(request.FormaPago);
 
-            return "1";
+            return "1"; // "Contado" por defecto
         }
 
         private string ResolverTramite(PolizaCreateRequest request)
         {
             if (!string.IsNullOrEmpty(request.Contra) && int.TryParse(request.Contra, out _))
-                return request.Contra;
+                return request.Contra; 
 
             if (!string.IsNullOrEmpty(request.Contra))
-                return MapearTramite(request.Contra);
+                return MapearTramiteTextoANumero(request.Contra);
 
             if (!string.IsNullOrEmpty(request.Tramite))
-                return MapearTramite(request.Tramite);
+                return MapearTramiteTextoANumero(request.Tramite);
 
             return "1"; 
         }
@@ -1912,6 +1939,99 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
         private string ResolverNombreCliente(PolizaCreateRequest request)
         {
             return request.Clinom ?? request.Asegurado ?? "";
+        }
+
+        private string MapearTipoGestionTextoANumero(string tipo)
+        {
+            if (string.IsNullOrEmpty(tipo)) return "1";
+
+            return tipo.ToUpperInvariant().Trim() switch
+            {
+                "PENDIENTE" or "PENDING" or "P" => "1",
+                "EN PROCESO" or "PROCESSING" or "E" => "2",
+                "TERMINADO" or "COMPLETED" or "T" => "3",
+                "CANCELADO" or "CANCELLED" or "C" => "4",
+                _ => "1" // Default: Pendiente
+            };
+        }
+
+        /// <summary>
+        /// ✅ NUEVO: Mapeo de estado gestión texto a número
+        /// </summary>
+        private string MapearEstadoGestionTextoANumero(string estado)
+        {
+            if (string.IsNullOrEmpty(estado)) return "1";
+
+            return estado.ToUpperInvariant().Trim() switch
+            {
+                "PENDIENTE" or "PENDING" => "1",
+                "PENDIENTE C/PLAZO" or "PENDING_WITH_DEADLINE" => "2",
+                "PENDIENTE S/PLAZO" or "PENDING_WITHOUT_DEADLINE" => "3",
+                "TERMINADO" or "COMPLETED" or "FINISHED" => "4",
+                "EN PROCESO" or "IN_PROCESS" or "PROCESSING" => "5",
+                "MODIFICACIONES" or "MODIFICATIONS" => "6",
+                "EN EMISIÓN" or "EN_EMISION" or "ISSUING" => "7",
+                "ENVIADO A CIA" or "SENT_TO_COMPANY" => "8",
+                "ENVIADO A AGENTE MAIL" or "SENT_BY_EMAIL" => "9",
+                "DEVUELTO A EJECUTIVO" or "RETURNED" => "10",
+                "DECLINADO" or "DECLINED" => "11",
+                _ => "1" // Default: Pendiente
+            };
+        }
+
+        /// <summary>
+        /// ✅ CORREGIDO: Mapeo de forma de pago texto a número
+        /// </summary>
+        private string MapearFormaPagoTextoANumero(string formaPago)
+        {
+            if (string.IsNullOrEmpty(formaPago)) return "1";
+
+            return formaPago.ToUpperInvariant().Trim() switch
+            {
+                "CONTADO" or "CASH" or "EFECTIVO" or "C" => "1",
+                "TARJETA" or "TARJETA DE CREDITO" or "TARJETA DE CRÉDITO" or "CREDIT_CARD" or "T" => "2",
+                "DEBITO" or "DÉBITO AUTOMÁTICO" or "DEBITO AUTOMATICO" or "AUTO_DEBIT" or "D" => "3",
+                "CUOTAS" or "INSTALLMENTS" or "FINANCIADO" or "U" => "4",
+                _ => "1" // Default: Contado
+            };
+        }
+
+        /// <summary>
+        /// ✅ CORREGIDO: Mapeo de trámite texto a número
+        /// </summary>
+        private string MapearTramiteTextoANumero(string tramite)
+        {
+            if (string.IsNullOrEmpty(tramite)) return "1";
+
+            return tramite.ToUpperInvariant().Trim() switch
+            {
+                "NUEVO" or "NEW" or "EMISION" or "EMISIÓN" or "ALTA" or "N" => "1",
+                "RENOVACION" or "RENOVACIÓN" or "RENEWAL" or "RENEW" or "R" => "2",
+                "CAMBIO" or "MODIFICATION" or "CHANGE" or "MODIFICACION" or "MODIFICACIÓN" or "C" => "3",
+                "ENDOSO" or "ENDORSEMENT" or "E" => "4",
+                "NO RENUEVA" or "NOT_RENEW" or "DECLINE" => "5",
+                "CANCELACION" or "CANCELACIÓN" or "CANCEL" or "ANULACION" => "6",
+                _ => "1" // Default: Nuevo
+            };
+        }
+
+        /// <summary>
+        /// ✅ CORREGIDO: Mapeo de estado póliza texto a número
+        /// </summary>
+        private string MapearEstadoPolizaTextoANumero(string estado)
+        {
+            if (string.IsNullOrEmpty(estado)) return "1";
+
+            return estado.ToUpperInvariant().Trim() switch
+            {
+                "VIG" or "VIGENTE" or "ACTIVO" or "ACTIVE" or "V" => "1",
+                "ANT" or "ANTERIOR" or "PREVIO" or "A" => "2",
+                "VEN" or "VENCIDO" or "EXPIRED" or "VENCIDA" => "3",
+                "END" or "ENDOSO" or "ENDORSEMENT" or "E" => "4",
+                "ELIM" or "ELIMINADO" or "DELETED" => "5",
+                "FIN" or "FINALIZADO" or "FINISHED" or "F" => "6",
+                _ => "1" // Default: Vigente
+            };
         }
 
         private string ResolverObservaciones(PolizaCreateRequest request)
