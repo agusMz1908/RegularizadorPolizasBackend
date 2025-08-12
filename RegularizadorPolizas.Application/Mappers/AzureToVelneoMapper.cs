@@ -398,24 +398,24 @@ namespace RegularizadorPolizas.Application.Mappers
         private string MapearCombustible(string combustible)
         {
             if (string.IsNullOrEmpty(combustible))
-                return "NAF"; // NAFTA por defecto
+                return "DIS"; 
 
             var combUpper = combustible.ToUpperInvariant();
 
-            if (combUpper.Contains("DIESEL") || combUpper.Contains("GASOIL") || combUpper.Contains("GAS-OIL"))
-                return "GAS";
-            if (combUpper.Contains("NAFTA") || combUpper.Contains("GASOLINA"))
-                return "NAF";
-            if (combUpper.Contains("ELECTRIC") || combUpper.Contains("ELÉCTRIC"))
-                return "ELE";
-            if (combUpper.Contains("HÍBRID") || combUpper.Contains("HYBRID"))
-                return "HIB";
-            if (combUpper.Contains("GNC") || combUpper.Contains("GAS NATURAL"))
-                return "GNC";
-            if (combUpper.Contains("GLP") || combUpper.Contains("GAS LICUADO"))
-                return "GLP";
+            if (combUpper.Contains("DIESEL") || combUpper.Contains("GASOIL") ||
+                combUpper.Contains("GAS-OIL") || combUpper.Contains("DISEL"))
+                return "DIS";  // Código correcto para diesel
 
-            return "NAF";
+            if (combUpper.Contains("NAFTA") || combUpper.Contains("GASOLINA"))
+                return "GAS";  // Código para gasolina
+
+            if (combUpper.Contains("ELECTRIC"))
+                return "ELE";
+
+            if (combUpper.Contains("HIBRID"))
+                return "HIB";
+
+            return "GAS"; // Default
         }
 
         private string MapearFormaPago(string formaPago)

@@ -6,9 +6,7 @@ using RegularizadorPolizas.Application.Interfaces.External.Velneo;
 using RegularizadorPolizas.Application.Mappers;
 using RegularizadorPolizas.Application.Models;
 using System.Diagnostics;
-using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Text.Json;
 
 namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
@@ -77,10 +75,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 mapToDto: monedas => monedas.ToMonedaDtos()
             );
         }
-
-        // ===========================
-        // MAESTROS DE SEGUROS (YA EXISTÍAN)
-        // ===========================
 
         public async Task<IEnumerable<SeccionDto>> GetActiveSeccionesAsync()
         {
@@ -176,7 +170,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
-                // ✅ STRATEGY 1: Try direct VelneoCliente deserialization
                 var velneoCliente = await _httpService.DeserializeResponseAsync<VelneoCliente>(response);
                 if (velneoCliente != null && velneoCliente.Id > 0)
                 {
@@ -185,7 +178,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     return result;
                 }
 
-                // ✅ STRATEGY 2: Try VelneoClienteResponse wrapper {"cliente": {...}}
                 response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
@@ -197,7 +189,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     return result;
                 }
 
-                // ✅ STRATEGY 3: Try VelneoClientesResponse array {"clientes": [...]} - FIX PRINCIPAL
                 response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
@@ -223,10 +214,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        /// <summary>
-        /// ✅ MIGRADO DESDE: VelneoClientService.GetClientesAsync()
-        /// Paginación automática hasta obtener todos los clientes
-        /// </summary>
         public async Task<IEnumerable<ClientDto>> GetClientesAsync()
         {
             var tenantId = _tenantService.GetCurrentTenantId();
@@ -234,7 +221,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
 
             var allClientes = new List<ClientDto>();
             var pageNumber = 1;
-            var pageSize = 500; // ✅ PÁGINAS MÁS GRANDES PARA REDUCIR NÚMERO DE LLAMADAS
+            var pageSize = 500; 
             var hasMoreData = true;
 
             while (hasMoreData)
@@ -243,7 +230,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
 
                 try
                 {
-                    // ✅ USAR HttpClient CON TIMEOUT EXTENDIDO PARA CLIENTES
                     using var httpClient = await GetConfiguredHttpClientForClientsAsync();
                     var url = await _httpService.BuildVelneoUrlAsync($"v1/clientes?page={pageNumber}&limit={pageSize}");
                     var response = await httpClient.GetAsync(url);
@@ -279,14 +265,10 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             return allClientes;
         }
 
-        /// <summary>
-        /// ✅ MIGRADO DESDE: VelneoClientService.GetClientesPaginatedAsync()
-        /// Paginación manual con control específico de página
-        /// </summary>
         public async Task<PaginatedVelneoResponse<ClientDto>> GetClientesPaginatedAsync(
-    int page = 1,
-    int pageSize = 50,
-    string? search = null)
+            int page = 1,
+            int pageSize = 50,
+            string? search = null)
         {
             var stopwatch = Stopwatch.StartNew();
 
@@ -296,7 +278,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 _logger.LogInformation("👥 Getting clientes page {Page} (size {PageSize}) for tenant {TenantId} - EXTENDED TIMEOUT",
                     page, pageSize, tenantId);
 
-                // ✅ USAR HttpClient CON TIMEOUT EXTENDIDO PARA CLIENTES
                 using var httpClient = await GetConfiguredHttpClientForClientsAsync();
                 var url = await _httpService.BuildVelneoUrlAsync($"v1/clientes?page={page}&limit={pageSize}");
 
@@ -339,7 +320,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 _logger.LogError("🚨 TIMEOUT en GetClientesPaginatedAsync después de {Duration}ms - Page: {Page}, PageSize: {PageSize}",
                     stopwatch.ElapsedMilliseconds, page, pageSize);
 
-                // ✅ THROW CUSTOM EXCEPTION CON INFORMACIÓN ÚTIL
                 throw new TimeoutException($"Velneo API timeout después de {stopwatch.ElapsedMilliseconds}ms para página {page}. " +
                     "Los clientes pueden tardar más en cargar. Intenta reducir el pageSize o usar el endpoint /api/clientes/all", ex);
             }
@@ -352,10 +332,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        /// <summary>
-        /// ✅ MIGRADO DESDE: VelneoClientService.SearchClientesAsync()
-        /// Búsqueda en memoria sobre todos los clientes
-        /// </summary>
         public async Task<IEnumerable<ClientDto>> SearchClientesAsync(string searchTerm)
         {
             if (string.IsNullOrWhiteSpace(searchTerm))
@@ -384,10 +360,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        /// <summary>
-        /// ✅ MIGRADO DESDE: VelneoClientService.SearchClientesDirectAsync()
-        /// Búsqueda directa en API de Velneo (más rápida)
-        /// </summary>
         public async Task<IEnumerable<ClientDto>> SearchClientesDirectAsync(string searchTerm)
         {
             if (string.IsNullOrWhiteSpace(searchTerm))
@@ -418,15 +390,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        // ===========================
-        // MAESTROS DE COMPAÑÍAS 
-        // ✅ MIGRADO DESDE: VelneoCompanyService (DÍA 3)
-        // ===========================
-
-        /// <summary>
-        /// ✅ MIGRADO DESDE: VelneoCompanyService.GetAllCompaniesAsync()
-        /// Obtiene todas las compañías con fallback wrapper/array
-        /// </summary>
         public async Task<IEnumerable<CompanyDto>> GetAllCompaniesAsync()
         {
             try
@@ -439,7 +402,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 var response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
 
-                // ✅ PRIMERO: Intentar como wrapper (formato esperado de Velneo)
                 var velneoResponse = await _httpService.DeserializeResponseAsync<VelneoCompaniesResponse>(response);
                 if (velneoResponse?.Companias != null && velneoResponse.Companias.Any())
                 {
@@ -448,7 +410,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     return companies;
                 }
 
-                // ✅ SEGUNDO: Si falla, intentar como array directo (fallback)
                 response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
                 var velneoCompanies = await _httpService.DeserializeResponseAsync<List<VelneoCompany>>(response);
@@ -469,19 +430,11 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        /// <summary>
-        /// ✅ MIGRADO DESDE: VelneoCompanyService.GetActiveCompaniesAsync()
-        /// Por ahora retorna todas las compañías (lógica original)
-        /// </summary>
         public async Task<IEnumerable<CompanyDto>> GetActiveCompaniesAsync()
         {
             return await GetAllCompaniesAsync();
         }
 
-        /// <summary>
-        /// ✅ MIGRADO DESDE: VelneoCompanyService.GetCompanyByIdAsync()
-        /// Obtiene compañía específica con manejo de 404
-        /// </summary>
         public async Task<CompanyDto?> GetCompanyByIdAsync(int id)
         {
             try
@@ -501,7 +454,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
 
                 response.EnsureSuccessStatusCode();
 
-                // ✅ INTENTAR PRIMERO COMO OBJETO DIRECTO
                 var velneoCompany = await _httpService.DeserializeResponseAsync<VelneoCompany>(response);
                 if (velneoCompany != null)
                 {
@@ -510,7 +462,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     return result;
                 }
 
-                // ✅ SI FALLA, INTENTAR COMO WRAPPER - hacer nueva llamada
                 response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
                 var velneoResponse = await _httpService.DeserializeResponseAsync<VelneoCompanyResponse>(response);
@@ -536,10 +487,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        /// <summary>
-        /// ✅ MIGRADO DESDE: VelneoCompanyService.GetCompanyByAliasAsync()
-        /// Búsqueda en memoria por alias
-        /// </summary>
         public async Task<CompanyDto?> GetCompanyByAliasAsync(string alias)
         {
             try
@@ -574,10 +521,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        /// <summary>
-        /// ✅ MIGRADO DESDE: VelneoCompanyService.GetCompanyByCodigoAsync()
-        /// Endpoint directo + fallback a búsqueda en memoria
-        /// </summary>
         public async Task<CompanyDto?> GetCompanyByCodigoAsync(string codigo)
         {
             try
@@ -591,7 +534,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 var tenantId = _tenantService.GetCurrentTenantId();
                 _logger.LogDebug("Getting company by codigo '{Codigo}' from Velneo API for tenant {TenantId}", codigo, tenantId);
 
-                // ✅ OPCIÓN 1: Si Velneo tiene endpoint específico para búsqueda por código
                 try
                 {
                     using var httpClient = await _httpService.GetConfiguredHttpClientAsync();
@@ -611,11 +553,9 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 }
                 catch (HttpRequestException ex) when (ex.Message.Contains("404"))
                 {
-                    // Continuar con búsqueda en la lista completa
                     _logger.LogDebug("Direct endpoint not found, searching in full list for codigo '{Codigo}'", codigo);
                 }
 
-                // ✅ OPCIÓN 2: FALLBACK - Buscar en la lista completa de compañías
                 var companies = await GetAllCompaniesAsync();
                 var company = companies.FirstOrDefault(c =>
                     string.Equals(c.Cod_srvcompanias, codigo, StringComparison.OrdinalIgnoreCase));
@@ -636,10 +576,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        /// <summary>
-        /// ✅ MIGRADO DESDE: VelneoCompanyService.GetCompaniesForLookupAsync()
-        /// Conversión a DTOs de lookup para dropdowns
-        /// </summary>
         public async Task<IEnumerable<CompanyLookupDto>> GetCompaniesForLookupAsync()
         {
             try
@@ -665,10 +601,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        /// <summary>
-        /// ✅ MIGRADO DESDE: VelneoCompanyService.SearchCompaniesAsync()
-        /// Búsqueda en memoria por múltiples campos
-        /// </summary>
         public async Task<IEnumerable<CompanyDto>> SearchCompaniesAsync(string searchTerm)
         {
             try
@@ -698,10 +630,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        // <summary>
-        /// ✅ MIGRADO DESDE: TenantAwareVelneoApiService.GetPolizaAsync()
-        /// Obtiene una póliza específica por ID
-        /// </summary>
         public async Task<PolizaDto> GetPolizaAsync(int id)
         {
             try
@@ -726,7 +654,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 var jsonContent = await response.Content.ReadAsStringAsync();
                 _logger.LogDebug("📄 Contrato response length: {Length} chars", jsonContent.Length);
 
-                // ✅ DESERIALIZACIÓN COMPLETA IMPLEMENTADA
                 var velneoPoliza = await DeserializePolizaResponse(jsonContent, id);
 
                 if (velneoPoliza != null)
@@ -745,9 +672,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        // <summary>
-        /// Helper para deserializar respuestas de póliza con manejo robusto
-        /// </summary>
         private async Task<VelneoPoliza?> DeserializePolizaResponse(string jsonContent, int polizaId)
         {
             try
@@ -760,7 +684,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
 
                 var jsonOptions = GetJsonOptions();
 
-                // ✅ OPCIÓN 1: INTENTAR COMO OBJETO DIRECTO PRIMERO
                 try
                 {
                     var directPoliza = System.Text.Json.JsonSerializer.Deserialize<VelneoPoliza>(jsonContent, jsonOptions);
@@ -775,19 +698,16 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     _logger.LogDebug("⚠️ No se pudo deserializar como objeto directo: {Error}", ex.Message);
                 }
 
-                // ✅ OPCIÓN 2: INTENTAR COMO WRAPPER CON PROPIEDAD "poliza"
                 try
                 {
                     var wrapperResponse = System.Text.Json.JsonSerializer.Deserialize<VelneoPolizaResponse>(jsonContent, jsonOptions);
 
-                    // Probar propiedad "poliza"
                     if (wrapperResponse?.Poliza != null && wrapperResponse.Poliza.Id > 0)
                     {
                         _logger.LogDebug("✅ Póliza {PolizaId} deserializada desde wrapper.Poliza", polizaId);
                         return wrapperResponse.Poliza;
                     }
 
-                    // Probar propiedad "contrato" (alternativa común en Velneo)
                     if (wrapperResponse?.Contrato != null && wrapperResponse.Contrato.Id > 0)
                     {
                         _logger.LogDebug("✅ Póliza {PolizaId} deserializada desde wrapper.Contrato", polizaId);
@@ -799,12 +719,10 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     _logger.LogDebug("⚠️ No se pudo deserializar como wrapper simple: {Error}", ex.Message);
                 }
 
-                // ✅ OPCIÓN 3: INTENTAR COMO RESPUESTA DE LISTA (contratos[])
                 try
                 {
                     var listaResponse = System.Text.Json.JsonSerializer.Deserialize<VelneoPolizasResponse>(jsonContent, jsonOptions);
 
-                    // Buscar en array "contratos"
                     if (listaResponse?.Contratos != null && listaResponse.Contratos.Any())
                     {
                         var poliza = listaResponse.Contratos.FirstOrDefault(c => c.Id == polizaId)
@@ -817,7 +735,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                         }
                     }
 
-                    // Buscar en array "polizas" (alternativa)
                     if (listaResponse?.Polizas != null && listaResponse.Polizas.Any())
                     {
                         var poliza = listaResponse.Polizas.FirstOrDefault(p => p.Id == polizaId)
@@ -835,7 +752,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     _logger.LogDebug("⚠️ No se pudo deserializar como lista: {Error}", ex.Message);
                 }
 
-                // ✅ OPCIÓN 4: LOG PARA DEBUG Y RETORNAR NULL
                 _logger.LogWarning("⚠️ No se pudo deserializar póliza {PolizaId}. JSON preview: {JsonPreview}",
                     polizaId, jsonContent.Substring(0, Math.Min(200, jsonContent.Length)));
 
@@ -848,10 +764,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        /// <summary>
-        /// ✅ MIGRADO DESDE: TenantAwareVelneoApiService.GetPolizasAsync()
-        /// Obtiene todas las pólizas con paginación automática
-        /// </summary>
         public async Task<IEnumerable<PolizaDto>> GetPolizasAsync()
         {
             try
@@ -877,10 +789,8 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
 
                     var jsonContent = await response.Content.ReadAsStringAsync();
 
-                    // ✅ USAR EL MODELO CORRECTO VelneoPolizasResponse
                     var velneoResponse = System.Text.Json.JsonSerializer.Deserialize<VelneoPolizasResponse>(jsonContent, GetJsonOptions());
 
-                    // ✅ VERIFICAR AMBAS PROPIEDADES: Polizas Y Contratos
                     var polizasFromResponse = velneoResponse?.Polizas?.Any() == true
                         ? velneoResponse.Polizas
                         : velneoResponse?.Contratos ?? new List<VelneoPoliza>();
@@ -893,7 +803,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                         _logger.LogDebug("✅ Página {Page}: {Count} pólizas obtenidas (Total acumulado: {Total})",
                             pageNumber, polizasPage.Count, allPolizas.Count);
 
-                        // ✅ VERIFICAR SI HAY MÁS DATOS
                         hasMoreData = polizasFromResponse.Count == pageSize &&
                                      (velneoResponse?.HasMoreData == true || allPolizas.Count < (velneoResponse?.Total_Count ?? 0));
 
@@ -919,10 +828,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        /// <summary>
-        /// ✅ MIGRADO DESDE: TenantAwareVelneoApiService.GetPolizasByClientAsync()
-        /// Obtiene pólizas por cliente específico
-        /// </summary>
         public async Task<IEnumerable<PolizaDto>> GetPolizasByClientAsync(int clienteId)
         {
             try
@@ -947,7 +852,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     var jsonContent = await response.Content.ReadAsStringAsync();
                     var velneoResponse = System.Text.Json.JsonSerializer.Deserialize<VelneoPolizasResponse>(jsonContent, GetJsonOptions());
 
-                    // ✅ VERIFICAR AMBAS PROPIEDADES: Polizas Y Contratos
                     var polizasFromResponse = velneoResponse?.Polizas?.Any() == true
                         ? velneoResponse.Polizas
                         : velneoResponse?.Contratos ?? new List<VelneoPoliza>();
@@ -990,21 +894,10 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             {
                 var tenantId = _tenantService.GetCurrentTenantId();
                 var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
-
-                // 🚨 LOGS CRÍTICOS PARA DEBUG
-                _logger.LogInformation("🚀 INICIANDO CREACIÓN EN VELNEO:");
-                _logger.LogInformation("   📍 TenantId: {TenantId}", tenantId);
-                _logger.LogInformation("   🔧 Mode: {Mode}", tenantConfig.Mode);
-                _logger.LogInformation("   🌐 BaseUrl: {BaseUrl}", tenantConfig.BaseUrl);
-                _logger.LogInformation("   📄 NumeroPoliza: {NumeroPoliza}", request.Conpol);
-                _logger.LogInformation("   👤 Cliente: {ClienteId} - {ClienteNombre}", request.Clinro, request.Asegurado);
-
-                // ✅ VERIFICAR MODO DEL TENANT
                 if (tenantConfig.Mode?.ToUpper() != "VELNEO")
                 {
                     _logger.LogWarning("⚠️ TENANT EN MODO {Mode} - SIMULANDO OPERACIÓN", tenantConfig.Mode);
 
-                    // Retornar éxito simulado para modo LOCAL
                     return new
                     {
                         success = true,
@@ -1015,39 +908,60 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     };
                 }
 
-                // ✅ VALIDAR CAMPOS CRÍTICOS
-                ValidarCamposRequeridos(request);
-
                 using var httpClient = await _httpService.GetConfiguredHttpClientAsync();
 
-                // ✅ MAPEAR A ESTRUCTURA VELNEO
                 var velneoContrato = await MapearCreateRequestAVelneoCompleto(request);
 
-                // Serializar el payload
                 var jsonPayload = System.Text.Json.JsonSerializer.Serialize(velneoContrato, GetJsonOptions());
-                var content = new StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
 
-                // 🚨 LOG DEL PAYLOAD COMPLETO (SOLO EN DESARROLLO)
-                _logger.LogInformation("📤 ENVIANDO A VELNEO:");
-                _logger.LogInformation("   📏 Payload Size: {Size} caracteres", jsonPayload.Length);
+                _logger.LogInformation("📋 ========== PAYLOAD COMPLETO A VELNEO ==========");
+                _logger.LogInformation(jsonPayload);
+                _logger.LogInformation("📋 ========== FIN PAYLOAD ==========");
+                _logger.LogInformation("📊 Longitud del payload: {Length} caracteres", jsonPayload.Length);
 
-                // Solo loggear JSON completo en desarrollo
-                if (_logger.IsEnabled(LogLevel.Debug))
+                try
                 {
-                    _logger.LogDebug("   📋 JSON Payload: {JsonPayload}", jsonPayload);
+                    using var doc = System.Text.Json.JsonDocument.Parse(jsonPayload);
+                    var root = doc.RootElement;
+
+                    _logger.LogInformation("🔍 VALIDACIÓN DEL PAYLOAD:");
+                    _logger.LogInformation("   - Tipo de root: {Type}", root.ValueKind);
+                    _logger.LogInformation("   - Propiedades totales: {Count}", root.EnumerateObject().Count());
+
+                    if (root.TryGetProperty("comcod", out var comcod))
+                        _logger.LogInformation("   ✅ comcod: {Value} (tipo: {Type})", comcod.GetRawText(), comcod.ValueKind);
+                    else
+                        _logger.LogWarning("   ❌ comcod NO ENCONTRADO");
+
+                    if (root.TryGetProperty("clinro", out var clinro))
+                        _logger.LogInformation("   ✅ clinro: {Value} (tipo: {Type})", clinro.GetRawText(), clinro.ValueKind);
+                    else
+                        _logger.LogWarning("   ❌ clinro NO ENCONTRADO");
+
+                    if (root.TryGetProperty("conpol", out var conpol))
+                        _logger.LogInformation("   ✅ conpol: {Value} (tipo: {Type})", conpol.GetRawText(), conpol.ValueKind);
+                    else
+                        _logger.LogWarning("   ❌ conpol NO ENCONTRADO");
+
+                    if (root.TryGetProperty("conpremio", out var conpremio))
+                        _logger.LogInformation("   ✅ conpremio: {Value} (tipo: {Type})", conpremio.GetRawText(), conpremio.ValueKind);
+                    else
+                        _logger.LogWarning("   ❌ conpremio NO ENCONTRADO");
+                }
+                catch (Exception jsonEx)
+                {
+                    _logger.LogError(jsonEx, "❌ Error validando estructura JSON del payload");
                 }
 
-                // ✅ CONSTRUIR URL
+                var content = new StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
                 var url = await _httpService.BuildVelneoUrlAsync("v1/contratos");
                 _logger.LogInformation("🌐 URL: {Url}", url);
 
-                // ✅ ENVIAR A VELNEO
                 _logger.LogInformation("📡 Enviando POST...");
                 var response = await httpClient.PostAsync(url, content);
 
                 var responseContent = await response.Content.ReadAsStringAsync();
 
-                // 🚨 LOG DETALLADO DE LA RESPUESTA
                 _logger.LogInformation("📥 RESPUESTA DE VELNEO:");
                 _logger.LogInformation("   🔢 StatusCode: {StatusCode} ({StatusCodeText})",
                     (int)response.StatusCode, response.StatusCode);
@@ -1056,7 +970,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 _logger.LogInformation("   📋 Content-Type: {ContentType}",
                     response.Content.Headers.ContentType?.ToString() ?? "No Content-Type");
 
-                // Log del contenido de respuesta
                 if (string.IsNullOrWhiteSpace(responseContent))
                 {
                     _logger.LogWarning("   ⚠️ RESPUESTA VACÍA");
@@ -1066,7 +979,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     _logger.LogInformation("   📄 Response Content: {Content}", responseContent);
                 }
 
-                // Log de headers importantes
                 var headers = response.Headers.ToDictionary(h => h.Key, h => string.Join(", ", h.Value));
                 if (headers.Any())
                 {
@@ -1078,7 +990,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     stopwatch.Stop();
                     _logger.LogInformation("✅ HTTP SUCCESS en {Duration}ms", stopwatch.ElapsedMilliseconds);
 
-                    // ✅ MANEJO MEJORADO DE RESPUESTA VACÍA
                     if (string.IsNullOrWhiteSpace(responseContent))
                     {
                         _logger.LogWarning("⚠️ VELNEO RETORNÓ HTTP 200 PERO RESPUESTA VACÍA");
@@ -1086,12 +997,9 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                         _logger.LogWarning("   • La póliza se creó pero Velneo no retorna datos");
                         _logger.LogWarning("   • Error en la configuración del endpoint");
                         _logger.LogWarning("   • Problema en el formato del payload");
-
-                        // Verificar si realmente se creó buscándola
                         _logger.LogInformation("🔍 Verificando si la póliza se creó buscándola...");
                         try
                         {
-                            // Intentar buscar la póliza recién creada para confirmar
                             var polizaVerificacion = await VerificarPolizaCreada(request.Conpol);
                             if (polizaVerificacion != null)
                             {
@@ -1119,7 +1027,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                         };
                     }
 
-                    // ✅ VALIDAR SI ES JSON VÁLIDO
                     try
                     {
                         var trimmedContent = responseContent.Trim();
@@ -1180,7 +1087,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 }
                 else
                 {
-                    // ❌ ERROR HTTP
                     stopwatch.Stop();
                     _logger.LogError("❌ ERROR HTTP DE VELNEO:");
                     _logger.LogError("   🔢 StatusCode: {StatusCode}", response.StatusCode);
@@ -1200,72 +1106,63 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        // Método auxiliar para verificar si la póliza se creó
         private async Task<object?> VerificarPolizaCreada(string numeroPoliza)
         {
             try
             {
+                _logger.LogInformation("🔍 Verificando existencia de póliza: {NumeroPoliza}", numeroPoliza);
+
                 using var httpClient = await _httpService.GetConfiguredHttpClientAsync();
                 var url = await _httpService.BuildVelneoUrlAsync($"v1/contratos?conpol={numeroPoliza}");
 
+                _logger.LogInformation("🌐 URL de verificación: {Url}", url);
+
                 var response = await httpClient.GetAsync(url);
+
                 if (response.IsSuccessStatusCode)
                 {
                     var content = await response.Content.ReadAsStringAsync();
+                    _logger.LogInformation("📄 Respuesta de verificación (primeros 500 chars): {Content}",
+                        content?.Substring(0, Math.Min(500, content?.Length ?? 0)));
+
                     if (!string.IsNullOrWhiteSpace(content))
                     {
-                        return System.Text.Json.JsonSerializer.Deserialize<object>(content, GetJsonOptions());
+                        var resultado = System.Text.Json.JsonSerializer.Deserialize<dynamic>(content, GetJsonOptions());
+                        var jsonDoc = System.Text.Json.JsonDocument.Parse(content);
+                        var root = jsonDoc.RootElement;
+
+                        if (root.TryGetProperty("contratos", out var contratos))
+                        {
+                            foreach (var contrato in contratos.EnumerateArray())
+                            {
+                                if (contrato.TryGetProperty("conpol", out var conpol))
+                                {
+                                    var polizaEncontrada = conpol.GetString();
+                                    _logger.LogInformation("📋 Póliza encontrada en verificación: {PolizaEncontrada} vs Buscada: {PolizaBuscada}",
+                                        polizaEncontrada, numeroPoliza);
+
+                                    if (polizaEncontrada == numeroPoliza)
+                                    {
+                                        _logger.LogInformation("✅ Póliza {NumeroPoliza} REALMENTE existe", numeroPoliza);
+                                        return resultado;
+                                    }
+                                }
+                            }
+                        }
+
+                        _logger.LogWarning("⚠️ La respuesta no contiene la póliza {NumeroPoliza}", numeroPoliza);
+                        return null;
                     }
                 }
+
+                _logger.LogInformation("❌ Póliza {NumeroPoliza} NO existe en Velneo", numeroPoliza);
                 return null;
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Error verificando póliza {NumeroPoliza}", numeroPoliza);
                 return null;
             }
-        }
-
-        // ============================================================================
-        // 🔧 MÉTODOS AUXILIARES PARA CreatePolizaFromRequestAsync()
-        // AGREGAR AL VelneoMaestrosService.cs EN LA SECCIÓN PRIVATE
-        // ============================================================================
-
-        /// <summary>
-        /// ✅ MIGRADO: Validación de campos requeridos
-        /// </summary>
-        private void ValidarCamposRequeridos(PolizaCreateRequest request)
-        {
-            var errores = new List<string>();
-
-            if (request.Comcod <= 0)
-                errores.Add("Código de compañía debe ser mayor a 0");
-
-            if (request.Clinro <= 0)
-                errores.Add("Código de cliente debe ser mayor a 0");
-
-            if (string.IsNullOrWhiteSpace(request.Conpol))
-                errores.Add("Número de póliza es requerido");
-
-            if (string.IsNullOrWhiteSpace(request.Confchdes))
-                errores.Add("Fecha de inicio es requerida");
-
-            if (string.IsNullOrWhiteSpace(request.Confchhas))
-                errores.Add("Fecha de fin es requerida");
-
-            if (request.Conpremio <= 0)
-                errores.Add("Premio debe ser mayor a 0");
-
-            if (string.IsNullOrWhiteSpace(request.Asegurado))
-                errores.Add("Nombre del asegurado es requerido");
-
-            if (errores.Any())
-            {
-                var mensajeError = string.Join(", ", errores);
-                _logger.LogError("❌ VALIDACIÓN FALLIDA: {Errores}", mensajeError);
-                throw new ArgumentException($"Datos requeridos faltantes: {mensajeError}");
-            }
-
-            _logger.LogInformation("✅ Validación de campos requeridos exitosa");
         }
 
         private async Task<object> MapearCreateRequestAVelneoCompleto(PolizaCreateRequest request)
@@ -1307,7 +1204,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 catdsc = await ResolverCategoria(request),
                 desdsc = await ResolverDestino(request),
                 caldsc = await ResolverCalidad(request),
-                combustibles = await ResolverCombustible(request),
+                combustible = await ResolverCombustible(request), 
                 tarcod = await ResolverTarifa(request),
                 dptnom = await ResolverDepartamentoId(request),
                 concar = ResolverCertificado(request),
@@ -1318,13 +1215,13 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 conimp = request.Conimp ?? request.Conpremio,
                 connroser = 0,
                 rieres = "",
-                conges = request.Conges ?? "Procesado automáticamente",
-                congesti = ResolverTipoGestion(request),
-                congesfi = FormatearFecha(request.Congesfi) ?? nowLocal.ToString("yyyy-MM-dd"),
-                congeses = ResolverEstadoGestion(request),
-                convig = ResolverEstadoPoliza(request),
-                consta = ResolverFormaPago(request),
-                contra = ResolverTramite(request),
+                conges = request.Conges ?? nowLocal.ToString("yyyy-MM-dd"), 
+                congesti = "1",
+                congesfi = nowLocal.ToString("yyyy-MM-dd"), 
+                congeses = "2", 
+                convig = "1",
+                consta = "1", 
+                contra = "1", 
                 tposegdsc = ResolverCobertura(request),
                 clinom = ResolverNombreCliente(request),
                 corrnom = request.Corrnom ?? 0,
@@ -1333,18 +1230,14 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 clausula = "1",
                 terrestre = true,
                 coning = "Sistema Automático",
-                ingresado = now.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-                last_update = now.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                ingresado = nowLocal.ToString("yyyy-MM-dd HH:mm:ss"), 
+                last_update = nowLocal.ToString("yyyy-MM-dd HH:mm:ss"),
                 app_id = 1,
                 update_date = nowLocal.ToString("yyyy-MM-dd")
             };
 
             return velneoContrato;
         }
-
-        // ============================================================================
-        // 🔄 MÉTODOS RESOLVER - USANDO MAESTROS INTERNOS
-        // ============================================================================
 
         private async Task<int> ResolverCategoria(PolizaCreateRequest request)
         {
@@ -1385,16 +1278,12 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        /// <summary>
-        /// ✅ MEJORADO: ResolverDestino usando métodos internos de maestros
-        /// </summary>
         private async Task<int> ResolverDestino(PolizaCreateRequest request)
         {
             try
             {
                 if (!string.IsNullOrEmpty(request.Destino))
                 {
-                    // ✅ USAR MÉTODO INTERNO GetAllDestinosAsync()
                     var destinos = await GetAllDestinosAsync();
                     var destino = BuscarDestinoPorTexto(destinos, request.Destino);
 
@@ -1405,7 +1294,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     }
                 }
 
-                var defaultCode = 2; // "PARTICULAR"
+                var defaultCode = 2; 
                 _logger.LogInformation("📋 Usando destino default: {Codigo}", defaultCode);
                 return defaultCode;
             }
@@ -1416,16 +1305,12 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        /// <summary>
-        /// ✅ MEJORADO: ResolverCalidad usando métodos internos de maestros
-        /// </summary>
         private async Task<int> ResolverCalidad(PolizaCreateRequest request)
         {
             try
             {
                 if (!string.IsNullOrEmpty(request.Calidad))
                 {
-                    // ✅ USAR MÉTODO INTERNO GetAllCalidadesAsync()
                     var calidades = await GetAllCalidadesAsync();
                     var calidad = BuscarCalidadPorTexto(calidades, request.Calidad);
 
@@ -1436,7 +1321,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     }
                 }
 
-                var defaultCode = 2; // "PROPIETARIO"
+                var defaultCode = 2; 
                 _logger.LogInformation("📋 Usando calidad default: {Codigo}", defaultCode);
                 return defaultCode;
             }
@@ -1449,14 +1334,12 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
 
         private int ResolverTomador(PolizaCreateRequest request)
         {
-            // Si viene específicamente clinro1, usarlo
             if (request.Clinro1.HasValue && request.Clinro1.Value > 0)
             {
                 _logger.LogInformation("✅ Tomador específico: {TomadorId}", request.Clinro1.Value);
                 return request.Clinro1.Value;
             }
 
-            // Por defecto: el tomador es el mismo cliente asegurado
             _logger.LogInformation("📋 Tomador = Asegurado: {ClienteId}", request.Clinro);
             return request.Clinro;
         }
@@ -1465,32 +1348,27 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
         {
             try
             {
-                // Prioridad 1: Si viene el ID directo
                 if (request.Tarcod.HasValue && request.Tarcod.Value > 0)
                 {
                     _logger.LogInformation("✅ Usando tarifa ID directo: {TarifaId}", request.Tarcod.Value);
                     return request.Tarcod.Value;
                 }
 
-                // Prioridad 2: Si viene el ID en TarifaId
                 if (request.Tarcod.HasValue && request.Tarcod.Value > 0)
                 {
                     _logger.LogInformation("✅ Usando TarifaId: {TarifaId}", request.Tarcod.Value);
                     return request.Tarcod.Value;
                 }
 
-                // Prioridad 3: Buscar por nombre en las tarifas de la compañía
                 if (!string.IsNullOrEmpty(request.Cobertura) || !string.IsNullOrEmpty(request.Plan))
                 {
                     var todasLasTarifas = await GetAllTarifasAsync();
-
-                    // Filtrar por la compañía actual
                     var tarifasCompania = todasLasTarifas.Where(t => t.CompaniaId == request.Comcod).ToList();
 
                     if (!tarifasCompania.Any())
                     {
                         _logger.LogWarning("⚠️ No se encontraron tarifas para la compañía {CompaniaId}", request.Comcod);
-                        return 0; // Sin tarifa específica
+                        return 0; 
                     }
 
                     var nombreBuscar = request.Cobertura ?? request.Plan ?? "";
@@ -1504,7 +1382,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     }
                 }
 
-                // Default: Primera tarifa activa de la compañía o 0
                 var tarifasDisponibles = await GetAllTarifasAsync();
                 var primeraDeCompania = tarifasDisponibles
                     .Where(t => t.CompaniaId == request.Comcod && t.Activa)
@@ -1522,7 +1399,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ Error resolviendo tarifa, usando fallback");
-                return 0; // Sin tarifa específica
+                return 0; 
             }
         }
 
@@ -1530,7 +1407,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
         {
             try
             {
-                // Prioridad 1: Buscar por texto en Departamento
                 if (!string.IsNullOrEmpty(request.Departamento))
                 {
                     var todosLosDepartamentos = await GetAllDepartamentosAsync();
@@ -1547,15 +1423,13 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                         _logger.LogWarning("⚠️ Departamento no encontrado: '{Texto}'", request.Departamento);
                     }
                 }
-
-                // Fallback: Montevideo por defecto (ID = 1)
                 _logger.LogInformation("📋 Usando departamento por defecto: Montevideo (ID=1)");
-                return 1; // Montevideo
+                return 1; 
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ Error resolviendo departamento, usando fallback Montevideo");
-                return 1; // Montevideo por defecto
+                return 1; 
             }
         }
 
@@ -1564,13 +1438,10 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             if (string.IsNullOrEmpty(texto) || departamentos == null) return null;
 
             var textoNormalizado = texto.Trim().ToUpperInvariant();
-
-            // Buscar coincidencia exacta primero
             var exacta = departamentos.FirstOrDefault(d =>
                 d.Nombre?.ToUpperInvariant() == textoNormalizado);
             if (exacta != null) return exacta;
 
-            // Buscar coincidencia parcial
             var parcial = departamentos.FirstOrDefault(d =>
                 !string.IsNullOrEmpty(d.Nombre) &&
                 (d.Nombre.ToUpperInvariant().Contains(textoNormalizado) ||
@@ -1579,27 +1450,21 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             return parcial;
         }
 
-        /// <summary>
-        /// ✅ MÉTODO AUXILIAR: Buscar tarifa por texto
-        /// </summary>
         private TarifaDto? BuscarTarifaPorTexto(IEnumerable<TarifaDto> tarifas, string texto)
         {
             if (string.IsNullOrEmpty(texto) || tarifas == null) return null;
 
             var textoNormalizado = texto.Trim().ToUpperInvariant();
-
-            // Buscar por nombre exacto
             var exacta = tarifas.FirstOrDefault(t =>
                 t.Nombre?.ToUpperInvariant() == textoNormalizado);
             if (exacta != null) return exacta;
 
-            // Buscar por código
+
             var porCodigo = tarifas.FirstOrDefault(t =>
                 !string.IsNullOrEmpty(t.Codigo) &&
                 t.Codigo.ToUpperInvariant() == textoNormalizado);
             if (porCodigo != null) return porCodigo;
 
-            // Buscar coincidencia parcial en nombre
             var parcial = tarifas.FirstOrDefault(t =>
                 !string.IsNullOrEmpty(t.Nombre) &&
                 (t.Nombre.ToUpperInvariant().Contains(textoNormalizado) ||
@@ -1608,16 +1473,12 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             return parcial;
         }
 
-        /// <summary>
-        /// ✅ MEJORADO: ResolverCombustible usando métodos internos de maestros
-        /// </summary>
         private async Task<string> ResolverCombustible(PolizaCreateRequest request)
         {
             try
             {
                 if (!string.IsNullOrEmpty(request.Combustible))
                 {
-                    // ✅ USAR MÉTODO INTERNO GetAllCombustiblesAsync()
                     var combustibles = await GetAllCombustiblesAsync();
                     var combustible = BuscarCombustiblePorTexto(combustibles, request.Combustible);
 
@@ -1639,10 +1500,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        // ============================================================================
-        // 🔍 MÉTODOS DE BÚSQUEDA INTELIGENTE (MIGRADOS DEL MONOLITO)
-        // ============================================================================
-
         private CategoriaDto? BuscarCategoriaPorTexto(IEnumerable<CategoriaDto> categorias, string texto)
         {
             if (string.IsNullOrEmpty(texto) || categorias == null) return null;
@@ -1661,28 +1518,21 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             return parcial;
         }
 
-        /// <summary>
-        /// ✅ MIGRADO: Búsqueda inteligente de destino por texto
-        /// </summary>
         private static DestinoDto? BuscarDestinoPorTexto(IEnumerable<DestinoDto> destinos, string texto)
         {
             var textoUpper = texto.ToUpperInvariant().Trim();
 
-            // Búsqueda exacta por nombre
             var exacta = destinos.FirstOrDefault(d => d.Desnom?.ToUpperInvariant() == textoUpper);
             if (exacta != null) return exacta;
 
-            // Búsqueda exacta por código
             var exactaCodigo = destinos.FirstOrDefault(d => d.Descod?.ToUpperInvariant() == textoUpper);
             if (exactaCodigo != null) return exactaCodigo;
 
-            // ✅ MEJORADO: Mapeo basado en datos reales del maestro
             return textoUpper switch
             {
                 "PARTICULAR" or "PERSONAL" or "PRIVADO" =>
                     destinos.FirstOrDefault(d => d.Desnom?.ToUpperInvariant().Contains("PARTICULAR") == true),
 
-                // 🔧 MEJORADO: Mejor mapeo para COMERCIAL → TRABAJO
                 "COMERCIAL" or "TRABAJO" or "LABORAL" or "BUSINESS" or "COMERCIO" =>
                     destinos.FirstOrDefault(d => d.Desnom?.ToUpperInvariant().Contains("TRABAJO") == true),
 
@@ -1699,18 +1549,13 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             };
         }
 
-        /// <summary>
-        /// ✅ MIGRADO: Búsqueda inteligente de calidad por texto
-        /// </summary>
         private static CalidadDto? BuscarCalidadPorTexto(IEnumerable<CalidadDto> calidades, string texto)
         {
             var textoUpper = texto.ToUpperInvariant().Trim();
 
-            // Búsqueda exacta
             var exacta = calidades.FirstOrDefault(c => c.Caldsc?.ToUpperInvariant() == textoUpper);
             if (exacta != null) return exacta;
 
-            // Mapeo específico
             return textoUpper switch
             {
                 "PROPIETARIO" or "DUEÑO" or "OWNER" => calidades.FirstOrDefault(c => c.Caldsc?.Contains("PROPIETARIO") == true),
@@ -1721,25 +1566,18 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             };
         }
 
-        /// <summary>
-        /// ✅ MIGRADO: Búsqueda inteligente de combustible por texto
-        /// </summary>
         private static CombustibleDto? BuscarCombustiblePorTexto(IEnumerable<CombustibleDto> combustibles, string texto)
         {
             var textoUpper = texto.ToUpperInvariant().Trim();
 
-            // Búsqueda exacta por Name
             var exacta = combustibles.FirstOrDefault(c => c.Name?.ToUpperInvariant() == textoUpper);
             if (exacta != null) return exacta;
 
-            // Búsqueda exacta por Id/Codigo
             var exactaId = combustibles.FirstOrDefault(c => c.Id?.ToUpperInvariant() == textoUpper);
             if (exactaId != null) return exactaId;
 
-            // ✅ CORREGIDO: Mapeo basado en datos reales del maestro
             return textoUpper switch
             {
-                // 🔧 NOTA: En tu maestro está "DISEL" (sin E), no "DIESEL"
                 "DIESEL" or "GASOIL" or "GAS-OIL" or "DISEL" or "DIS" =>
                     combustibles.FirstOrDefault(c => c.Name?.ToUpperInvariant().Contains("DISEL") == true || c.Id?.ToUpperInvariant() == "DIS"),
 
@@ -1755,10 +1593,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 _ => combustibles.FirstOrDefault(c => c.Name?.ToUpperInvariant().Contains(textoUpper) == true)
             };
         }
-
-        // ============================================================================
-        // 🛠️ MÉTODOS AUXILIARES DE RESOLUCIÓN
-        // ============================================================================
 
         private int ResolverSeccion(PolizaCreateRequest request)
         {
@@ -1801,31 +1635,25 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
 
         private decimal ResolverTotal(PolizaCreateRequest request)
         {
-            // ✅ USAR CAMPOS QUE SÍ EXISTEN: Contot, PremioTotal, Conpremio
             return request.Contot ?? request.PremioTotal ?? request.Conpremio;
         }
 
         private int ResolverMonedaCobertura(PolizaCreateRequest request)
         {
-            // Prioridad 1: Campo directo Moncod
             if (request.Moncod.HasValue && request.Moncod.Value > 0)
                 return request.Moncod.Value;
 
-            // Prioridad 2: Campo Moneda como string
             if (!string.IsNullOrEmpty(request.Moneda))
                 return MapearTextoAMonedaId(request.Moneda);
 
-            // Default: Peso uruguayo
             return 1;
         }
 
         private int ResolverMonedaCondicionesPago(PolizaCreateRequest request)
         {
-            // Si viene específicamente conviamon, usarlo
             if (request.Conviamon.HasValue && request.Conviamon.Value > 0)
                 return request.Conviamon.Value;
 
-            // Si no, usar la misma moneda que la cobertura por defecto
             return ResolverMonedaCobertura(request);
         }
 
@@ -1841,7 +1669,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 "EUR" or "EUROS" or "EURO" or "€" or "EU" => 4,
                 "BRL" or "REAL" or "REALES" or "R$" or "RS" => 5,
                 "UF" or "UNIDAD DE FOMENTO" => 6,
-                _ => 1 // Default: Peso uruguayo
+                _ => 1 
             };
         }
 
@@ -1861,76 +1689,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             return request.Concar ?? request.Certificado ?? "0";
         }
 
-        private string ResolverTipoGestion(PolizaCreateRequest request)
-        {
-            if (!string.IsNullOrEmpty(request.Congesti) && int.TryParse(request.Congesti, out _))
-                return request.Congesti; 
-
-            if (!string.IsNullOrEmpty(request.Congesti))
-                return MapearTipoGestionTextoANumero(request.Congesti);
-
-            if (!string.IsNullOrEmpty(request.Estado))
-                return MapearTipoGestionTextoANumero(request.Estado);
-
-            return "1"; 
-        }
-
-        private string ResolverEstadoGestion(PolizaCreateRequest request)
-        {
-            if (!string.IsNullOrEmpty(request.Congeses) && int.TryParse(request.Congeses, out _))
-                return request.Congeses; 
-
-            if (!string.IsNullOrEmpty(request.Congeses))
-                return MapearEstadoGestionTextoANumero(request.Congeses);
-
-            if (!string.IsNullOrEmpty(request.Estado))
-                return MapearEstadoGestionTextoANumero(request.Estado);
-
-            return "1"; 
-        }
-
-        private string ResolverEstadoPoliza(PolizaCreateRequest request)
-        {
-            if (!string.IsNullOrEmpty(request.Convig) && int.TryParse(request.Convig, out _))
-                return request.Convig; 
-
-            if (!string.IsNullOrEmpty(request.Convig))
-                return MapearEstadoPolizaTextoANumero(request.Convig);
-
-            if (!string.IsNullOrEmpty(request.EstadoPoliza))
-                return MapearEstadoPolizaTextoANumero(request.EstadoPoliza);
-
-            return "1"; // "Vigente" por defecto
-        }
-
-        private string ResolverFormaPago(PolizaCreateRequest request)
-        {
-            if (!string.IsNullOrEmpty(request.Consta) && int.TryParse(request.Consta, out _))
-                return request.Consta; 
-
-            if (!string.IsNullOrEmpty(request.Consta))
-                return MapearFormaPagoTextoANumero(request.Consta);
-
-            if (!string.IsNullOrEmpty(request.FormaPago))
-                return MapearFormaPagoTextoANumero(request.FormaPago);
-
-            return "1"; // "Contado" por defecto
-        }
-
-        private string ResolverTramite(PolizaCreateRequest request)
-        {
-            if (!string.IsNullOrEmpty(request.Contra) && int.TryParse(request.Contra, out _))
-                return request.Contra; 
-
-            if (!string.IsNullOrEmpty(request.Contra))
-                return MapearTramiteTextoANumero(request.Contra);
-
-            if (!string.IsNullOrEmpty(request.Tramite))
-                return MapearTramiteTextoANumero(request.Tramite);
-
-            return "1"; 
-        }
-
         private string ResolverCobertura(PolizaCreateRequest request)
         {
             return request.Tposegdsc ?? request.Cobertura ?? "Responsabilidad Civil";
@@ -1941,180 +1699,20 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             return request.Clinom ?? request.Asegurado ?? "";
         }
 
-        private string MapearTipoGestionTextoANumero(string tipo)
-        {
-            if (string.IsNullOrEmpty(tipo)) return "1";
-
-            return tipo.ToUpperInvariant().Trim() switch
-            {
-                "PENDIENTE" or "PENDING" or "P" => "1",
-                "EN PROCESO" or "PROCESSING" or "E" => "2",
-                "TERMINADO" or "COMPLETED" or "T" => "3",
-                "CANCELADO" or "CANCELLED" or "C" => "4",
-                _ => "1" // Default: Pendiente
-            };
-        }
-
-        /// <summary>
-        /// ✅ NUEVO: Mapeo de estado gestión texto a número
-        /// </summary>
-        private string MapearEstadoGestionTextoANumero(string estado)
-        {
-            if (string.IsNullOrEmpty(estado)) return "1";
-
-            return estado.ToUpperInvariant().Trim() switch
-            {
-                "PENDIENTE" or "PENDING" => "1",
-                "PENDIENTE C/PLAZO" or "PENDING_WITH_DEADLINE" => "2",
-                "PENDIENTE S/PLAZO" or "PENDING_WITHOUT_DEADLINE" => "3",
-                "TERMINADO" or "COMPLETED" or "FINISHED" => "4",
-                "EN PROCESO" or "IN_PROCESS" or "PROCESSING" => "5",
-                "MODIFICACIONES" or "MODIFICATIONS" => "6",
-                "EN EMISIÓN" or "EN_EMISION" or "ISSUING" => "7",
-                "ENVIADO A CIA" or "SENT_TO_COMPANY" => "8",
-                "ENVIADO A AGENTE MAIL" or "SENT_BY_EMAIL" => "9",
-                "DEVUELTO A EJECUTIVO" or "RETURNED" => "10",
-                "DECLINADO" or "DECLINED" => "11",
-                _ => "1" // Default: Pendiente
-            };
-        }
-
-        /// <summary>
-        /// ✅ CORREGIDO: Mapeo de forma de pago texto a número
-        /// </summary>
-        private string MapearFormaPagoTextoANumero(string formaPago)
-        {
-            if (string.IsNullOrEmpty(formaPago)) return "1";
-
-            return formaPago.ToUpperInvariant().Trim() switch
-            {
-                "CONTADO" or "CASH" or "EFECTIVO" or "C" => "1",
-                "TARJETA" or "TARJETA DE CREDITO" or "TARJETA DE CRÉDITO" or "CREDIT_CARD" or "T" => "2",
-                "DEBITO" or "DÉBITO AUTOMÁTICO" or "DEBITO AUTOMATICO" or "AUTO_DEBIT" or "D" => "3",
-                "CUOTAS" or "INSTALLMENTS" or "FINANCIADO" or "U" => "4",
-                _ => "1" // Default: Contado
-            };
-        }
-
-        /// <summary>
-        /// ✅ CORREGIDO: Mapeo de trámite texto a número
-        /// </summary>
-        private string MapearTramiteTextoANumero(string tramite)
-        {
-            if (string.IsNullOrEmpty(tramite)) return "1";
-
-            return tramite.ToUpperInvariant().Trim() switch
-            {
-                "NUEVO" or "NEW" or "EMISION" or "EMISIÓN" or "ALTA" or "N" => "1",
-                "RENOVACION" or "RENOVACIÓN" or "RENEWAL" or "RENEW" or "R" => "2",
-                "CAMBIO" or "MODIFICATION" or "CHANGE" or "MODIFICACION" or "MODIFICACIÓN" or "C" => "3",
-                "ENDOSO" or "ENDORSEMENT" or "E" => "4",
-                "NO RENUEVA" or "NOT_RENEW" or "DECLINE" => "5",
-                "CANCELACION" or "CANCELACIÓN" or "CANCEL" or "ANULACION" => "6",
-                _ => "1" // Default: Nuevo
-            };
-        }
-
-        /// <summary>
-        /// ✅ CORREGIDO: Mapeo de estado póliza texto a número
-        /// </summary>
-        private string MapearEstadoPolizaTextoANumero(string estado)
-        {
-            if (string.IsNullOrEmpty(estado)) return "1";
-
-            return estado.ToUpperInvariant().Trim() switch
-            {
-                "VIG" or "VIGENTE" or "ACTIVO" or "ACTIVE" or "V" => "1",
-                "ANT" or "ANTERIOR" or "PREVIO" or "A" => "2",
-                "VEN" or "VENCIDO" or "EXPIRED" or "VENCIDA" => "3",
-                "END" or "ENDOSO" or "ENDORSEMENT" or "E" => "4",
-                "ELIM" or "ELIMINADO" or "DELETED" => "5",
-                "FIN" or "FINALIZADO" or "FINISHED" or "F" => "6",
-                _ => "1" // Default: Vigente
-            };
-        }
-
         private string ResolverObservaciones(PolizaCreateRequest request)
         {
-            var obs = new List<string>();
+            if (request.ProcesadoConIA)
+                return "Procesado con IA";
 
             if (!string.IsNullOrEmpty(request.Observaciones))
-                obs.Add(request.Observaciones);
+                return request.Observaciones
+                    .Replace("[", "")
+                    .Replace("]", "")
+                    .Replace("\n", " ")
+                    .Replace("\r", " ")
+                    .Trim();
 
-            if (request.ProcesadoConIA)
-                obs.Add("Procesado automáticamente con Azure AI");
-
-            return string.Join(". ", obs);
-        }
-        private static string MapearEstado(string? estado)
-        {
-            return estado?.ToUpperInvariant() switch
-            {
-                "PENDIENTE" => "1",
-                "PENDIENTE C/PLAZO" => "2",
-                "PENDIENTE S/PLAZO" => "3",
-                "TERMINADO" => "4",
-                "EN PROCESO" => "5",
-                "MODIFICACIONES" => "6",
-                "EN EMISIÓN" => "7",
-                "ENVIADO A CIA" => "8",
-                "ENVIADO A AGENTE MAIL" => "9",
-                "DEVUELTO A EJECUTIVO" => "10",
-                "DECLINADO" => "11",
-                _ => "1"
-            };
-        }
-
-        private string MapearEstadoPolizaTextoACodigo(string estado)
-        {
-            if (string.IsNullOrEmpty(estado)) return "1";
-
-            var estadoNormalizado = estado.Trim().ToUpperInvariant();
-
-            return estadoNormalizado switch
-            {
-                "VIG" or "VIGENTE" or "ACTIVO" or "ACTIVE" => "1",
-                "ANT" or "ANTERIOR" or "PREVIO" => "2",
-                "VEN" or "VENCIDO" or "EXPIRED" or "VENCIDA" => "3",
-                "END" or "ENDOSO" or "ENDORSEMENT" => "4",
-                "ELIM" or "ELIMINADO" or "DELETED" => "5",
-                "FIN" or "FINALIZADO" or "FINISHED" => "6",
-                _ => "1" 
-            };
-        }
-
-        private static string MapearFormaPago(string? formaPago)
-        {
-            return formaPago?.ToUpperInvariant() switch
-            {
-                "CONTADO" => "1",
-                "TARJETA" => "2",
-                "TARJETA DE CREDITO" => "2",
-                "TARJETA DE CRÉDITO" => "2",
-                "DEBITO" => "3",
-                "DEBITO AUTOMATICO" => "3",
-                "DÉBITO AUTOMÁTICO" => "3",
-                "CUOTAS" => "4",
-                _ => "1"
-            };
-        }
-
-        private string MapearTramite(string tramite)
-        {
-            if (string.IsNullOrEmpty(tramite)) return "1"; 
-
-            var tramiteNormalizado = tramite.Trim().ToUpperInvariant();
-
-            return tramiteNormalizado switch
-            {
-                "NUEVO" or "NEW" or "EMISION" or "EMISIÓN" or "ALTA" => "1",
-                "RENOVACION" or "RENOVACIÓN" or "RENEWAL" or "RENEW" => "2",
-                "CAMBIO" or "MODIFICATION" or "CHANGE" or "MODIFICACION" or "MODIFICACIÓN" => "3",
-                "ENDOSO" or "ENDORSEMENT" => "4",
-                "NO RENUEVA" or "NOT_RENEW" or "DECLINE" => "5",
-                "CANCELACION" or "CANCELACIÓN" or "CANCEL" or "ANULACION" => "6",
-                _ => "1" 
-            };
+            return "";
         }
 
         private static string? FormatearFecha(object? fecha)
@@ -2231,9 +1829,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             return httpClient;
         }
 
-        /// <summary>
-        /// ✅ NUEVO: Método principal para validar mapeo completo con Azure data
-        /// </summary>
         public async Task<PolicyMappingResultDto> ValidarMapeoCompletoAsync(AzureDatosPolizaVelneoDto azureData)
         {
             var result = new PolicyMappingResultDto
@@ -2268,17 +1863,12 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 throw;
             }
         }
-
-        /// <summary>
-        /// 🔄 MAPEAR CAMPOS DINÁMICOS - Usan maestros del backend
-        /// </summary>
         private async Task MapearCamposDinamicos(AzureDatosPolizaVelneoDto azureData, PolicyMappingResultDto result)
         {
             try
             {
                 _logger.LogDebug("🔄 Iniciando mapeo de campos dinámicos...");
 
-                // CATEGORÍA
                 if (!string.IsNullOrEmpty(azureData.DatosVehiculo?.Categoria))
                 {
                     var categorias = await GetAllCategoriasAsync();
@@ -2295,7 +1885,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     if (categoria == null) result.CamposQueFallaronMapeo.Add("categoria");
                 }
 
-                // DESTINO
                 if (!string.IsNullOrEmpty(azureData.DatosVehiculo?.Destino))
                 {
                     var destinos = await GetAllDestinosAsync();
@@ -2312,7 +1901,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     if (destino == null) result.CamposQueFallaronMapeo.Add("destino");
                 }
 
-                // CALIDAD
                 if (!string.IsNullOrEmpty(azureData.DatosVehiculo?.Calidad))
                 {
                     var calidades = await GetAllCalidadesAsync();
@@ -2329,7 +1917,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     if (calidad == null) result.CamposQueFallaronMapeo.Add("calidad");
                 }
 
-                // COMBUSTIBLE
                 if (!string.IsNullOrEmpty(azureData.DatosVehiculo?.Combustible))
                 {
                     var combustibles = await GetAllCombustiblesAsync();
@@ -2346,7 +1933,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     if (combustible == null) result.CamposQueFallaronMapeo.Add("combustible");
                 }
 
-                // MONEDA
                 if (!string.IsNullOrEmpty(azureData.DatosCobertura?.Moneda))
                 {
                     var monedas = await GetAllMonedasAsync();
@@ -2372,16 +1958,12 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        /// <summary>
-        /// 📝 MAPEAR CAMPOS DE TEXTO PLANO - Valores fijos según las imágenes
-        /// </summary>
         private void MapearCamposTextoPlano(AzureDatosPolizaVelneoDto azureData, PolicyMappingResultDto result)
         {
             try
             {
                 _logger.LogDebug("📝 Iniciando mapeo de campos de texto plano...");
 
-                // ESTADO PÓLIZA (según imagen 4: VIG, ANT, VEN, END, ELIM, FIN)
                 var estadosPoliza = new[] { "VIG", "ANT", "VEN", "END", "ELIM", "FIN" };
                 var estadoMapeado = MapearEstadoPolizaInteligente(azureData.DatosBasicos?.Estado);
 
@@ -2393,7 +1975,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     OpcionesDisponibles = estadosPoliza.Select(e => new { Text = e, Code = e }).ToList()
                 };
 
-                // TIPO TRÁMITE (según imagen 3: Nuevo, Renovación, Cambio, etc.)
                 var tiposTramite = new[] { "Nuevo", "Renovación", "Cambio", "Endoso", "No Renueva", "Cancelación" };
                 var tramiteMapeado = MapearTipoTramiteInteligente(azureData.DatosPoliza?.TipoMovimiento);
 
@@ -2405,7 +1986,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     OpcionesDisponibles = tiposTramite.Select(t => new { Text = t, Code = t }).ToList()
                 };
 
-                // ESTADO BÁSICO (según imagen 2: Pendiente, Terminado, En proceso, etc.)
                 var estadosBasicos = new[] { "Pendiente", "Pendiente c/plazo", "Terminado", "En proceso",
                                     "Modificaciones", "En emisión", "Enviado a cía", "Enviado a cía x mail",
                                     "Devuelto a ejecutivo", "Declinado" };
@@ -2419,7 +1999,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     OpcionesDisponibles = estadosBasicos.Select(e => new { Text = e, Code = e }).ToList()
                 };
 
-                // TIPO LÍNEA (según imagen 5: Líneas personales, Líneas comerciales)
                 var tiposLinea = new[] { "Líneas personales", "Líneas comerciales" };
                 var tipoLineaMapeado = MapearTipoLineaInteligente(azureData.DatosVehiculo?.Uso);
 
@@ -2431,7 +2010,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     OpcionesDisponibles = tiposLinea.Select(t => new { Text = t, Code = t }).ToList()
                 };
 
-                // FORMA DE PAGO (valores comunes)
                 var formasPago = new[] { "Contado", "Tarjeta de Crédito", "Débito Automático", "Cuotas", "Financiado" };
                 var formaPagoMapeada = MapearFormaPagoInteligente(azureData.CondicionesPago?.FormaPago);
 
@@ -2452,12 +2030,9 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        // <summary>
-        /// 🔍 MÉTODOS DE MAPEO ESPECÍFICOS INTELIGENTES
-        /// </summary>
         private string MapearEstadoPolizaInteligente(string? estado)
         {
-            if (string.IsNullOrEmpty(estado)) return "VIG"; // Default
+            if (string.IsNullOrEmpty(estado)) return "VIG";
 
             return estado.ToUpperInvariant().Trim() switch
             {
@@ -2467,13 +2042,13 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 "ENDOSO" or "ENDORSEMENT" or "END" => "END",
                 "ELIMINADO" or "DELETED" or "ELIM" => "ELIM",
                 "FINALIZADO" or "FINISHED" or "FIN" => "FIN",
-                _ => "VIG" // Default para casos no reconocidos
+                _ => "VIG" 
             };
         }
 
         private string MapearTipoTramiteInteligente(string? tipoMovimiento)
         {
-            if (string.IsNullOrEmpty(tipoMovimiento)) return "Nuevo"; // Default
+            if (string.IsNullOrEmpty(tipoMovimiento)) return "Nuevo";
 
             return tipoMovimiento.ToUpperInvariant().Trim() switch
             {
@@ -2483,13 +2058,13 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 "ENDOSO" or "ENDORSEMENT" => "Endoso",
                 "NO RENUEVA" or "NOT_RENEW" or "DECLINE" => "No Renueva",
                 "CANCELACIÓN" or "CANCELACION" or "CANCEL" => "Cancelación",
-                _ => "Nuevo" // Default
+                _ => "Nuevo" 
             };
         }
 
         private string MapearEstadoBasicoInteligente(string? estado)
         {
-            if (string.IsNullOrEmpty(estado)) return "Pendiente"; // Default
+            if (string.IsNullOrEmpty(estado)) return "Pendiente"; 
 
             return estado.ToUpperInvariant().Trim() switch
             {
@@ -2503,26 +2078,26 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 "ENVIADO A CIA X MAIL" or "SENT_BY_EMAIL" => "Enviado a cía x mail",
                 "DEVUELTO A EJECUTIVO" or "RETURNED" => "Devuelto a ejecutivo",
                 "DECLINADO" or "DECLINED" => "Declinado",
-                _ => "Pendiente" // Default
+                _ => "Pendiente" 
             };
         }
 
         private string MapearTipoLineaInteligente(string? uso)
         {
-            if (string.IsNullOrEmpty(uso)) return "Líneas personales"; // Default
+            if (string.IsNullOrEmpty(uso)) return "Líneas personales";
 
             return uso.ToUpperInvariant().Trim() switch
             {
                 "PARTICULAR" or "PERSONAL" or "PRIVADO" => "Líneas personales",
                 "COMERCIAL" or "TRABAJO" or "BUSINESS" or "LABORAL" => "Líneas comerciales",
-                "TAXI" or "REMISE" or "UBER" => "Líneas comerciales", // Uso comercial
-                _ => "Líneas personales" // Default
+                "TAXI" or "REMISE" or "UBER" => "Líneas comerciales", 
+                _ => "Líneas personales" 
             };
         }
 
         private string MapearFormaPagoInteligente(string? formaPago)
         {
-            if (string.IsNullOrEmpty(formaPago)) return "Tarjeta de Crédito"; // Default común
+            if (string.IsNullOrEmpty(formaPago)) return "Tarjeta de Crédito"; 
 
             return formaPago.ToUpperInvariant().Trim() switch
             {
@@ -2531,13 +2106,10 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 "DÉBITO AUTOMÁTICO" or "DEBITO AUTOMATICO" or "AUTO_DEBIT" => "Débito Automático",
                 "CUOTAS" or "INSTALLMENTS" => "Cuotas",
                 "FINANCIADO" or "FINANCED" => "Financiado",
-                _ => "Tarjeta de Crédito" // Default
+                _ => "Tarjeta de Crédito" 
             };
         }
 
-        /// <summary>
-        /// 📊 CALCULAR CONFIANZA DEL MAPEO
-        /// </summary>
         private int CalcularConfianza(string textoExtraido, string? textoMapeado)
         {
             if (string.IsNullOrEmpty(textoExtraido) || string.IsNullOrEmpty(textoMapeado))
@@ -2546,13 +2118,10 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             var texto1 = textoExtraido.ToUpperInvariant().Trim();
             var texto2 = textoMapeado.ToUpperInvariant().Trim();
 
-            // Coincidencia exacta
             if (texto1 == texto2) return 100;
 
-            // Contiene la palabra completa
             if (texto1.Contains(texto2) || texto2.Contains(texto1)) return 85;
 
-            // Similitud de caracteres (algoritmo Levenshtein simplificado)
             var similarity = CalculateSimilarity(texto1, texto2);
             return (int)(similarity * 100);
         }
@@ -2584,18 +2153,15 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 {
                     var cost = str1[i - 1] == str2[j - 1] ? 0 : 1;
                     matrix[i, j] = Math.Min(Math.Min(
-                        matrix[i - 1, j] + 1,      // deletion
-                        matrix[i, j - 1] + 1),     // insertion
-                        matrix[i - 1, j - 1] + cost); // substitution
+                        matrix[i - 1, j] + 1,      
+                        matrix[i, j - 1] + 1),     
+                        matrix[i - 1, j - 1] + cost); 
                 }
             }
 
             return matrix[str1.Length, str2.Length];
         }
 
-        /// <summary>
-        /// 📈 CALCULAR MÉTRICAS FINALES
-        /// </summary>
         private void CalcularMetricasMapeo(PolicyMappingResultDto result)
         {
             var totalCampos = result.CamposMapeados.Count;
@@ -2611,22 +2177,17 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
         {
             var textoUpper = texto.ToUpperInvariant().Trim();
 
-            // Búsqueda exacta por Nombre
             var exacta = monedas.FirstOrDefault(m => m.Nombre?.ToUpperInvariant() == textoUpper);
             if (exacta != null) return exacta;
 
-            // Búsqueda exacta por Codigo
             var exactaCodigo = monedas.FirstOrDefault(m => m.Codigo?.ToUpperInvariant() == textoUpper);
             if (exactaCodigo != null) return exactaCodigo;
 
-            // Búsqueda por Simbolo
             var exactaSimbolo = monedas.FirstOrDefault(m => m.Simbolo?.ToUpperInvariant() == textoUpper);
             if (exactaSimbolo != null) return exactaSimbolo;
 
-            // ✅ CORREGIDO: Mapeo basado en datos reales del maestro
             return textoUpper switch
             {
-                // 🔧 NOTA: En tu maestro el peso uruguayo tiene código "PES", no "UYU"
                 "UYU" or "PESOS" or "PESO URUGUAYO" or "URUGUAYOS" or "$U" or "PES" =>
                     monedas.FirstOrDefault(m => m.Codigo?.ToUpperInvariant() == "PES" || m.Nombre?.ToUpperInvariant().Contains("PESO") == true),
 
@@ -2652,7 +2213,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 if (string.IsNullOrWhiteSpace(nombre))
                 {
                     _logger.LogWarning("ObtenerCategoriaIdPorNombre llamado con nombre vacío");
-                    return 20; // Valor por defecto para AUTOMOVIL
+                    return 20;
                 }
 
                 var categorias = await GetAllCategoriasAsync();
@@ -2665,19 +2226,15 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 }
 
                 _logger.LogWarning("⚠️ Categoría no encontrada: '{Nombre}'. Usando valor por defecto", nombre);
-                return 20; // Valor por defecto para AUTOMOVIL
+                return 20;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error obteniendo ID de categoría por nombre: {Nombre}", nombre);
-                return 20; // Valor por defecto en caso de error
+                return 20;
             }
         }
 
-        /// <summary>
-        /// Obtiene el ID de un destino buscando por nombre
-        /// Usa el método interno BuscarDestinoPorTexto que ya existe
-        /// </summary>
         public async Task<int> ObtenerDestinoIdPorNombre(string nombre)
         {
             try
@@ -2685,7 +2242,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 if (string.IsNullOrWhiteSpace(nombre))
                 {
                     _logger.LogWarning("ObtenerDestinoIdPorNombre llamado con nombre vacío");
-                    return 1; // Valor por defecto para PARTICULAR
+                    return 1;
                 }
 
                 var destinos = await GetAllDestinosAsync();
@@ -2698,19 +2255,15 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 }
 
                 _logger.LogWarning("⚠️ Destino no encontrado: '{Nombre}'. Usando valor por defecto", nombre);
-                return 1; // Valor por defecto para PARTICULAR
+                return 1; 
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error obteniendo ID de destino por nombre: {Nombre}", nombre);
-                return 1; // Valor por defecto en caso de error
+                return 1;
             }
         }
 
-        /// <summary>
-        /// Obtiene el ID de una calidad buscando por nombre
-        /// Usa el método interno BuscarCalidadPorTexto que ya existe
-        /// </summary>
         public async Task<int> ObtenerCalidadIdPorNombre(string nombre)
         {
             try
@@ -2718,7 +2271,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 if (string.IsNullOrWhiteSpace(nombre))
                 {
                     _logger.LogWarning("ObtenerCalidadIdPorNombre llamado con nombre vacío");
-                    return 2; // Valor por defecto para PROPIETARIO
+                    return 2;
                 }
 
                 var calidades = await GetAllCalidadesAsync();
@@ -2731,19 +2284,14 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 }
 
                 _logger.LogWarning("⚠️ Calidad no encontrada: '{Nombre}'. Usando valor por defecto", nombre);
-                return 2; // Valor por defecto para PROPIETARIO
+                return 2;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error obteniendo ID de calidad por nombre: {Nombre}", nombre);
-                return 2; // Valor por defecto en caso de error
+                return 2; 
             }
         }
-
-        /// <summary>
-        /// Busca un corredor por nombre
-        /// NOTA: Este método necesita implementación específica basada en tu modelo de corredores
-        /// </summary>
         public async Task<VelneoCorredor?> BuscarCorredorPorNombre(string nombre)
         {
             try
@@ -2764,7 +2312,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     "ZABARI S A" or "ZABARI" => 14277,
                     "SURA" => 2,
                     "PORTO" => 3,
-                    _ => 2 // Valor por defecto
+                    _ => 2 
                 };
 
                 return new VelneoCorredor
@@ -2780,10 +2328,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        /// <summary>
-        /// Obtiene un corredor por ID
-        /// NOTA: Este método necesita implementación específica basada en tu modelo de corredores
-        /// </summary>
         public async Task<VelneoCorredor?> ObtenerCorredorPorId(int id)
         {
             try
@@ -2868,9 +2412,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        /// <summary>
-        /// Obtiene un corredor específico por ID
-        /// </summary>
         public async Task<VelneoCorredor?> GetCorredorByIdAsync(int id)
         {
             try
@@ -2890,7 +2431,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
 
                 response.EnsureSuccessStatusCode();
 
-                // Intentar como objeto directo
                 var velneoCorredor = await _httpService.DeserializeResponseAsync<VelneoCorredor>(response);
                 if (velneoCorredor != null && velneoCorredor.Id > 0)
                 {
@@ -2898,7 +2438,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                     return velneoCorredor;
                 }
 
-                // Intentar como wrapper
                 response = await httpClient.GetAsync(url);
                 response.EnsureSuccessStatusCode();
                 var velneoResponse = await _httpService.DeserializeResponseAsync<VelneoCorredorResponse>(response);
@@ -2917,9 +2456,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        /// <summary>
-        /// Crea un nuevo corredor en Velneo
-        /// </summary>
         public async Task<VelneoCorredor> CreateCorredorAsync(VelneoCorredor corredor)
         {
             try
@@ -2946,7 +2482,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
 
                 var responseContent = await response.Content.ReadAsStringAsync();
 
-                // Intentar deserializar la respuesta
                 var createdCorredor = System.Text.Json.JsonSerializer.Deserialize<VelneoCorredor>(responseContent, GetJsonOptions());
                 if (createdCorredor != null)
                 {
@@ -2963,9 +2498,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        /// <summary>
-        /// Busca corredores con término de búsqueda
-        /// </summary>
         public async Task<IEnumerable<VelneoCorredor>> SearchCorredoresAsync(string searchTerm)
         {
             try
