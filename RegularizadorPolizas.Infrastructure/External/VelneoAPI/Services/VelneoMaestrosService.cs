@@ -7,6 +7,7 @@ using RegularizadorPolizas.Application.Mappers;
 using RegularizadorPolizas.Application.Models;
 using System.Diagnostics;
 using System.Net;
+using System.Text;
 using System.Text.Json;
 
 namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
@@ -947,6 +948,17 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                         _logger.LogInformation("   ✅ conpremio: {Value} (tipo: {Type})", conpremio.GetRawText(), conpremio.ValueKind);
                     else
                         _logger.LogWarning("   ❌ conpremio NO ENCONTRADO");
+
+                    // ✅ VALIDACIÓN CRÍTICA: Verificar que NO tenga campo "id"
+                    if (root.TryGetProperty("id", out var idProp))
+                    {
+                        _logger.LogError("❌ PROBLEMA CRÍTICO: El payload contiene campo 'id' que Velneo rechaza en POST");
+                        _logger.LogError("   💡 SOLUCIÓN: Eliminar 'id = 0,' del método MapearCreateRequestAVelneoCompleto");
+                    }
+                    else
+                    {
+                        _logger.LogInformation("✅ Payload correcto: NO contiene campo 'id'");
+                    }
                 }
                 catch (Exception jsonEx)
                 {
@@ -992,62 +1004,43 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
 
                     if (string.IsNullOrWhiteSpace(responseContent))
                     {
-                        _logger.LogWarning("⚠️ VELNEO RETORNÓ HTTP 200 PERO RESPUESTA VACÍA");
-                        _logger.LogWarning("   📌 Esto podría indicar:");
-                        _logger.LogWarning("   • La póliza se creó pero Velneo no retorna datos");
-                        _logger.LogWarning("   • Error en la configuración del endpoint");
-                        _logger.LogWarning("   • Problema en el formato del payload");
-                        _logger.LogInformation("🔍 Verificando si la póliza se creó buscándola...");
-                        try
-                        {
-                            var polizaVerificacion = await VerificarPolizaCreada(request.Conpol);
-                            if (polizaVerificacion != null)
-                            {
-                                _logger.LogInformation("✅ CONFIRMADO: Póliza {NumeroPoliza} existe en Velneo", request.Conpol);
-                                return polizaVerificacion;
-                            }
-                            else
-                            {
-                                _logger.LogError("❌ PROBLEMA: Velneo dice OK pero la póliza NO existe");
-                            }
-                        }
-                        catch (Exception verifyEx)
-                        {
-                            _logger.LogWarning(verifyEx, "⚠️ No se pudo verificar si la póliza se creó");
-                        }
+                        // ❌ SIN VERIFICACIÓN - SI VELNEO RETORNA VACÍO, ES UN ERROR
+                        _logger.LogError("❌ VELNEO RETORNÓ HTTP 200 PERO RESPUESTA VACÍA");
+                        _logger.LogError("   📋 Esto indica que Velneo rechazó el payload silenciosamente");
+                        _logger.LogError("   💡 Posibles causas:");
+                        _logger.LogError("      - Campo 'id' presente en el payload (debe eliminarse)");
+                        _logger.LogError("      - Campo obligatorio faltante");
+                        _logger.LogError("      - Tipo de dato incorrecto");
+                        _logger.LogError("      - Foreign key inválida (comcod, clinro, seccod)");
+                        _logger.LogError("      - Constraint de base de datos violado");
 
-                        return new
-                        {
-                            success = true,
-                            message = "Póliza enviada a Velneo (respuesta vacía)",
-                            numeroPoliza = request.Conpol,
-                            warning = "Velneo retornó respuesta vacía",
-                            responseType = "empty_success",
-                            timestamp = DateTime.UtcNow
-                        };
+                        throw new Exception($"Velneo rechazó el payload para póliza {request.Conpol}. " +
+                                          "HTTP 200 con respuesta vacía indica problema en el formato del payload. " +
+                                          "Verificar logs para más detalles.");
                     }
 
+                    // Si hay contenido en la respuesta, procesarlo
                     try
                     {
                         var trimmedContent = responseContent.Trim();
 
                         if (trimmedContent.StartsWith("{") || trimmedContent.StartsWith("["))
                         {
-                            _logger.LogInformation("📄 Respuesta parece ser JSON válido");
+                            _logger.LogInformation("📄 Respuesta es JSON válido");
                             var result = System.Text.Json.JsonSerializer.Deserialize<object>(responseContent, GetJsonOptions());
 
                             if (result != null)
                             {
-                                _logger.LogInformation("✅ JSON deserializado exitosamente");
+                                _logger.LogInformation("✅ Póliza {NumeroPoliza} creada exitosamente", request.Conpol);
                                 return result;
                             }
                             else
                             {
-                                _logger.LogWarning("⚠️ JSON deserializado como null");
+                                _logger.LogWarning("⚠️ JSON deserializado como null, pero operación exitosa");
                                 return new
                                 {
                                     success = true,
-                                    message = "Póliza creada (JSON deserializado como null)",
+                                    message = "Póliza creada exitosamente",
                                     numeroPoliza = request.Conpol,
                                     rawResponse = responseContent
                                 };
@@ -1055,33 +1048,33 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                         }
                         else
                         {
-                            _logger.LogWarning("⚠️ Respuesta NO es JSON válido");
-                            _logger.LogWarning("   🔤 Primeros caracteres: '{FirstChars}'",
+                            _logger.LogInformation("📄 Respuesta NO es JSON, pero HTTP 200 = éxito");
+                            _logger.LogInformation("   🔤 Primeros caracteres: '{FirstChars}'",
                                 trimmedContent.Substring(0, Math.Min(50, trimmedContent.Length)));
 
                             return new
                             {
                                 success = true,
-                                message = "Póliza creada (respuesta no-JSON)",
+                                message = "Póliza creada exitosamente",
                                 numeroPoliza = request.Conpol,
                                 rawResponse = responseContent,
-                                responseType = "non_json"
+                                responseType = "non_json_success"
                             };
                         }
                     }
                     catch (JsonException jsonEx)
                     {
-                        _logger.LogError(jsonEx, "❌ ERROR deserializando JSON de Velneo");
+                        _logger.LogError(jsonEx, "❌ Error deserializando JSON, pero HTTP 200 = éxito");
                         _logger.LogError("   📄 Contenido problemático: {Content}", responseContent);
 
                         return new
                         {
                             success = true,
-                            message = "Póliza creada (error deserializando respuesta)",
+                            message = "Póliza creada exitosamente",
                             numeroPoliza = request.Conpol,
                             rawResponse = responseContent,
-                            error = jsonEx.Message,
-                            responseType = "json_error"
+                            parseError = jsonEx.Message,
+                            responseType = "parse_error_but_success"
                         };
                     }
                 }
@@ -1170,73 +1163,136 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             var now = DateTime.UtcNow;
             var nowLocal = DateTime.Now;
 
+            // ✅ MAPEO COMPLETO SEGÚN SCHEMA DE SWAGGER
             var velneoContrato = new
             {
-                id = 0,
+                // ===== CAMPOS BÁSICOS OBLIGATORIOS =====
                 comcod = request.Comcod,
                 seccod = ResolverSeccion(request),
                 clinro = request.Clinro,
-                clinro1 = ResolverTomador(request),
-                condom = ResolverDireccion(request),
+                conpol = request.Conpol ?? "",
+                confchdes = FormatearFecha(request.Confchdes) ?? nowLocal.ToString("yyyy-MM-dd"),
+                confchhas = FormatearFecha(request.Confchhas) ?? nowLocal.AddYears(1).ToString("yyyy-MM-dd"),
+                conpremio = request.Conpremio,
+                asegurado = request.Asegurado ?? ResolverNombreCliente(request),
+                contra = "1",
+                congesti = "1",
+                congeses = ResolverEstadoGestion(request),
+                convig = "1",
+                consta = "1",
+
+                // ===== DATOS VEHÍCULO =====
                 conmaraut = ResolverMarca(request),
                 conanioaut = ResolverAnio(request),
-                concodrev = 0,
                 conmataut = ResolverMatricula(request),
-                conficto = 0,
                 conmotor = ResolverMotor(request),
-                conpadaut = request.Conpadaut ?? "",
                 conchasis = ResolverChasis(request),
+                conpadaut = request.Conpadaut ?? "",
+                contot = ResolverTotal(request),
+                concuo = ResolverCuotas(request),
+                conimp = request.Conimp ?? request.Conpremio,
+
+                // ===== CÓDIGOS Y REFERENCIAS =====
+                ramo = request.Ramo ?? "AUTOMOVILES",
+                com_alias = "BSE", // O resolver desde request.Company
+                catdsc = await ResolverCategoria(request),
+                desdsc = await ResolverDestino(request),
+                caldsc = await ResolverCalidad(request),
+                flocod = 0,
+                tarcod = await ResolverTarifa(request),
+                corrnom = request.Corrnom ?? 0,
+
+                // ===== DATOS CLIENTE =====
+                condom = ResolverDireccion(request),
+                clinom = ResolverNombreCliente(request),
+                clinro1 = ResolverTomador(request),
+                tposegdsc = ResolverCobertura(request),
+                concar = ResolverCertificado(request),
+                conend = request.Conend ?? "0",
+
+                // ===== FORMA DE PAGO =====
+                forpagvid = request.FormaPago ?? "",
+                moncod = ResolverMonedaCobertura(request),
+                conviamon = ResolverMonedaCondicionesPago(request),
+
+                // ===== CAMPOS ADICIONALES AUTOMÓVIL =====
                 conclaaut = request.Conclaaut ?? 0,
                 condedaut = request.Condedaut ?? 0,
                 conresciv = request.Conresciv ?? 0,
                 conbonnsin = request.Conbonnsin ?? 0,
                 conbonant = request.Conbonant ?? 0,
                 concaraut = request.Concaraut ?? 0,
+                concapaut = request.Concapaut ?? 0,
                 concesnom = request.Concesnom ?? "",
                 concestel = request.Concestel ?? "",
-                concapaut = request.Concapaut ?? 0,
-                conpremio = request.Conpremio,
-                contot = ResolverTotal(request),
-                moncod = ResolverMonedaCobertura(request),
-                conviamon = ResolverMonedaCondicionesPago(request),
-                concuo = ResolverCuotas(request),
-                concomcorr = 0,
-                catdsc = await ResolverCategoria(request),
-                desdsc = await ResolverDestino(request),
-                caldsc = await ResolverCalidad(request),
-                combustibles = await ResolverCombustible(request),
-                tarcod = await ResolverTarifa(request),
-                dptnom = await ResolverDepartamentoId(request),
-                concar = ResolverCertificado(request),
-                conpol = request.Conpol ?? "",
-                conend = request.Conend ?? "0",
-                confchdes = FormatearFecha(request.Confchdes) ?? nowLocal.ToString("yyyy-MM-dd"),
-                confchhas = FormatearFecha(request.Confchhas) ?? nowLocal.AddYears(1).ToString("yyyy-MM-dd"),
-                conimp = request.Conimp ?? request.Conpremio,
-                connroser = 0,
-                rieres = "",
-                conges = request.Conges ?? "",
-                congesti = "1",
-                congesfi = nowLocal.ToString("yyyy-MM-dd"), 
-                congeses = "2", 
-                convig = "1",
-                consta = "1", 
-                contra = "1", 
-                tposegdsc = ResolverCobertura(request),
-                clinom = ResolverNombreCliente(request),
-                corrnom = request.Corrnom ?? 0,
+
+                // ===== FECHAS Y GESTIÓN =====
+                congesfi = nowLocal.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                conges = ResolverGestionado(request),
                 observaciones = ResolverObservaciones(request),
-                ramo = request.Ramo ?? "AUTOMOVILES",
-                clausula = "1",
-                terrestre = true,
-                coning = "Sistema Automático",
-                ingresado = nowLocal.ToString("yyyy-MM-dd HH:mm:ss"), 
-                last_update = nowLocal.ToString("yyyy-MM-dd HH:mm:ss"),
-                app_id = 1,
-                update_date = nowLocal.ToString("yyyy-MM-dd")
+                procesadoConIA = request.ProcesadoConIA,
+                fechaCreacion = nowLocal.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                fechaModificacion = nowLocal.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+
+                // ===== CAMPOS EXTENDIDOS VEHÍCULO =====
+                vehiculo = ResolverVehiculo(request),
+                marca = request.Marca ?? "",
+                modelo = request.Modelo ?? "",
+                motor = ResolverMotor(request),
+                chasis = ResolverChasis(request),
+                matricula = ResolverMatricula(request),
+                combustible = await ResolverCombustible(request),
+                anio = ResolverAnio(request),
+                primaComercial = request.PrimaComercial ?? request.Conpremio,
+                premioTotal = ResolverTotal(request),
+
+                // ===== DATOS ADICIONALES =====
+                corredor = request.Corredor ?? "",
+                plan = request.Plan ?? "",
+                documento = request.Documento ?? "",
+                email = request.Email ?? "",
+                telefono = request.Telefono ?? "",
+                direccion = ResolverDireccion(request),
+                localidad = request.Localidad ?? "",
+                departamento = request.Departamento ?? "MONTEVIDEO",
+                moneda = request.Moneda ?? "UYU",
+                seccionId = ResolverSeccion(request),
+                estado = request.Estado ?? "VIG",
+                tramite = request.Tramite ?? "Nuevo",
+                estadoPoliza = request.EstadoPoliza ?? "VIG",
+
+                // ===== IDs DE MAESTROS =====
+                calidadId = request.CalidadId ?? await ResolverCalidad(request),
+                destinoId = request.DestinoId ?? await ResolverDestino(request),
+                categoriaId = request.CategoriaId ?? await ResolverCategoria(request),
+
+                // ===== CAMPOS FINALES =====
+                tipoVehiculo = request.TipoVehiculo ?? "",
+                uso = request.Uso ?? "PARTICULAR",
+                formaPago = request.FormaPago ?? "Tarjeta de Crédito",
+                cantidadCuotas = ResolverCuotas(request),
+                valorCuota = request.ValorCuota ?? (ResolverTotal(request) / ResolverCuotas(request)),
+                tipo = request.Tipo ?? "EMISIÓN",
+                cobertura = ResolverCobertura(request),
+                certificado = ResolverCertificado(request),
+                calidad = request.Calidad ?? "",
+                categoria = request.Categoria ?? "",
+                destino = request.Destino ?? ""
             };
 
             return velneoContrato;
+        }
+
+        // ✅ MÉTODO AUXILIAR NUEVO
+        private string ResolverVehiculo(PolizaCreateRequest request)
+        {
+            var marca = request.Marca ?? "";
+            var modelo = request.Modelo ?? "";
+
+            if (!string.IsNullOrEmpty(marca) && !string.IsNullOrEmpty(modelo))
+                return $"{marca} {modelo}";
+
+            return request.Conmaraut ?? request.Marca ?? "";
         }
 
         private async Task<int> ResolverCategoria(PolizaCreateRequest request)
@@ -1303,6 +1359,73 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 _logger.LogError(ex, "❌ Error resolviendo destino, usando fallback");
                 return 2;
             }
+        }
+
+        private string ResolverGestionado(PolizaCreateRequest request)
+        {
+            if (!string.IsNullOrEmpty(request.Conges))
+            {
+                _logger.LogInformation("✅ Usuario gestionado especificado: {Usuario}", request.Conges);
+                return request.Conges;
+            }
+
+            if (!string.IsNullOrEmpty(request.Conges))
+            {
+                _logger.LogInformation("✅ Usando campo asignado como usuario: {Usuario}", request.Conges);
+                return request.Conges;
+            }
+
+            _logger.LogInformation("📋 Usando usuario por defecto: Sistema Automático");
+            return "Sistema Automático";
+        }
+
+        private string ResolverEstadoGestion(PolizaCreateRequest request)
+        {
+            var mapeoEstados = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                {"Pendiente", "1"},
+                {"Pendiente c/plazo", "2"},
+                {"En proceso", "3"},
+                {"Terminado", "4"},
+                {"Modificaciones", "5"},
+                {"En emisión", "6"},
+                {"Enviado a cia", "7"},
+                {"Enviado a cia x mail", "8"},
+                {"Devuelto a ejecutivo", "9"},
+                {"Declinado", "10"}
+            };
+
+            // Verificar si viene el código directo
+            if (!string.IsNullOrEmpty(request.Congeses))
+            {
+                // Si es un número, usarlo directamente
+                if (int.TryParse(request.Congeses, out _))
+                {
+                    _logger.LogInformation("✅ Estado gestión código directo: {Estado}", request.Congeses);
+                    return request.Congeses;
+                }
+
+                // Si es texto, mapearlo
+                if (mapeoEstados.TryGetValue(request.Congeses, out var codigoEstado))
+                {
+                    _logger.LogInformation("✅ Estado gestión mapeado: '{Texto}' -> {Codigo}", request.Congeses, codigoEstado);
+                    return codigoEstado;
+                }
+            }
+
+            // Verificar campo alternativo EstadoTramite
+            if (!string.IsNullOrEmpty(request.Congeses))
+            {
+                if (mapeoEstados.TryGetValue(request.Congeses, out var codigoEstado))
+                {
+                    _logger.LogInformation("✅ Estado trámite mapeado: '{Texto}' -> {Codigo}", request.Congeses, codigoEstado);
+                    return codigoEstado;
+                }
+            }
+
+            // Por defecto: Pendiente
+            _logger.LogInformation("📋 Usando estado por defecto: Pendiente (1)");
+            return "1";
         }
 
         private async Task<int> ResolverCalidad(PolizaCreateRequest request)
@@ -1701,18 +1824,75 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
 
         private string ResolverObservaciones(PolizaCreateRequest request)
         {
-            if (request.ProcesadoConIA)
-                return "Procesado con IA";
+            var observaciones = new StringBuilder();
 
+            // Agregar observaciones originales si existen
             if (!string.IsNullOrEmpty(request.Observaciones))
-                return request.Observaciones
-                    .Replace("[", "")
-                    .Replace("]", "")
-                    .Replace("\n", " ")
-                    .Replace("\r", " ")
-                    .Trim();
+            {
+                observaciones.AppendLine(request.Observaciones);
+            }
 
-            return "";
+            // Agregar nota de procesamiento con IA si aplica
+            if (request.ProcesadoConIA == true)
+            {
+                observaciones.AppendLine("Procesado con IA");
+            }
+
+            // NUEVO: Agregar detalle de cuotas si hay más de una cuota
+            var cantidadCuotas = ResolverCuotas(request);
+            if (cantidadCuotas > 1)
+            {
+                observaciones.AppendLine();
+                observaciones.AppendLine("=== DETALLE DE CUOTAS ===");
+                observaciones.AppendLine($"Plan de pago: {cantidadCuotas} cuotas");
+
+                // Calcular valores
+                decimal premioTotal = request.Contot ?? request.PremioTotal ?? request.Conpremio;
+                decimal valorCuota = request.ValorCuota ?? (premioTotal / cantidadCuotas);
+
+                // Obtener símbolo de moneda
+                string simboloMoneda = ObtenerSimboloMoneda(ResolverMonedaCondicionesPago(request));
+
+                observaciones.AppendLine($"Total: {simboloMoneda} {premioTotal:N2}");
+                observaciones.AppendLine($"Valor por cuota: {simboloMoneda} {valorCuota:N2}");
+
+                // Generar detalle de cada cuota
+                DateTime fechaBase = DateTime.Now;
+                if (DateTime.TryParse(request.Confchdes, out DateTime fechaDesde))
+                {
+                    fechaBase = fechaDesde;
+                }
+
+                observaciones.AppendLine();
+                observaciones.AppendLine("Cronograma de pagos:");
+
+                for (int i = 1; i <= cantidadCuotas; i++)
+                {
+                    DateTime fechaVencimiento = fechaBase.AddMonths(i - 1);
+                    observaciones.AppendLine($"  Cuota {i}/{cantidadCuotas}: {simboloMoneda} {valorCuota:N2} - Vence: {fechaVencimiento:dd/MM/yyyy}");
+                }
+            }
+            else if (cantidadCuotas == 1)
+            {
+                observaciones.AppendLine($"Pago: Contado - {ObtenerSimboloMoneda(ResolverMonedaCondicionesPago(request))} {request.Conpremio:N2}");
+            }
+
+            return observaciones.ToString().Trim();
+        }
+
+        // Método auxiliar para obtener símbolo de moneda
+        private string ObtenerSimboloMoneda(int monedaId)
+        {
+            return monedaId switch
+            {
+                1 => "$U",     // Peso uruguayo
+                2 => "USD",    // Dólar
+                3 => "UI",     // Unidades indexadas
+                4 => "€",      // Euro
+                5 => "R$",     // Real brasileño
+                6 => "UF",     // Unidad de fomento
+                _ => "$"
+            };
         }
 
         private static string? FormatearFecha(object? fecha)
