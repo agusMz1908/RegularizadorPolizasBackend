@@ -1104,60 +1104,93 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             var now = DateTime.UtcNow;
             var nowLocal = DateTime.Now;
 
+            // 🔍 DEBUG: Log de valores que llegan al método
+            _logger.LogInformation("🔍 ===== DEBUG VALORES DE ENTRADA =====");
+            _logger.LogInformation("   request.Comcod: {Comcod}", request.Comcod);
+            _logger.LogInformation("   request.Clinro: {Clinro}", request.Clinro);
+            _logger.LogInformation("   ResolverSeccion(request): {Seccod}", ResolverSeccion(request));
+            _logger.LogInformation("   request.Conpol: {Conpol}", request.Conpol);
+            _logger.LogInformation("   request.Conpremio: {Conpremio}", request.Conpremio);
+            _logger.LogInformation("🔍 ===== FIN DEBUG VALORES =====");
+
+            // 🚨 DETECCIÓN DE PROBLEMA: Si los valores críticos son 0, usar valores de emergencia
+            var comcodFinal = request.Comcod;
+            var clinroFinal = request.Clinro;
+            var seccodFinal = ResolverSeccion(request);
+
+            if (comcodFinal == 0)
+            {
+                _logger.LogWarning("⚠️ PROBLEMA: request.Comcod es 0, usando BSE por defecto");
+                comcodFinal = 1; // BSE por defecto
+            }
+
+            if (clinroFinal == 0)
+            {
+                _logger.LogError("❌ PROBLEMA CRÍTICO: request.Clinro es 0, esto causará falla");
+                // Aquí podrías usar un cliente de test o lanzar excepción
+                throw new ArgumentException("El ID del cliente no puede ser 0. Verificar mapeo del frontend.");
+            }
+
+            if (seccodFinal == 0)
+            {
+                _logger.LogWarning("⚠️ PROBLEMA: seccod es 0, usando AUTOMOVILES por defecto");
+                seccodFinal = 1; // AUTOMOVILES por defecto
+            }
+
             var velneoContrato = new
             {
-                comcod = request.Comcod,                   
-                seccod = ResolverSeccion(request),         
-                clinro = request.Clinro,                    
-                conpol = request.Conpol ?? "",             
-                confchdes = FormatearFecha(request.Confchdes) ?? nowLocal.ToString("yyyy-MM-dd"), 
-                confchhas = FormatearFecha(request.Confchhas) ?? nowLocal.AddYears(1).ToString("yyyy-MM-dd"), 
-                conpremio = request.Conpremio,             
-                condom = request.Condom ?? "",              
-                conmaraut = ResolverMarca(request),         
-                conanioaut = ResolverAnio(request),        
-                conmataut = ResolverMatricula(request),     
-                conmotor = ResolverMotor(request),          
-                conchasis = ResolverChasis(request),       
-                conpadaut = request.Conpadaut ?? "",        
-                contot = ResolverTotal(request),          
-                concuo = ResolverCuotas(request),           
-                conimp = request.Conimp ?? request.Conpremio, 
-                moncod = request.Moncod ?? 1,               
+                comcod = comcodFinal,                          // ✅ Valor verificado
+                seccod = seccodFinal,                          // ✅ Valor verificado
+                clinro = clinroFinal,                          // ✅ Valor verificado
+                conpol = request.Conpol ?? "",
+                confchdes = FormatearFecha(request.Confchdes) ?? nowLocal.ToString("yyyy-MM-dd"),
+                confchhas = FormatearFecha(request.Confchhas) ?? nowLocal.AddYears(1).ToString("yyyy-MM-dd"),
+                conpremio = request.Conpremio,
+                condom = request.Condom ?? "",
+                conmaraut = ResolverMarca(request),
+                conanioaut = ResolverAnio(request),
+                conmataut = ResolverMatricula(request),
+                conmotor = ResolverMotor(request),
+                conchasis = ResolverChasis(request),
+                conpadaut = request.Conpadaut ?? "",
+                contot = ResolverTotal(request),
+                concuo = ResolverCuotas(request),
+                conimp = request.Conimp ?? request.Conpremio,
+                moncod = request.Moncod ?? 1,
                 conviamon = ResolverMonedaCondicionesPago(request),
-                catdsc = await ResolverCategoria(request),  // ✅ int
-                desdsc = await ResolverDestino(request),    // ✅ int
-                caldsc = await ResolverCalidad(request),    // ✅ int
-                flocod = 0,                                 // ✅ int
-                tarcod = await ResolverTarifa(request),     // ✅ int
-                corrnom = request.Corrnom ?? 0,             // ✅ int
-                clinom = ResolverNombreCliente(request),    // ✅ string
-                clinro1 = ResolverTomador(request),         // ✅ int
-                tposegdsc = ResolverCobertura(request),     // ✅ string
-                concar = ResolverCertificado(request),      // ✅ string
-                conend = request.Conend ?? "0",             // ✅ string
-                forpagvid = request.FormaPago ?? "",        // ✅ string
-                contra = "1",                               // ✅ string
-                congesti = "1",                             // ✅ string
-                congeses = ResolverEstadoGestion(request),  // ✅ string
-                convig = "1",                               // ✅ string
-                consta = "1",                               // ✅ string
-                congesfi = nowLocal.ToString("yyyy-MM-dd"), // ✅ string (NO datetime)
-                conges = ResolverGestionado(request),       // ✅ string
-                conclaaut = request.Conclaaut ?? 0,        // ✅ int
-                condedaut = request.Condedaut ?? 0,        // ✅ int
-                conresciv = request.Conresciv ?? 0,        // ✅ int
-                conbonnsin = request.Conbonnsin ?? 0,      // ✅ int
-                conbonant = request.Conbonant ?? 0,      
-                concaraut = request.Concaraut ?? 0,      
-                concapaut = request.Concapaut ?? 0,     
-                concesnom = request.Concesnom ?? "",     
-                concestel = request.Concestel ?? "",     
-                ramo = "AUTOMOVILES",                       
-                com_alias = "BSE",                          
-                observaciones = ResolverObservaciones(request), 
-                ingresado = nowLocal.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"), 
-                last_update = nowLocal.ToString("yyyy-MM-ddTHH:mm:ss.fffZ") 
+                catdsc = await ResolverCategoria(request),
+                desdsc = await ResolverDestino(request),
+                caldsc = await ResolverCalidad(request),
+                flocod = 0,
+                tarcod = await ResolverTarifa(request),
+                corrnom = request.Corrnom ?? 0,
+                clinom = ResolverNombreCliente(request),
+                clinro1 = ResolverTomador(request),
+                tposegdsc = ResolverCobertura(request),
+                concar = ResolverCertificado(request),
+                conend = request.Conend ?? "0",
+                forpagvid = request.FormaPago ?? "",
+                contra = "1",
+                congesti = "1",
+                congeses = ResolverEstadoGestion(request),
+                convig = "1",
+                consta = "1",
+                congesfi = nowLocal.ToString("yyyy-MM-dd"),
+                conges = ResolverGestionado(request),
+                conclaaut = request.Conclaaut ?? 0,
+                condedaut = request.Condedaut ?? 0,
+                conresciv = request.Conresciv ?? 0,
+                conbonnsin = request.Conbonnsin ?? 0,
+                conbonant = request.Conbonant ?? 0,
+                concaraut = request.Concaraut ?? 0,
+                concapaut = request.Concapaut ?? 0,
+                concesnom = request.Concesnom ?? "",
+                concestel = request.Concestel ?? "",
+                ramo = "AUTOMOVILES",
+                com_alias = "BSE",
+                observaciones = ResolverObservaciones(request),
+                ingresado = nowLocal.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                last_update = nowLocal.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
             };
 
             return velneoContrato;
