@@ -915,7 +915,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
 
                 var jsonPayload = System.Text.Json.JsonSerializer.Serialize(velneoContrato, GetJsonOptions());
 
-                _logger.LogInformation("📋 ========== PAYLOAD COMPLETO A VELNEO ==========");
+                _logger.LogInformation("📋 ========== PAYLOAD COMPLETO ENVIADO A VELNEO ==========");
                 _logger.LogInformation(jsonPayload);
                 _logger.LogInformation("📋 ========== FIN PAYLOAD ==========");
                 _logger.LogInformation("📊 Longitud del payload: {Length} caracteres", jsonPayload.Length);
@@ -1099,200 +1099,68 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             }
         }
 
-        private async Task<object?> VerificarPolizaCreada(string numeroPoliza)
-        {
-            try
-            {
-                _logger.LogInformation("🔍 Verificando existencia de póliza: {NumeroPoliza}", numeroPoliza);
-
-                using var httpClient = await _httpService.GetConfiguredHttpClientAsync();
-                var url = await _httpService.BuildVelneoUrlAsync($"v1/contratos?conpol={numeroPoliza}");
-
-                _logger.LogInformation("🌐 URL de verificación: {Url}", url);
-
-                var response = await httpClient.GetAsync(url);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var content = await response.Content.ReadAsStringAsync();
-                    _logger.LogInformation("📄 Respuesta de verificación (primeros 500 chars): {Content}",
-                        content?.Substring(0, Math.Min(500, content?.Length ?? 0)));
-
-                    if (!string.IsNullOrWhiteSpace(content))
-                    {
-                        var resultado = System.Text.Json.JsonSerializer.Deserialize<dynamic>(content, GetJsonOptions());
-                        var jsonDoc = System.Text.Json.JsonDocument.Parse(content);
-                        var root = jsonDoc.RootElement;
-
-                        if (root.TryGetProperty("contratos", out var contratos))
-                        {
-                            foreach (var contrato in contratos.EnumerateArray())
-                            {
-                                if (contrato.TryGetProperty("conpol", out var conpol))
-                                {
-                                    var polizaEncontrada = conpol.GetString();
-                                    _logger.LogInformation("📋 Póliza encontrada en verificación: {PolizaEncontrada} vs Buscada: {PolizaBuscada}",
-                                        polizaEncontrada, numeroPoliza);
-
-                                    if (polizaEncontrada == numeroPoliza)
-                                    {
-                                        _logger.LogInformation("✅ Póliza {NumeroPoliza} REALMENTE existe", numeroPoliza);
-                                        return resultado;
-                                    }
-                                }
-                            }
-                        }
-
-                        _logger.LogWarning("⚠️ La respuesta no contiene la póliza {NumeroPoliza}", numeroPoliza);
-                        return null;
-                    }
-                }
-
-                _logger.LogInformation("❌ Póliza {NumeroPoliza} NO existe en Velneo", numeroPoliza);
-                return null;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error verificando póliza {NumeroPoliza}", numeroPoliza);
-                return null;
-            }
-        }
-
         private async Task<object> MapearCreateRequestAVelneoCompleto(PolizaCreateRequest request)
         {
             var now = DateTime.UtcNow;
             var nowLocal = DateTime.Now;
 
-            // ✅ MAPEO COMPLETO SEGÚN SCHEMA DE SWAGGER
             var velneoContrato = new
             {
-                // ===== CAMPOS BÁSICOS OBLIGATORIOS =====
-                comcod = request.Comcod,
-                seccod = ResolverSeccion(request),
-                clinro = request.Clinro,
-                conpol = request.Conpol ?? "",
-                confchdes = FormatearFecha(request.Confchdes) ?? nowLocal.ToString("yyyy-MM-dd"),
-                confchhas = FormatearFecha(request.Confchhas) ?? nowLocal.AddYears(1).ToString("yyyy-MM-dd"),
-                conpremio = request.Conpremio,
-                asegurado = request.Asegurado ?? ResolverNombreCliente(request),
-                contra = "1",
-                congesti = "1",
-                congeses = ResolverEstadoGestion(request),
-                convig = "1",
-                consta = "1",
-
-                // ===== DATOS VEHÍCULO =====
-                conmaraut = ResolverMarca(request),
-                conanioaut = ResolverAnio(request),
-                conmataut = ResolverMatricula(request),
-                conmotor = ResolverMotor(request),
-                conchasis = ResolverChasis(request),
-                conpadaut = request.Conpadaut ?? "",
-                contot = ResolverTotal(request),
-                concuo = ResolverCuotas(request),
-                conimp = request.Conimp ?? request.Conpremio,
-
-                // ===== CÓDIGOS Y REFERENCIAS =====
-                ramo = request.Ramo ?? "AUTOMOVILES",
-                com_alias = "BSE", // O resolver desde request.Company
-                catdsc = await ResolverCategoria(request),
-                desdsc = await ResolverDestino(request),
-                caldsc = await ResolverCalidad(request),
-                flocod = 0,
-                tarcod = await ResolverTarifa(request),
-                corrnom = request.Corrnom ?? 0,
-
-                // ===== DATOS CLIENTE =====
-                condom = ResolverDireccion(request),
-                clinom = ResolverNombreCliente(request),
-                clinro1 = ResolverTomador(request),
-                tposegdsc = ResolverCobertura(request),
-                concar = ResolverCertificado(request),
-                conend = request.Conend ?? "0",
-
-                // ===== FORMA DE PAGO =====
-                forpagvid = request.FormaPago ?? "",
-                moncod = ResolverMonedaCobertura(request),
+                comcod = request.Comcod,                   
+                seccod = ResolverSeccion(request),         
+                clinro = request.Clinro,                    
+                conpol = request.Conpol ?? "",             
+                confchdes = FormatearFecha(request.Confchdes) ?? nowLocal.ToString("yyyy-MM-dd"), 
+                confchhas = FormatearFecha(request.Confchhas) ?? nowLocal.AddYears(1).ToString("yyyy-MM-dd"), 
+                conpremio = request.Conpremio,             
+                condom = request.Condom ?? "",              
+                conmaraut = ResolverMarca(request),         
+                conanioaut = ResolverAnio(request),        
+                conmataut = ResolverMatricula(request),     
+                conmotor = ResolverMotor(request),          
+                conchasis = ResolverChasis(request),       
+                conpadaut = request.Conpadaut ?? "",        
+                contot = ResolverTotal(request),          
+                concuo = ResolverCuotas(request),           
+                conimp = request.Conimp ?? request.Conpremio, 
+                moncod = request.Moncod ?? 1,               
                 conviamon = ResolverMonedaCondicionesPago(request),
-
-                // ===== CAMPOS ADICIONALES AUTOMÓVIL =====
-                conclaaut = request.Conclaaut ?? 0,
-                condedaut = request.Condedaut ?? 0,
-                conresciv = request.Conresciv ?? 0,
-                conbonnsin = request.Conbonnsin ?? 0,
-                conbonant = request.Conbonant ?? 0,
-                concaraut = request.Concaraut ?? 0,
-                concapaut = request.Concapaut ?? 0,
-                concesnom = request.Concesnom ?? "",
-                concestel = request.Concestel ?? "",
-
-                // ===== FECHAS Y GESTIÓN =====
-                congesfi = nowLocal.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-                conges = ResolverGestionado(request),
-                observaciones = ResolverObservaciones(request),
-                procesadoConIA = request.ProcesadoConIA,
-                fechaCreacion = nowLocal.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-                fechaModificacion = nowLocal.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
-
-                // ===== CAMPOS EXTENDIDOS VEHÍCULO =====
-                vehiculo = ResolverVehiculo(request),
-                marca = request.Marca ?? "",
-                modelo = request.Modelo ?? "",
-                motor = ResolverMotor(request),
-                chasis = ResolverChasis(request),
-                matricula = ResolverMatricula(request),
-                combustible = await ResolverCombustible(request),
-                anio = ResolverAnio(request),
-                primaComercial = request.PrimaComercial ?? request.Conpremio,
-                premioTotal = ResolverTotal(request),
-
-                // ===== DATOS ADICIONALES =====
-                corredor = request.Corredor ?? "",
-                plan = request.Plan ?? "",
-                documento = request.Documento ?? "",
-                email = request.Email ?? "",
-                telefono = request.Telefono ?? "",
-                direccion = ResolverDireccion(request),
-                localidad = request.Localidad ?? "",
-                departamento = request.Departamento ?? "MONTEVIDEO",
-                moneda = request.Moneda ?? "UYU",
-                seccionId = ResolverSeccion(request),
-                estado = request.Estado ?? "VIG",
-                tramite = request.Tramite ?? "Nuevo",
-                estadoPoliza = request.EstadoPoliza ?? "VIG",
-
-                // ===== IDs DE MAESTROS =====
-                calidadId = request.CalidadId ?? await ResolverCalidad(request),
-                destinoId = request.DestinoId ?? await ResolverDestino(request),
-                categoriaId = request.CategoriaId ?? await ResolverCategoria(request),
-
-                // ===== CAMPOS FINALES =====
-                tipoVehiculo = request.TipoVehiculo ?? "",
-                uso = request.Uso ?? "PARTICULAR",
-                formaPago = request.FormaPago ?? "Tarjeta de Crédito",
-                cantidadCuotas = ResolverCuotas(request),
-                valorCuota = request.ValorCuota ?? (ResolverTotal(request) / ResolverCuotas(request)),
-                tipo = request.Tipo ?? "EMISIÓN",
-                cobertura = ResolverCobertura(request),
-                certificado = ResolverCertificado(request),
-                calidad = request.Calidad ?? "",
-                categoria = request.Categoria ?? "",
-                destino = request.Destino ?? ""
+                catdsc = await ResolverCategoria(request),  // ✅ int
+                desdsc = await ResolverDestino(request),    // ✅ int
+                caldsc = await ResolverCalidad(request),    // ✅ int
+                flocod = 0,                                 // ✅ int
+                tarcod = await ResolverTarifa(request),     // ✅ int
+                corrnom = request.Corrnom ?? 0,             // ✅ int
+                clinom = ResolverNombreCliente(request),    // ✅ string
+                clinro1 = ResolverTomador(request),         // ✅ int
+                tposegdsc = ResolverCobertura(request),     // ✅ string
+                concar = ResolverCertificado(request),      // ✅ string
+                conend = request.Conend ?? "0",             // ✅ string
+                forpagvid = request.FormaPago ?? "",        // ✅ string
+                contra = "1",                               // ✅ string
+                congesti = "1",                             // ✅ string
+                congeses = ResolverEstadoGestion(request),  // ✅ string
+                convig = "1",                               // ✅ string
+                consta = "1",                               // ✅ string
+                congesfi = nowLocal.ToString("yyyy-MM-dd"), // ✅ string (NO datetime)
+                conges = ResolverGestionado(request),       // ✅ string
+                conclaaut = request.Conclaaut ?? 0,        // ✅ int
+                condedaut = request.Condedaut ?? 0,        // ✅ int
+                conresciv = request.Conresciv ?? 0,        // ✅ int
+                conbonnsin = request.Conbonnsin ?? 0,      // ✅ int
+                conbonant = request.Conbonant ?? 0,      
+                concaraut = request.Concaraut ?? 0,      
+                concapaut = request.Concapaut ?? 0,     
+                concesnom = request.Concesnom ?? "",     
+                concestel = request.Concestel ?? "",     
+                ramo = "AUTOMOVILES",                       
+                com_alias = "BSE",                          
+                observaciones = ResolverObservaciones(request), 
+                ingresado = nowLocal.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"), 
+                last_update = nowLocal.ToString("yyyy-MM-ddTHH:mm:ss.fffZ") 
             };
 
             return velneoContrato;
-        }
-
-        // ✅ MÉTODO AUXILIAR NUEVO
-        private string ResolverVehiculo(PolizaCreateRequest request)
-        {
-            var marca = request.Marca ?? "";
-            var modelo = request.Modelo ?? "";
-
-            if (!string.IsNullOrEmpty(marca) && !string.IsNullOrEmpty(modelo))
-                return $"{marca} {modelo}";
-
-            return request.Conmaraut ?? request.Marca ?? "";
         }
 
         private async Task<int> ResolverCategoria(PolizaCreateRequest request)
@@ -1899,13 +1767,20 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
         {
             if (fecha == null) return null;
 
-            if (fecha is DateTime dt)
-                return dt.ToString("yyyy-MM-dd");
+            try
+            {
+                if (fecha is DateTime dt)
+                    return dt.ToString("yyyy-MM-dd");
 
-            if (fecha is string str && DateTime.TryParse(str, out var parsedDate))
-                return parsedDate.ToString("yyyy-MM-dd");
+                if (fecha is string str && DateTime.TryParse(str, out var parsedDate))
+                    return parsedDate.ToString("yyyy-MM-dd");
 
-            return null;
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private async Task<string> ExtraerMensajeError(HttpStatusCode statusCode, string responseContent)

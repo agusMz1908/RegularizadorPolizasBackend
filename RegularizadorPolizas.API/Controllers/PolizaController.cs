@@ -927,68 +927,6 @@ namespace RegularizadorPolizas.API.Controllers
                 }
             };
         }
-
-        private object GenerarResumenValidacion(PolizaCreateRequest request)
-        {
-            var camposRequeridos = new Dictionary<string, bool>
-            {
-                ["comcod"] = request.Comcod > 0,
-                ["clinro"] = request.Clinro > 0,
-                ["conpol"] = !string.IsNullOrWhiteSpace(request.Conpol),
-                ["confchdes"] = !string.IsNullOrWhiteSpace(request.Confchdes),
-                ["confchhas"] = !string.IsNullOrWhiteSpace(request.Confchhas),
-                ["conpremio"] = request.Conpremio > 0,
-                ["asegurado"] = !string.IsNullOrWhiteSpace(request.Asegurado)
-            };
-
-            var camposOpcionales = new Dictionary<string, bool>
-            {
-                ["seccod"] = request.Seccod > 0 || request.SeccionId > 0,
-                ["vehiculo"] = !string.IsNullOrWhiteSpace(request.Conmaraut) || !string.IsNullOrWhiteSpace(request.Marca),
-                ["matricula"] = !string.IsNullOrWhiteSpace(request.Conmataut) || !string.IsNullOrWhiteSpace(request.Matricula),
-                ["anio"] = request.Conanioaut > 0 || request.Anio > 0,
-                ["direccion"] = !string.IsNullOrWhiteSpace(request.Condom) || !string.IsNullOrWhiteSpace(request.Direccion)
-            };
-
-            return new
-            {
-                requeridos = camposRequeridos,
-                opcionales = camposOpcionales,
-                completitud = new
-                {
-                    requeridosCompletos = camposRequeridos.Values.Count(v => v),
-                    totalRequeridos = camposRequeridos.Count,
-                    opcionalesCompletos = camposOpcionales.Values.Count(v => v),
-                    totalOpcionales = camposOpcionales.Count
-                }
-            };
-        }
-
-        private List<string> GenerarAdvertencias(PolizaCreateRequest request)
-        {
-            var advertencias = new List<string>();
-
-            if (request.Seccod <= 0 && (!request.SeccionId.HasValue || request.SeccionId <= 0))
-                advertencias.Add("Sección no especificada");
-
-            if (string.IsNullOrWhiteSpace(request.Conmaraut) && string.IsNullOrWhiteSpace(request.Marca))
-                advertencias.Add("Marca del vehículo no especificada");
-
-            if (!request.Conanioaut.HasValue && !request.Anio.HasValue)
-                advertencias.Add("Año del vehículo no especificado");
-
-            if (string.IsNullOrWhiteSpace(request.Conmataut) && string.IsNullOrWhiteSpace(request.Matricula))
-                advertencias.Add("Matrícula del vehículo no especificada");
-
-            if (request.Contot.HasValue && request.Contot < request.Conpremio)
-                advertencias.Add("El total es menor que el premio base");
-
-            if (request.Concuo.HasValue && request.Concuo > 1 && request.Consta == "1")
-                advertencias.Add("Forma de pago es contado pero se especificaron cuotas");
-
-            return advertencias;
-        }
-
         #endregion
     }
 }
