@@ -48,6 +48,7 @@ namespace RegularizadorPolizas.Application.Interfaces.External.Velneo
         //    int pageSize = 25,
         //    string? search = null);
         Task<object> CreatePolizaFromRequestAsync(PolizaCreateRequest request);
+        Task<object> CreatePolizaFromRequestAsync_BYPASS(PolizaCreateRequest request);
         Task<PolicyMappingResultDto> ValidarMapeoCompletoAsync(AzureDatosPolizaVelneoDto azureData);
         Task<int> ObtenerCategoriaIdPorNombre(string nombre);
         Task<int> ObtenerDestinoIdPorNombre(string nombre);

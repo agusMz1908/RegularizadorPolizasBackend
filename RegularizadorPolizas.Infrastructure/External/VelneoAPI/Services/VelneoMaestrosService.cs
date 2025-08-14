@@ -911,7 +911,37 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
 
                 using var httpClient = await _httpService.GetConfiguredHttpClientAsync();
 
+                // 🔍 NUEVO: LOG DEL REQUEST ORIGINAL DEL FRONTEND
+                _logger.LogInformation("📤 ===== REQUEST ORIGINAL DEL FRONTEND =====");
+                var originalJson = System.Text.Json.JsonSerializer.Serialize(request, GetJsonOptions());
+                _logger.LogInformation(originalJson);
+                _logger.LogInformation("📤 ===== FIN REQUEST ORIGINAL =====");
+
                 var velneoContrato = await MapearCreateRequestAVelneoCompleto(request);
+
+                // 🔍 NUEVO: LOG DEL REQUEST DESPUÉS DEL MAPEO
+                _logger.LogInformation("🔄 ===== REQUEST DESPUÉS DEL MAPEO =====");
+                var mappedJson = System.Text.Json.JsonSerializer.Serialize(velneoContrato, GetJsonOptions());
+                _logger.LogInformation(mappedJson);
+                _logger.LogInformation("🔄 ===== FIN REQUEST MAPEADO =====");
+
+                // 🔍 NUEVO: COMPARAR DIFERENCIAS
+                _logger.LogInformation("🆚 ===== ANÁLISIS DE DIFERENCIAS =====");
+                _logger.LogInformation("   📏 Tamaño original: {OriginalSize} caracteres", originalJson.Length);
+                _logger.LogInformation("   📏 Tamaño mapeado: {MappedSize} caracteres", mappedJson.Length);
+
+                // Verificar si el mapeo agregó campos problemáticos
+                if (mappedJson.Contains("\"forpagvid\""))
+                {
+                    _logger.LogError("❌ PROBLEMA: El mapeo agregó 'forpagvid' (solo para seguros de vida)");
+                }
+
+                if (mappedJson.Contains("\"id\":"))
+                {
+                    _logger.LogError("❌ PROBLEMA: El mapeo agregó campo 'id' (Velneo lo rechaza en POST)");
+                }
+
+                _logger.LogInformation("🆚 ===== FIN ANÁLISIS =====");
 
                 var jsonPayload = System.Text.Json.JsonSerializer.Serialize(velneoContrato, GetJsonOptions());
 
@@ -948,6 +978,13 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                         _logger.LogInformation("   ✅ conpremio: {Value} (tipo: {Type})", conpremio.GetRawText(), conpremio.ValueKind);
                     else
                         _logger.LogWarning("   ❌ conpremio NO ENCONTRADO");
+
+                    // 🔍 NUEVO: VERIFICAR CAMPOS PROBLEMÁTICOS
+                    if (root.TryGetProperty("forpagvid", out var forpagvid))
+                    {
+                        _logger.LogError("❌ PROBLEMA CRÍTICO: El payload contiene 'forpagvid' (solo para seguros de vida)");
+                        _logger.LogError("   💡 SOLUCIÓN: Eliminar 'forpagvid' del método MapearCreateRequestAVelneoCompleto");
+                    }
 
                     // ✅ VALIDACIÓN CRÍTICA: Verificar que NO tenga campo "id"
                     if (root.TryGetProperty("id", out var idProp))
@@ -1009,6 +1046,7 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                         _logger.LogError("   📋 Esto indica que Velneo rechazó el payload silenciosamente");
                         _logger.LogError("   💡 Posibles causas:");
                         _logger.LogError("      - Campo 'id' presente en el payload (debe eliminarse)");
+                        _logger.LogError("      - Campo 'forpagvid' presente (solo para seguros de vida)");
                         _logger.LogError("      - Campo obligatorio faltante");
                         _logger.LogError("      - Tipo de dato incorrecto");
                         _logger.LogError("      - Foreign key inválida (comcod, clinro, seccod)");
@@ -1169,7 +1207,6 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
                 tposegdsc = ResolverCobertura(request),
                 concar = ResolverCertificado(request),
                 conend = request.Conend ?? "0",
-                forpagvid = request.FormaPago ?? "",
                 contra = "1",
                 congesti = "1",
                 congeses = ResolverEstadoGestion(request),
@@ -1194,6 +1231,156 @@ namespace RegularizadorPolizas.Infrastructure.External.VelneoAPI.Services
             };
 
             return velneoContrato;
+        }
+
+        // 🚨 MÉTODO DE BYPASS - Agregar en VelneoMaestrosService.cs
+
+        public async Task<object> CreatePolizaFromRequestAsync_BYPASS(PolizaCreateRequest request)
+        {
+            var stopwatch = Stopwatch.StartNew();
+
+            try
+            {
+                _logger.LogInformation("🚨 ===== USANDO BYPASS - ENVIANDO REQUEST DIRECTO SIN MAPEO =====");
+
+                var tenantId = _tenantService.GetCurrentTenantId();
+                var tenantConfig = await _tenantService.GetCurrentTenantConfigurationAsync();
+                if (tenantConfig.Mode?.ToUpper() != "VELNEO")
+                {
+                    _logger.LogWarning("⚠️ TENANT EN MODO {Mode} - SIMULANDO OPERACIÓN", tenantConfig.Mode);
+                    return new
+                    {
+                        success = true,
+                        message = $"Operación simulada en modo {tenantConfig.Mode}",
+                        numeroPoliza = request.Conpol,
+                        simulated = true,
+                        mode = tenantConfig.Mode
+                    };
+                }
+
+                using var httpClient = await _httpService.GetConfiguredHttpClientAsync();
+
+                // 📤 SERIALIZAR REQUEST ORIGINAL DEL FRONTEND
+                var jsonPayload = System.Text.Json.JsonSerializer.Serialize(request, GetJsonOptions());
+
+                _logger.LogInformation("📤 REQUEST DIRECTO DEL FRONTEND (SIN MAPEO):");
+                _logger.LogInformation(jsonPayload);
+                _logger.LogInformation("📊 Tamaño del payload: {Length} caracteres", jsonPayload.Length);
+
+                // 🔍 VALIDAR ESTRUCTURA
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(jsonPayload);
+                    var root = doc.RootElement;
+
+                    _logger.LogInformation("🔍 VALIDACIÓN BYPASS:");
+                    _logger.LogInformation("   - Propiedades totales: {Count}", root.EnumerateObject().Count());
+
+                    if (root.TryGetProperty("comcod", out var comcod))
+                        _logger.LogInformation("   ✅ comcod: {Value}", comcod.GetRawText());
+
+                    if (root.TryGetProperty("clinro", out var clinro))
+                        _logger.LogInformation("   ✅ clinro: {Value}", clinro.GetRawText());
+
+                    if (root.TryGetProperty("conpol", out var conpol))
+                        _logger.LogInformation("   ✅ conpol: {Value}", conpol.GetRawText());
+
+                    if (root.TryGetProperty("forpagvid", out var forpagvid))
+                    {
+                        _logger.LogError("❌ PROBLEMA: Frontend envía 'forpagvid' (solo para vida)");
+                    }
+                    else
+                    {
+                        _logger.LogInformation("✅ Correcto: NO contiene 'forpagvid'");
+                    }
+
+                    if (root.TryGetProperty("id", out var id))
+                    {
+                        _logger.LogError("❌ PROBLEMA: Frontend envía 'id' (Velneo lo rechaza)");
+                    }
+                    else
+                    {
+                        _logger.LogInformation("✅ Correcto: NO contiene 'id'");
+                    }
+                }
+                catch (Exception validationEx)
+                {
+                    _logger.LogError(validationEx, "❌ Error validando request bypass");
+                }
+
+                // 🌐 ENVIAR A VELNEO DIRECTAMENTE
+                var content = new StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
+                var url = await _httpService.BuildVelneoUrlAsync("v1/contratos");
+
+                _logger.LogInformation("🌐 URL: {Url}", url);
+                _logger.LogInformation("📡 Enviando POST BYPASS...");
+
+                var response = await httpClient.PostAsync(url, content);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                stopwatch.Stop();
+
+                _logger.LogInformation("📥 RESPUESTA BYPASS:");
+                _logger.LogInformation("   🔢 StatusCode: {StatusCode} ({StatusCodeText})",
+                    (int)response.StatusCode, response.StatusCode);
+                _logger.LogInformation("   ✅ IsSuccessStatusCode: {IsSuccess}", response.IsSuccessStatusCode);
+                _logger.LogInformation("   📏 Content Length: {Length}", responseContent?.Length ?? 0);
+                _logger.LogInformation("   ⏱️ Duration: {Duration}ms", stopwatch.ElapsedMilliseconds);
+
+                if (string.IsNullOrWhiteSpace(responseContent))
+                {
+                    _logger.LogWarning("   ⚠️ RESPUESTA VACÍA EN BYPASS");
+                }
+                else
+                {
+                    _logger.LogInformation("   📄 Response Content: {Content}", responseContent);
+                }
+
+                if (response.IsSuccessStatusCode)
+                {
+                    if (!string.IsNullOrWhiteSpace(responseContent))
+                    {
+                        _logger.LogInformation("✅ BYPASS EXITOSO - Velneo aceptó el request directo del frontend");
+
+                        try
+                        {
+                            var result = System.Text.Json.JsonSerializer.Deserialize<object>(responseContent, GetJsonOptions());
+                            return result;
+                        }
+                        catch (JsonException jsonEx)
+                        {
+                            _logger.LogWarning(jsonEx, "⚠️ Error deserializando respuesta, pero bypass exitoso");
+                            return new
+                            {
+                                success = true,
+                                message = "Póliza creada exitosamente (bypass)",
+                                numeroPoliza = request.Conpol,
+                                rawResponse = responseContent,
+                                bypassSuccess = true
+                            };
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogError("❌ BYPASS FALLÓ - Velneo rechazó también el request directo del frontend");
+                        throw new Exception($"Bypass falló: Velneo rechazó el request directo para póliza {request.Conpol}. " +
+                                          "Esto indica que el problema está en el request del frontend, no en el mapeo.");
+                    }
+                }
+                else
+                {
+                    _logger.LogError("❌ ERROR HTTP EN BYPASS: {StatusCode} - {Response}",
+                        response.StatusCode, responseContent);
+                    throw new HttpRequestException($"Bypass falló con HTTP {response.StatusCode}: {responseContent}");
+                }
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                _logger.LogError(ex, "💥 EXCEPCIÓN EN BYPASS creando póliza {NumeroPoliza} - Duration: {Duration}ms",
+                    request?.Conpol, stopwatch.ElapsedMilliseconds);
+                throw;
+            }
         }
 
         private async Task<int> ResolverCategoria(PolizaCreateRequest request)

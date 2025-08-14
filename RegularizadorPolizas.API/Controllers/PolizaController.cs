@@ -185,9 +185,6 @@ namespace RegularizadorPolizas.API.Controllers
             }
         }
 
-        /// <summary>
-        /// ✅ CORREGIDO: Crear nueva póliza usando VelneoMaestrosService
-        /// </summary>
         [HttpPost]
         [ProducesResponseType(typeof(object), 201)]
         [ProducesResponseType(typeof(object), 400)]
@@ -196,7 +193,6 @@ namespace RegularizadorPolizas.API.Controllers
         {
             try
             {
-                // ✅ VALIDACIÓN INICIAL
                 if (request == null)
                 {
                     _logger.LogWarning("🚫 Request nulo recibido para crear póliza");
@@ -210,7 +206,6 @@ namespace RegularizadorPolizas.API.Controllers
                 _logger.LogInformation("🚀 INICIANDO CREACIÓN DE PÓLIZA: {NumeroPoliza} para cliente {ClienteId}",
                     request.Conpol, request.Clinro);
 
-                // ✅ VALIDAR MODELO CON DATA ANNOTATIONS
                 if (!ModelState.IsValid)
                 {
                     var errores = ModelState
@@ -230,14 +225,10 @@ namespace RegularizadorPolizas.API.Controllers
                     });
                 }
 
-                // ✅ LOG DE DATOS RECIBIDOS PARA DEBUG
                 LogDatosRecibidos(request);
-
-                // ✅ PROCESAR CAMPOS ANTES DEL ENVÍO
                 await ProcesarCamposAdicionales(request);
 
-                // ✅ CORREGIDO: ENVIAR A VELNEO CON VelneoMaestrosService
-                var resultado = await _velneoMaestrosService.CreatePolizaFromRequestAsync(request);
+                var resultado = await _velneoMaestrosService.CreatePolizaFromRequestAsync_BYPASS(request);
 
                 if (resultado != null)
                 {
